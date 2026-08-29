@@ -125,12 +125,12 @@ GITHUB_APP_PRIVATE_KEY_BASE64=
 ```
 
 **Todo**
-- [ ] npm workspaces root, `apps/api` Nest app
-- [ ] `docker-compose.yml` with healthchecks + named volume + test DB
-- [ ] zod-validated config module, fails fast
-- [ ] `.env.example` committed, `.env` ignored
-- [ ] `GET /healthz` pinging Prisma (`SELECT 1`) and Redis (`PING`)
-- [ ] `enableShutdownHooks()` — Prisma and Redis disconnect cleanly on SIGTERM
+- [x] npm workspaces root, `apps/api` Nest app
+- [x] `docker-compose.yml` with healthchecks + named volume + test DB
+- [x] zod-validated config module, fails fast
+- [x] `.env.example` committed, `.env` ignored
+- [x] `GET /healthz` pinging Prisma (`SELECT 1`) and Redis (`PING`)
+- [x] `enableShutdownHooks()` — Prisma and Redis disconnect cleanly on SIGTERM
 
 **Polish bar:** boot with a deliberately missing env var and confirm a clear error naming
 the variable. Kill the DB container and confirm `/healthz` goes unhealthy rather than 500ing.

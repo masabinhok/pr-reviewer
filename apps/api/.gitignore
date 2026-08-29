@@ -4,3 +4,10 @@
 
 # test coverage
 /coverage
+
+/src/generated/prisma
+
+skills-lock.json
+.claude/
+.agents/
+.windsurf/

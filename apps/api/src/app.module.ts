@@ -3,6 +3,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
 import {z} from 'zod';
+import { HealthModule } from './health/health.module.js';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -20,7 +21,7 @@ import {z} from 'zod';
     }),
     envFilePath: '../../.env',
     isGlobal: true
-  })],
+  }), HealthModule],
   controllers: [AppController],
   providers: [AppService],
 })

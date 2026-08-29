@@ -1,3 +1,16 @@
+# dependencies
 node_modules
-.env
+
+# environment
+.env*
+!.env.example
+
+# secrets
 *.pem
+*.key
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.log

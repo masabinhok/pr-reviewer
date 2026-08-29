@@ -1,9 +1,26 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { ConfigModule } from '@nestjs/config';
+import {z} from 'zod';
 
 @Module({
-  imports: [],
+  imports: [ConfigModule.forRoot({
+    validationSchema: z.object({
+      POSTGRES_USER: z.string(),
+      POSTGRES_PASSWORD: z.string(),
+      POSTGRES_DB: z.string(),
+      PORT: z.coerce.number().default(3333),
+      DATABASE_URL: z.url(),
+      REDIS_URL: z.url(),
+      GITHUB_APP_ID: z.string(),
+      GITHUB_APP_CLIENT_ID: z.string(),
+      GITHUB_WEBHOOK_SECRET: z.string(),
+      GITHUB_APP_PRIVATE_KEY_BASE64: z.string(),
+    }),
+    envFilePath: '../../.env',
+    isGlobal: true
+  })],
   controllers: [AppController],
   providers: [AppService],
 })

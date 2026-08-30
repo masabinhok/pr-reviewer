@@ -253,11 +253,11 @@ npx prisma migrate dev --name init
 Wrap Prisma in a proper `PrismaService extends PrismaClient implements OnModuleInit`.
 
 **Todo**
-- [ ] Six models, enums, soft deletes, BigInt GitHub IDs
-- [ ] `@@unique([repoId, prNumber, headSha])` on Review
-- [ ] `WebhookDelivery.deliveryId` unique
-- [ ] Migration applied, `PrismaService` + `PrismaModule` wired
-- [ ] `npx prisma studio` opens and shows the tables
+- [x] Six models, enums, soft deletes, BigInt GitHub IDs
+- [x] `@@unique([repoId, prNumber, headSha])` on Review
+- [x] `WebhookDelivery.deliveryId` unique
+- [x] Migration applied, `PrismaService` + `PrismaModule` wired
+- [x] `npx prisma studio` opens and shows the tables
 
 **Polish bar:** the migration runs cleanly from an empty database
 (`docker compose down -v && docker compose up -d && npx prisma migrate deploy`).

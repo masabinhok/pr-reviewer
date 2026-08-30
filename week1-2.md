@@ -207,9 +207,9 @@ Add a root script so you don't retype it:
 `"tunnel": "smee-client -u $SMEE_URL -t http://localhost:3333/webhooks/github"`.
 
 **Todo**
-- [ ] smee channel created, set as the App's Webhook URL
-- [ ] `npm run tunnel` script
-- [ ] Ping delivery reaches your local server (check App → Advanced → Recent Deliveries)
+- [x] smee channel created, set as the App's Webhook URL
+- [x] `npm run tunnel` script
+- [x] Ping delivery reaches your local server (check App → Advanced → Recent Deliveries)
 
 ---
 

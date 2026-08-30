@@ -11,3 +11,121 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ReviewStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+enum FindingSide {
+  LEFT
+  RIGHT
+}
+enum FindingStatus {
+  OPEN
+  RESOLVED
+}
+enum FeedbackSignal {
+  UP
+  DOWN
+}
+
+
+
+model Installation {
+  id           String    @id @default(cuid())
+  githubId     BigInt    @unique
+  accountLogin String
+  accountType  String
+  suspendedAt  DateTime?
+  deletedAt    DateTime?
+
+  repos             Repo[]
+  webhookDeliveries WebhookDelivery[]
+}
+
+model Repo {
+  id             String       @id @default(cuid())
+  githubId       BigInt       @unique
+  fullName       String       @unique
+  installation   Installation @relation(fields: [installationId], references: [id])
+  installationId String
+  defaultBranch  String
+  private        Boolean
+  deletedAt      DateTime?
+
+  reviews Review[]
+
+  @@index([installationId])
+}
+
+
+model Review {
+  id                String       @id @default(cuid())
+  repo              Repo         @relation(fields: [repoId], references: [id])
+  repoId            String
+  prNumber          Int
+  headSha           String
+  status            ReviewStatus
+  startedAt         DateTime     @default(now())
+  completedAt       DateTime?
+  error             String?
+  promptTokens      Int?
+  completionTokens  Int?
+  costCents         Int?
+  checkRunId        BigInt?
+
+  findings Finding[]
+
+  @@unique([repoId, prNumber, headSha])
+  @@index([status])
+}
+
+model Finding {
+  id              String        @id @default(cuid())
+  review          Review        @relation(fields: [reviewId], references: [id])
+  reviewId        String
+  filePath        String
+  line            Int
+  side            FindingSide
+  status          FindingStatus @default(OPEN)
+  severity        Severity
+  category        String
+  summary         String
+  whyItBreaks     String
+  suggestedFix    String?
+  fingerprint     String
+  githubCommentId BigInt?
+
+  feedbacks Feedback[]
+
+  @@index([fingerprint])
+}
+
+model Feedback {
+  id           String         @id @default(cuid())
+  finding      Finding        @relation(fields: [findingId], references: [id])
+  findingId    String
+  signal       FeedbackSignal
+  githubUserId BigInt
+
+  @@unique([findingId, githubUserId])
+}
+
+model WebhookDelivery {
+  id             String        @id @default(cuid())
+  deliveryId     String        @unique
+  event          String
+  action         String
+  installation   Installation? @relation(fields: [installationId], references: [id])
+  installationId String?
+  receivedAt     DateTime      @default(now())
+  processedAt    DateTime?
+  status         String        @default("RECEIVED")
+}

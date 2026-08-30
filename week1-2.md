@@ -179,10 +179,10 @@ gh repo create pr-reviewer-testbed --private --add-readme
 Install the App on that repo only.
 
 **Todo**
-- [ ] App registered with exactly the three permissions above
-- [ ] Webhook secret in `.env`, private key base64'd, `.pem` deleted
-- [ ] App installed on `pr-reviewer-testbed`
-- [ ] `.gitignore` covers `*.pem` and `.env`
+- [x] App registered with exactly the three permissions above
+- [x] Webhook secret in `.env`, private key base64'd, `.pem` deleted
+- [x] App installed on `pr-reviewer-testbed`
+- [x] `.gitignore` covers `*.pem` and `.env`
 
 **Polish bar:** run `git status` and `git log -p | grep -i "BEGIN RSA"` — confirm no key
 material has ever been staged or committed.

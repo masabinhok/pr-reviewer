@@ -4,9 +4,11 @@ import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
 import {z} from 'zod';
 import { HealthModule } from './health/health.module.js';
+import configuration from './config/configuration.js';
 
 @Module({
   imports: [ConfigModule.forRoot({
+    load: [configuration],
     validationSchema: z.object({
       POSTGRES_USER: z.string(),
       POSTGRES_PASSWORD: z.string(),

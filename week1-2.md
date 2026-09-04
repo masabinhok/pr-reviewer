@@ -319,12 +319,12 @@ Never use `===` on the signature. Never log the secret or the raw signature.
 - Log `X-GitHub-Delivery` as a correlation ID on every line for that request.
 
 **Todo**
-- [ ] `rawBody: true` in `main.ts`
-- [ ] `GithubSignatureGuard` with timing-safe compare + length guard
-- [ ] `POST /webhooks/github` returning 2xx quickly
-- [ ] Unhandled events → 2xx + log, never 500
-- [ ] Delivery ID threaded through logs
-- [ ] **Unit tests** (`signature.guard.spec.ts`): valid sig ✅, wrong sig ❌, tampered body ❌,
+- [x] `rawBody: true` in `main.ts`
+- [x] `GithubSignatureGuard` with timing-safe compare + length guard
+- [x] `POST /webhooks/github` returning 2xx quickly
+- [x] Unhandled events → 2xx + log, never 500
+- [x] Delivery ID threaded through logs
+- [x] **Unit tests** (`signature.guard.spec.ts`): valid sig ✅, wrong sig ❌, tampered body ❌,
       missing header ❌, malformed header (no `sha256=`) ❌, wrong-length sig ❌ (must be 401, not 500)
 
 **Polish bar:** using `curl` against your local endpoint with a hand-computed signature,

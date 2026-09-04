@@ -1,0 +1,613 @@
+<title>Arrange, Act, Assert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --paper:    #f6f5f0;
+    --surface:  #fffefa;
+    --ink:      #1b2129;
+    --muted:    #5c6470;
+    --rule:     #e0ddd3;
+    --rule-soft:#ebe8df;
+    --accent:   #a86a22;
+    --accent-soft: #f0e4d2;
+    --pass:     #2e7d5b;
+    --fail:     #b0402f;
+    --todo:     #8b8f96;
+    --code-bg:  #f0eee6;
+    --panel-bg: #191f26;
+    --panel-ink:#dcdad2;
+
+    --measure: 66ch;
+    --wide: 78ch;
+
+    --f-display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+    --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:    #14181d;
+      --surface:  #1a2027;
+      --ink:      #e7e5dd;
+      --muted:    #9aa1ab;
+      --rule:     #2d343d;
+      --rule-soft:#242b33;
+      --accent:   #dd9f52;
+      --accent-soft: #3a2d1a;
+      --pass:     #55b287;
+      --fail:     #e0715c;
+      --todo:     #7d858f;
+      --code-bg:  #1e242b;
+      --panel-bg: #10151a;
+      --panel-ink:#d3d1c9;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:    #14181d;
+    --surface:  #1a2027;
+    --ink:      #e7e5dd;
+    --muted:    #9aa1ab;
+    --rule:     #2d343d;
+    --rule-soft:#242b33;
+    --accent:   #dd9f52;
+    --accent-soft: #3a2d1a;
+    --pass:     #55b287;
+    --fail:     #e0715c;
+    --todo:     #7d858f;
+    --code-bg:  #1e242b;
+    --panel-bg: #10151a;
+    --panel-ink:#d3d1c9;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 4rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .col { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+
+  header { display: flex; flex-direction: column; gap: 1rem; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(2.4rem, 6.5vw, 3.6rem);
+    line-height: 1.02;
+    letter-spacing: -.022em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 1.12rem;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  .masthead-rule {
+    height: 3px;
+    background: var(--accent);
+    width: 4rem;
+    border-radius: 2px;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.62rem;
+    line-height: 1.16;
+    letter-spacing: -.014em;
+    margin: 0;
+    text-wrap: balance;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 1.06rem;
+    letter-spacing: -.006em;
+    margin: 0;
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, .step:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .84em;
+    background: var(--code-bg);
+    padding: .12em .34em;
+    border-radius: 3px;
+  }
+
+  pre {
+    font-family: var(--f-mono);
+    font-size: .82rem;
+    line-height: 1.62;
+    background: var(--code-bg);
+    color: var(--ink);
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    padding: 1rem 1.15rem;
+    margin: 0;
+    overflow-x: auto;
+    max-width: var(--wide);
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+
+  .cmt { color: var(--muted); font-style: italic; }
+  .ok  { color: var(--pass); font-weight: 500; }
+  .no  { color: var(--fail); font-weight: 500; }
+
+  /* ---------- repo annotation ---------- */
+
+  .inrepo {
+    display: flex;
+    gap: .8rem;
+    align-items: baseline;
+    font-family: var(--f-mono);
+    font-size: .76rem;
+    line-height: 1.55;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: .7rem .9rem;
+    max-width: var(--measure);
+  }
+  .inrepo b {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-size: .68rem;
+    white-space: nowrap;
+  }
+
+  /* ---------- AAA sequence ---------- */
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: var(--wide);
+  }
+  .step {
+    background: var(--surface);
+    padding: 1.1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .step-n {
+    font-family: var(--f-mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    color: var(--accent);
+  }
+  .step h3 { font-size: 1rem; }
+  .step p { font-size: .92rem; color: var(--muted); }
+
+  /* ---------- vocabulary ---------- */
+
+  dl.vocab {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.05rem;
+    max-width: var(--measure);
+  }
+  dl.vocab > div {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: .3rem 1.1rem;
+    align-items: baseline;
+  }
+  dl.vocab dt {
+    font-family: var(--f-mono);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  dl.vocab dd { margin: 0; font-size: .97rem; }
+  dl.vocab dd .use { display: block; color: var(--muted); font-size: .88rem; margin-top: .18rem; }
+
+  @media (max-width: 33rem) {
+    dl.vocab > div { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- decision table ---------- */
+
+  .tablewrap { overflow-x: auto; max-width: var(--wide); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 30rem;
+    font-size: .93rem;
+  }
+  th, td {
+    text-align: left;
+    padding: .68rem .85rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.pick { font-family: var(--f-mono); font-size: .8rem; color: var(--accent); white-space: nowrap; }
+
+  /* ---------- do / don't ---------- */
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.25rem;
+    max-width: var(--wide);
+  }
+  .panel {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.1rem 1.2rem;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+  }
+  .panel-head {
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .panel.good .panel-head { color: var(--pass); }
+  .panel.bad  .panel-head { color: var(--fail); }
+  .panel ul { margin: 0; padding-left: 1.05rem; display: flex; flex-direction: column; gap: .5rem; }
+  .panel li { font-size: .95rem; }
+
+  /* ---------- runner output ---------- */
+
+  .runner {
+    background: var(--panel-bg);
+    color: var(--panel-ink);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    font-family: var(--f-mono);
+    font-size: .8rem;
+    line-height: 1.75;
+    overflow-x: auto;
+    max-width: var(--wide);
+    border: 1px solid var(--rule);
+  }
+  .runner .g { color: #55b287; }
+  .runner .r { color: #e0715c; }
+  .runner .d { color: #757d87; }
+  .runner .y { color: #dd9f52; }
+
+  /* ---------- checklist ---------- */
+
+  ol.check {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    max-width: var(--measure);
+    counter-reset: c;
+  }
+  ol.check li {
+    display: grid;
+    grid-template-columns: 1.5rem 1fr;
+    gap: .75rem;
+    align-items: baseline;
+    font-size: .97rem;
+  }
+  ol.check li::before {
+    counter-increment: c;
+    content: counter(c);
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--f-mono);
+    font-size: .74rem;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: var(--measure);
+  }
+
+  ul.plain { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .5rem; max-width: var(--measure); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Unit testing · NestJS + Vitest</div>
+    <h1>Arrange, Act, Assert</h1>
+    <div class="masthead-rule"></div>
+    <p class="standfirst">A working reference, built from the webhook signature guard in <code>pr-reviewer</code>. The vocabulary and the judgment calls carry to any codebase; the examples happen to be yours.</p>
+  </header>
+
+  <section>
+    <h2>Every test has the same three beats</h2>
+    <p>A unit test puts one piece of code in a known situation, runs one thing, and checks one claim about what came back. That shape has a name, and naming it is most of the battle when you're staring at an empty <code>.spec.ts</code>.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1 — ARRANGE</div>
+        <h3>Build the world</h3>
+        <p>Construct the thing under test and everything it needs. Nothing is asserted yet.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">2 — ACT</div>
+        <h3>Call it once</h3>
+        <p>A single call. If you need two, you probably want two tests.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">3 — ASSERT</div>
+        <h3>Make one claim</h3>
+        <p>State what should be true. One reason to fail, so red tells you something.</p>
+      </div>
+    </div>
+
+<pre><code>it('allows a request whose signature matches the body', () =&gt; {
+  <span class="cmt">// Arrange</span>
+  const body = '{"action":"opened"}';
+  const context = contextFor({ body, signature: sign(body) });
+
+  <span class="cmt">// Act + Assert</span>
+  expect(guard.canActivate(context)).toBe(true);
+});</code></pre>
+
+    <div class="inrepo"><b>In your repo</b><span><code>src/guards/signature.guard.spec.ts</code> — the first worked example. The remaining cases are <code>it.todo</code> stubs waiting for you.</span></div>
+
+    <p>The name in <code>it(...)</code> is the sentence that prints when it fails at 2am. Write it as behaviour — <em>rejects a body that was tampered with after signing</em> — not as mechanics like <em>test canActivate 3</em>.</p>
+  </section>
+
+  <section>
+    <h2>Deciding what "the unit" is</h2>
+    <p>The unit is the class or function you're making claims about. Everything else it touches is scenery, and scenery should be cheap. In Nest there are two ways to stand a unit up, and picking wrong is the most common reason a test suite turns slow and brittle.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Situation</th><th>Use</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A plain class with constructor dependencies — guards, services, pipes</td>
+            <td class="pick">new Guard(stub)</td>
+            <td>No DI container, no resolution errors, milliseconds to run.</td>
+          </tr>
+          <tr>
+            <td>You need Nest to interpret decorators — controller routing, guards attached to routes, interceptors</td>
+            <td class="pick">Test.createTestingModule</td>
+            <td>Only Nest can wire what the decorators declare.</td>
+          </tr>
+          <tr>
+            <td>You're checking real HTTP status codes end to end</td>
+            <td class="pick">*.e2e-spec.ts</td>
+            <td>A different job with a different config — not a unit test.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><code>GithubSignatureGuard</code> takes one constructor argument, so it needs no container at all:</p>
+
+<pre><code>const config = { getOrThrow: () =&gt; WEBHOOK_SECRET } as unknown as ConfigService;
+const guard = new GithubSignatureGuard(config);</code></pre>
+
+    <p>When you <em>do</em> need the container, keep it minimal and say out loud what isn't under test. Your controller spec pulls in the guard through a decorator, so it swaps in one that always allows:</p>
+
+<pre><code>Test.createTestingModule({
+  controllers: [AppController],
+  providers: [AppService],
+})
+  .overrideGuard(GithubSignatureGuard)
+  .useValue({ canActivate: () =&gt; true })
+  .compile();</code></pre>
+
+    <div class="inrepo"><b>Why it matters</b><span>Without that override the suite failed with <span class="no">Nest can't resolve dependencies of the GithubSignatureGuard</span> — a test about a greeting string, broken by HMAC verification it never calls.</span></div>
+
+    <p>The pull toward adding the real <code>ConfigService</code> to <code>providers</code> is strong and worth resisting. Satisfy an unrelated dependency with the real thing once, and the test now needs a <code>.env</code>; do it a few more times and it needs a database and a network, and your fast feedback loop is gone.</p>
+  </section>
+
+  <section>
+    <h2>The four words people use interchangeably</h2>
+    <p>"Mock" gets used for all of these, which is why the topic feels muddier than it is. The distinctions are small but they change what you assert.</p>
+
+    <dl class="vocab">
+      <div>
+        <dt>Stub</dt>
+        <dd>Returns a canned value. Knows nothing, records nothing.
+          <span class="use">Your fake <code>ConfigService</code>. Reach for this by default.</span></dd>
+      </div>
+      <div>
+        <dt>Spy</dt>
+        <dd>Wraps a real function so you can see whether it was called, while it still works.
+          <span class="use"><code>vi.spyOn(Logger.prototype, 'warn')</code> — used in your spec to keep expected warnings out of the output.</span></dd>
+      </div>
+      <div>
+        <dt>Mock</dt>
+        <dd>A stub you also assert <em>against</em> — "this was called once, with these arguments."
+          <span class="use">Use sparingly. Asserting on calls couples the test to how the code works, not what it does.</span></dd>
+      </div>
+      <div>
+        <dt>Fake</dt>
+        <dd>A real but simplified implementation — an in-memory store standing in for a database.
+          <span class="use">Worth building when many tests need the same substitute.</span></dd>
+      </div>
+    </dl>
+
+    <p>Vitest gives you <code>vi.fn()</code>, <code>vi.spyOn()</code> and <code>vi.mock()</code> for these. Whichever you use, undo it afterwards — a spy left installed leaks into the next test and produces failures that move around when you reorder files:</p>
+
+<pre><code>afterEach(() =&gt; {
+  vi.restoreAllMocks();
+});</code></pre>
+  </section>
+
+  <section>
+    <h2>An assertion that's too loose is worse than none</h2>
+    <p>This is the sharpest lesson your guard has to teach, and it's a real bug that was in the code.</p>
+
+    <p><code>crypto.timingSafeEqual</code> <strong>throws</strong> when the two buffers differ in length. So a malformed signature didn't return 401 — it threw a <code>RangeError</code>, which Nest turns into <span class="no">500 Internal Server Error</span>. Any client could force a 500 with a one-character header.</p>
+
+    <p>Now look at the two ways to write that test:</p>
+
+<pre><code><span class="cmt">// Passes whether the guard returns 401 or crashes with a 500.</span>
+<span class="cmt">// It would have gone green on the broken code.</span>
+expect(() =&gt; guard.canActivate(context)).toThrow();
+
+<span class="cmt">// Passes only on the error type Nest maps to 401.</span>
+<span class="cmt">// This is the test that catches it.</span>
+expect(() =&gt; guard.canActivate(context)).toThrow(UnauthorizedException);</code></pre>
+
+    <p>Both are green on correct code. Only the second is red on the bug. When you assert that something fails, assert <em>how</em> — the specific error, the specific status, the specific message. "It threw" is almost never the claim you actually mean.</p>
+  </section>
+
+  <section>
+    <h2>What earns a test</h2>
+
+    <div class="split">
+      <div class="panel good">
+        <div class="panel-head">Worth writing</div>
+        <ul>
+          <li><strong>Branches you own.</strong> Every <code>if</code> that can reject, every early return.</li>
+          <li><strong>Boundaries.</strong> Empty, missing, zero, wrong length, wrong type.</li>
+          <li><strong>Anything security-shaped.</strong> A signature check should be the best-tested code you have.</li>
+          <li><strong>Every bug you fix.</strong> Write the failing test first, then fix it. It never comes back.</li>
+        </ul>
+      </div>
+      <div class="panel bad">
+        <div class="panel-head">Skip it</div>
+        <ul>
+          <li><strong>The framework.</strong> Nest maps <code>UnauthorizedException</code> to 401. That's their test.</li>
+          <li><strong>Getters with no logic.</strong> Nothing can break.</li>
+          <li><strong>Private internals.</strong> Test through the public method, or the first refactor breaks everything.</li>
+          <li><strong>Coverage for its own sake.</strong> 100% with loose assertions catches less than 60% with sharp ones.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>A useful check before writing one: <em>what change to the source would make this go red?</em> If nothing plausible would, the test is decoration.</p>
+  </section>
+
+  <section>
+    <h2>Reading the runner</h2>
+    <p><code>npm test</code> runs every <code>**/*.spec.ts</code> once. Your suite as it stands:</p>
+
+    <div class="runner">
+<span class="g">&#10003;</span> src/app.controller.spec.ts <span class="d">(1 test)</span><br>
+<span class="g">&#10003;</span> src/guards/signature.guard.spec.ts <span class="d">(2 tests | 5 todo)</span><br>
+<br>
+&nbsp;Test Files&nbsp;&nbsp;<span class="g">4 passed</span> <span class="d">(4)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tests&nbsp;&nbsp;<span class="g">9 passed</span> <span class="d">|</span> <span class="y">5 todo</span> <span class="d">(14)</span>
+    </div>
+
+    <p>Three glyphs to know: <span class="ok">&#10003;</span> passed, <span class="no">&#215;</span> failed, <span style="color:var(--todo)">&#9633;</span> skipped or todo. An <code>it.todo</code> is a named test with no body — a to-do list the runner keeps honest, visible on every run instead of buried in a comment.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Command</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td class="pick">npm test</td><td>Once, before committing.</td></tr>
+          <tr><td class="pick">npm run test:watch</td><td>Leave running while you work — reruns only what changed.</td></tr>
+          <tr><td class="pick">npm run test:cov</td><td>Find untested branches. A map, not a score.</td></tr>
+          <tr><td class="pick">npm run test:e2e</td><td>The separate <code>*.e2e-spec.ts</code> suite with its own config.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="inrepo"><b>Config note</b><span><code>vitest.config.ts</code> sets <code>globals: true</code>, which is why <code>describe</code>, <code>it</code>, <code>expect</code> and <code>vi</code> work without imports.</span></div>
+  </section>
+
+  <section>
+    <h2>Finishing the guard suite</h2>
+    <p>Five <code>it.todo</code> stubs are waiting, each with a hint in the comment above it. Run <code>npm run test:watch</code> and take them one at a time.</p>
+
+    <ol class="check">
+      <li>Wrong secret — sign the right body with <code>'not-the-secret'</code>.</li>
+      <li>Tampered body — sign one payload, send a different one.</li>
+      <li>Malformed header — a valid digest with <code>sha256=</code> stripped off.</li>
+      <li>Wrong-length signature — <code>'sha256=abc'</code>. Assert <code>UnauthorizedException</code>, not bare <code>toThrow()</code>.</li>
+      <li>Missing or empty raw body — no body, and separately an empty string.</li>
+    </ol>
+
+    <p>To prove a test is real, break the source on purpose: delete the length check in the guard and watch cases 3 and 4 go red. A test you've never seen fail is a test you haven't finished writing.</p>
+  </section>
+
+  <footer>
+    Built against pr-reviewer · NestJS 11 · Vitest 4<br>
+    Specs: src/guards/signature.guard.spec.ts · src/app.controller.spec.ts
+  </footer>
+
+</div>

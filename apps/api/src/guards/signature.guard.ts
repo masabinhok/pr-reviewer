@@ -23,7 +23,7 @@ export class GithubSignatureGuard implements CanActivate{
         }
 
         const payload = request.rawBody
-
+        
         if(!payload || payload.length === 0){
             this.logger.warn(`[${deliveryId}] rejected: missing raw body`)
             throw new UnauthorizedException('Missing raw body')

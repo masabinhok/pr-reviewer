@@ -1,7 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service.js';
 import type { RawBodyRequest } from '@nestjs/common';
-import { GithubSignatureGuard } from './guards/GithubSignature.guard.js';
+import { GithubSignatureGuard } from './guards/signature.guard.js';
 import type { Request } from 'express';
 
 // Anything not listed here is acknowledged and dropped, never 500 — a 500 on an

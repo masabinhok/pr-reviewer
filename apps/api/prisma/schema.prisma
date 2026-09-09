@@ -18,6 +18,14 @@ enum ReviewStatus {
   COMPLETED
   FAILED
 }
+
+enum DeliveryStatus {
+  RECEIVED
+  PROCESSED 
+  IGNORED 
+  FAILED
+}
+
 enum Severity {
   LOW
   MEDIUM
@@ -122,10 +130,11 @@ model WebhookDelivery {
   id             String        @id @default(cuid())
   deliveryId     String        @unique
   event          String
-  action         String
+  status         DeliveryStatus @default(RECEIVED)
+  action         String?
   installation   Installation? @relation(fields: [installationId], references: [id])
   installationId String?
   receivedAt     DateTime      @default(now())
   processedAt    DateTime?
-  status         String        @default("RECEIVED")
+  error String?
 }

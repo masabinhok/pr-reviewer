@@ -1,0 +1,589 @@
+<title>Let the Database Decide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    --paper:      #eaeef0;
+    --surface:    #fbfcfd;
+    --ink:        #121e28;
+    --muted:      #55646f;
+    --rule:       #cfd8dd;
+    --rule-soft:  #dee5e9;
+    --accent:     #0c6d84;
+    --accent-soft:#d8e8ed;
+    --danger:     #ab3d2b;
+    --danger-soft:#f3ddd8;
+    --safe:       #2c7a56;
+    --safe-soft:  #d8e9e0;
+    --code-bg:    #e4eaed;
+    --lane:       #b3c1c8;
+
+    --measure: 66ch;
+    --wide: 80ch;
+
+    --f-display: "IBM Plex Sans Condensed", "Arial Narrow", Helvetica, sans-serif;
+    --f-body: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0f171d;
+      --surface:    #172129;
+      --ink:        #e2e8ec;
+      --muted:      #93a2ad;
+      --rule:       #2b3841;
+      --rule-soft:  #222d35;
+      --accent:     #55b9d3;
+      --accent-soft:#123039;
+      --danger:     #e0705a;
+      --danger-soft:#3a1f1a;
+      --safe:       #5cb98c;
+      --safe-soft:  #163027;
+      --code-bg:    #1b262e;
+      --lane:       #3d4d58;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #0f171d;
+    --surface:    #172129;
+    --ink:        #e2e8ec;
+    --muted:      #93a2ad;
+    --rule:       #2b3841;
+    --rule-soft:  #222d35;
+    --accent:     #55b9d3;
+    --accent-soft:#123039;
+    --danger:     #e0705a;
+    --danger-soft:#3a1f1a;
+    --safe:       #5cb98c;
+    --safe-soft:  #163027;
+    --code-bg:    #1b262e;
+    --lane:       #3d4d58;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .col { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+
+  header { display: flex; flex-direction: column; gap: .9rem; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 7vw, 4rem);
+    line-height: .98;
+    letter-spacing: -.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 1.13rem;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  .masthead-rule {
+    height: 2px;
+    background: var(--accent);
+    width: 100%;
+    max-width: var(--wide);
+  }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 1.05rem; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 1.12rem;
+    letter-spacing: 0;
+    margin: 0;
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+
+  strong { font-weight: 600; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .84em;
+    background: var(--code-bg);
+    padding: .12em .34em;
+    border-radius: 2px;
+  }
+
+  pre {
+    font-family: var(--f-mono);
+    font-size: .8rem;
+    line-height: 1.66;
+    background: var(--code-bg);
+    color: var(--ink);
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--accent);
+    padding: 1rem 1.15rem;
+    margin: 0;
+    overflow-x: auto;
+    max-width: var(--wide);
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+  pre.bad  { border-left-color: var(--danger); }
+  pre.good { border-left-color: var(--safe); }
+
+  .cmt { color: var(--muted); font-style: italic; }
+  .no  { color: var(--danger); font-weight: 500; }
+  .yes { color: var(--safe); font-weight: 500; }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 0;
+    max-width: var(--wide);
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+  }
+  .figbox {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: .9rem .5rem .5rem;
+    overflow-x: auto;
+  }
+  .figbox svg { display: block; width: 100%; min-width: 34rem; height: auto; }
+  figcaption {
+    font-family: var(--f-mono);
+    font-size: .74rem;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: var(--measure);
+  }
+  .lane-label { font-family: var(--f-mono); font-size: 11px; font-weight: 600; }
+  .ev-label   { font-family: var(--f-mono); font-size: 10.5px; }
+  .band-label { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
+  .axis-label { font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em; }
+
+  /* ---------- lifecycle ---------- */
+
+  ol.lifecycle {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    max-width: var(--wide);
+  }
+  ol.lifecycle > li {
+    background: var(--surface);
+    padding: .85rem 1.1rem;
+    display: grid;
+    grid-template-columns: 2.1rem 1fr;
+    gap: .1rem .8rem;
+    align-items: baseline;
+  }
+  .lc-n {
+    font-family: var(--f-mono);
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .lc-t { font-family: var(--f-display); font-weight: 600; font-size: 1.02rem; }
+  .lc-d { grid-column: 2; font-size: .93rem; color: var(--muted); max-width: var(--measure); }
+  ol.lifecycle > li.done { background: var(--accent-soft); }
+  ol.lifecycle > li.done .lc-d { color: var(--ink); }
+
+  /* ---------- gap list ---------- */
+
+  .gaps {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    max-width: var(--wide);
+  }
+  .gap {
+    background: var(--surface);
+    padding: 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .gap-head {
+    font-family: var(--f-mono);
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--danger);
+  }
+  .gap p { font-size: .95rem; }
+
+  /* ---------- comparison ---------- */
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1rem;
+    max-width: var(--wide);
+  }
+  .panel {
+    border: 1px solid var(--rule);
+    padding: 1rem 1.15rem;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+  .panel-head {
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .panel p { font-size: .93rem; }
+  .verdict {
+    font-size: .88rem;
+    color: var(--ink);
+    border-top: 1px solid var(--rule-soft);
+    padding-top: .55rem;
+    margin-top: auto;
+  }
+
+  /* ---------- repo note ---------- */
+
+  .inrepo {
+    display: flex;
+    gap: .85rem;
+    align-items: baseline;
+    font-family: var(--f-mono);
+    font-size: .76rem;
+    line-height: 1.6;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--accent);
+    padding: .7rem .95rem;
+    max-width: var(--wide);
+  }
+  .inrepo b {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-size: .68rem;
+    white-space: nowrap;
+  }
+
+  /* ---------- checklist ---------- */
+
+  ul.check {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    max-width: var(--measure);
+  }
+  ul.check > li {
+    display: grid;
+    grid-template-columns: 1.4rem 1fr;
+    gap: .7rem;
+    align-items: baseline;
+    font-size: .96rem;
+  }
+  ul.check .box {
+    font-family: var(--f-mono);
+    font-size: .8rem;
+    color: var(--accent);
+  }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.3rem;
+    font-family: var(--f-mono);
+    font-size: .76rem;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: var(--measure);
+  }
+  footer b { color: var(--accent); font-weight: 600; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">pr-reviewer &middot; milestone 5</div>
+    <h1>Let the Database Decide</h1>
+    <div class="masthead-rule"></div>
+    <p class="standfirst">GitHub delivers webhooks at least once, not exactly once. Milestone 5 is one idea &mdash; stop asking whether you have seen a delivery before, and let the unique constraint answer &mdash; plus the plumbing to make it real in this repo.</p>
+  </header>
+
+  <section>
+    <h2>Why the same delivery arrives twice</h2>
+    <p>GitHub&rsquo;s webhook delivery is <strong>at-least-once</strong>. Three things cause a repeat, and all three send the <em>same</em> <code>X-GitHub-Delivery</code> value with an identical payload:</p>
+    <ul class="check">
+      <li><span class="box">01</span><span>Your endpoint takes longer than about ten seconds, GitHub times out and retries &mdash; while your first run may still be working.</span></li>
+      <li><span class="box">02</span><span>Someone clicks <strong>Redeliver</strong> in the App&rsquo;s Recent Deliveries page.</span></li>
+      <li><span class="box">03</span><span>You returned a 5xx, so GitHub retries on its own schedule.</span></li>
+    </ul>
+    <p>Without a guard, a redelivered <code>pull_request.opened</code> runs your reviewer twice: two Claude API calls billed, two check runs, two identical sets of inline comments on one pull request. That is the failure this milestone exists to prevent.</p>
+  </section>
+
+  <section>
+    <h2>The obvious fix has a hole in it</h2>
+    <p>The version everyone writes first reads the table, then decides:</p>
+<pre class="bad"><code><span class="cmt">// WRONG — two concurrent redeliveries both see "not found"</span>
+const seen = await prisma.webhookDelivery.findUnique({ where: { deliveryId } });
+if (seen) return;
+await prisma.webhookDelivery.create({ data: { deliveryId, event, action } });</code></pre>
+    <p>This is a <strong>time-of-check to time-of-use race</strong>. Between the read and the write there is a window where the row does not exist yet, and any second request that looks during that window sees an empty table and draws the wrong conclusion.</p>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 700 268" role="img" aria-label="Timing diagram: two concurrent requests both check the table, both find nothing, and both proceed to handle the same delivery.">
+          <rect x="176" y="46" width="228" height="180" fill="var(--danger-soft)" />
+          <text x="290" y="62" text-anchor="middle" class="band-label" fill="var(--danger)">RACE WINDOW</text>
+
+          <line x1="86" y1="36" x2="656" y2="36" stroke="var(--lane)" stroke-width="1" />
+          <path d="M656 36 L648 32 L648 40 Z" fill="var(--lane)" />
+          <text x="656" y="24" text-anchor="end" class="axis-label" fill="var(--muted)">TIME</text>
+
+          <text x="78" y="128" text-anchor="end" class="lane-label" fill="var(--ink)">request A</text>
+          <line x1="86" y1="124" x2="656" y2="124" stroke="var(--lane)" stroke-width="1.5" />
+          <circle cx="176" cy="124" r="5" fill="var(--accent)" />
+          <text x="176" y="108" text-anchor="middle" class="ev-label" fill="var(--ink)">check &rarr; empty</text>
+          <circle cx="404" cy="124" r="5" fill="var(--accent)" />
+          <text x="404" y="108" text-anchor="middle" class="ev-label" fill="var(--ink)">insert ok</text>
+          <circle cx="500" cy="124" r="5" fill="var(--danger)" />
+          <text x="500" y="108" text-anchor="middle" class="ev-label" fill="var(--danger)">reviews PR</text>
+
+          <text x="78" y="200" text-anchor="end" class="lane-label" fill="var(--ink)">request B</text>
+          <line x1="86" y1="196" x2="656" y2="196" stroke="var(--lane)" stroke-width="1.5" />
+          <circle cx="290" cy="196" r="5" fill="var(--accent)" />
+          <text x="290" y="216" text-anchor="middle" class="ev-label" fill="var(--ink)">check &rarr; empty</text>
+          <circle cx="524" cy="196" r="5" fill="var(--accent)" />
+          <text x="524" y="216" text-anchor="middle" class="ev-label" fill="var(--ink)">insert ok</text>
+          <circle cx="608" cy="196" r="5" fill="var(--danger)" />
+          <text x="608" y="216" text-anchor="middle" class="ev-label" fill="var(--danger)">reviews PR again</text>
+
+          <text x="86" y="252" class="ev-label" fill="var(--muted)">same X-GitHub-Delivery &middot; same payload &middot; two reviews posted</text>
+        </svg>
+      </div>
+      <figcaption>Request B checks while A is still between its own check and its insert. The table is genuinely empty at that instant, so B is not wrong &mdash; it is asking a question whose answer expires before it can act on it.</figcaption>
+    </figure>
+
+    <p>The window is small, but it is <em>exactly</em> the window GitHub&rsquo;s timeout-retry aims at: the retry fires because the first request is slow, which means the first request is still in flight. And once you run more than one instance behind a load balancer, the two requests are not even in the same process &mdash; no lock, mutex, or in-memory set in your application code can see both of them.</p>
+  </section>
+
+  <section>
+    <h2>Only one component sees every writer</h2>
+    <p>Postgres does. Your schema already declares <code>deliveryId</code> as <code>@unique</code>, and that constraint <strong>is</strong> the lock &mdash; it is enforced inside the database, across every connection, every process, and every instance. So stop asking permission and just write. The failure is the answer:</p>
+<pre class="good"><code>try {
+  await this.prisma.webhookDelivery.create({ data: { deliveryId, event, action } });
+} catch (e) {
+  if (e instanceof Prisma.PrismaClientKnownRequestError &amp;&amp; e.code === <span class="yes">'P2002'</span>) {
+    return { ok: true, duplicate: true };   <span class="cmt">// 200, but skip the handler</span>
+  }
+  throw e;
+}</code></pre>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 700 268" role="img" aria-label="Timing diagram: request A inserts the delivery row, then request B's insert fails with P2002 and it stops without handling.">
+          <rect x="200" y="46" width="456" height="180" fill="var(--safe-soft)" />
+          <text x="428" y="62" text-anchor="middle" class="band-label" fill="var(--safe)">ROW EXISTS &mdash; CONSTRAINT HOLDS</text>
+
+          <line x1="86" y1="36" x2="656" y2="36" stroke="var(--lane)" stroke-width="1" />
+          <path d="M656 36 L648 32 L648 40 Z" fill="var(--lane)" />
+          <text x="656" y="24" text-anchor="end" class="axis-label" fill="var(--muted)">TIME</text>
+
+          <text x="78" y="128" text-anchor="end" class="lane-label" fill="var(--ink)">request A</text>
+          <line x1="86" y1="124" x2="656" y2="124" stroke="var(--lane)" stroke-width="1.5" />
+          <circle cx="200" cy="124" r="5" fill="var(--safe)" />
+          <text x="200" y="108" text-anchor="middle" class="ev-label" fill="var(--ink)">insert ok</text>
+          <circle cx="330" cy="124" r="5" fill="var(--safe)" />
+          <text x="330" y="108" text-anchor="middle" class="ev-label" fill="var(--ink)">reviews PR</text>
+
+          <text x="78" y="200" text-anchor="end" class="lane-label" fill="var(--ink)">request B</text>
+          <line x1="86" y1="196" x2="656" y2="196" stroke="var(--lane)" stroke-width="1.5" />
+          <circle cx="424" cy="196" r="5" fill="var(--accent)" />
+          <text x="424" y="216" text-anchor="middle" class="ev-label" fill="var(--accent)">insert &rarr; P2002</text>
+          <circle cx="556" cy="196" r="5" fill="var(--safe)" />
+          <text x="556" y="216" text-anchor="middle" class="ev-label" fill="var(--ink)">returns 200, stops</text>
+
+          <text x="86" y="252" class="ev-label" fill="var(--muted)">no check, no window &middot; one row &middot; one review posted</text>
+        </svg>
+      </div>
+      <figcaption>There is no window because there is no question. B does not ask whether the row exists; it tries to create it and is told. The database arbitrates, and it is the only party that can.</figcaption>
+    </figure>
+
+    <p><code>P2002</code> is Prisma&rsquo;s error code for &ldquo;unique constraint failed.&rdquo; The <code>instanceof</code> check earns its keep twice: a bare <code>e.code === 'P2002'</code> will not typecheck when <code>e</code> is <code>unknown</code> under strict mode, and narrowing to the known-request type stops you swallowing some unrelated error that happens to carry a <code>code</code> property.</p>
+    <div class="inrepo"><b>in your repo</b><span>The error class comes from the generated client: <code>import { Prisma } from '../generated/prisma/client.js'</code>, then <code>Prisma.PrismaClientKnownRequestError</code>.</span></div>
+  </section>
+
+  <section>
+    <h2>A duplicate is not an error</h2>
+    <p>The single most important line in that snippet is <code>ok: true</code>. A duplicate must return <strong>2xx</strong>.</p>
+    <p>Return a 500 instead and you have built a machine that generates its own load: GitHub sees the error, retries the delivery, the retry is also a duplicate, which also 500s, which triggers another retry. Worse, sustained 5xx responses are what make GitHub mark the endpoint unhealthy and eventually stop delivering at all.</p>
+    <p>Reframe it: a duplicate arriving is not a fault to report. It is the redelivery mechanism working exactly as designed, and your correct response is a calm acknowledgement plus a log line saying you dropped it.</p>
+  </section>
+
+  <section>
+    <h2>Where the write goes in the request</h2>
+    <p>Ordering matters here in a way it rarely does, because two of these steps have a hard constraint on which side of the response they sit.</p>
+    <ol class="lifecycle">
+      <li class="done">
+        <span class="lc-n">01</span><span class="lc-t">Verify the signature</span>
+        <span class="lc-d">Done in Milestone 4. <code>GithubSignatureGuard</code> rejects anything unsigned or tampered before the handler is reached, so nothing untrusted ever reaches the database.</span>
+      </li>
+      <li>
+        <span class="lc-n">02</span><span class="lc-t">Insert the delivery row</span>
+        <span class="lc-d">A <code>P2002</code> here means stop: acknowledge and skip the handler. This has to happen <em>before</em> the response, because the row is the idempotency record &mdash; acknowledge first and crash before writing it, and the redelivery looks brand new.</span>
+      </li>
+      <li>
+        <span class="lc-n">03</span><span class="lc-t">Return 200</span>
+        <span class="lc-d">GitHub&rsquo;s clock is running from the moment it opened the connection. Everything expensive belongs on the far side of this line.</span>
+      </li>
+      <li>
+        <span class="lc-n">04</span><span class="lc-t">Handle the payload</span>
+        <span class="lc-d">Today this is one log line. In weeks 3&ndash;4 it becomes a BullMQ enqueue &mdash; and because the acknowledgement already happened at step 3, that swap changes nothing above it.</span>
+      </li>
+      <li>
+        <span class="lc-n">05</span><span class="lc-t">Record the outcome</span>
+        <span class="lc-d">Set <code>processedAt</code> and move <code>status</code> off <code>RECEIVED</code>. A handler that threw is recorded as failed with its error, not silently dropped &mdash; a row stuck at <code>RECEIVED</code> forever is how you find out something died.</span>
+      </li>
+    </ol>
+    <div class="inrepo"><b>and</b><span>Step 2 is service work, not controller work. <code>WebhooksService</code> &mdash; the empty stub you deleted &mdash; is what this milestone was waiting for. The controller keeps reading headers and returning a shape; the service owns the database and the decision to dispatch.</span></div>
+  </section>
+
+  <section>
+    <h2>Three gaps in the schema</h2>
+    <p><code>WebhookDelivery</code> was designed back in Milestone 3 and mostly fits, but the checklist asks for things it cannot store yet.</p>
+    <div class="gaps">
+      <div class="gap">
+        <div class="gap-head">no error column</div>
+        <p>The todo says failed handlers are recorded <em>with the error</em>, not silently swallowed. You have <code>status</code> but nowhere to put the message. <code>Review</code> already carries <code>error String?</code> for exactly this reason &mdash; the same field belongs here.</p>
+      </div>
+      <div class="gap">
+        <div class="gap-head">status is a String, not an enum</div>
+        <p>Your own <code>docs/decisions.md</code> argues at length that state fields must be Postgres enums, because a plain <code>String</code> lets <code>"compelted"</code> insert cleanly and then silently fail every query filtering on the exact value. <code>WebhookDelivery.status</code> is the one state field that never got the treatment. Either add a <code>DeliveryStatus</code> enum or write down why this one is different &mdash; an inconsistency with a recorded reason is a decision; an unexplained one is a smell.</p>
+      </div>
+      <div class="gap">
+        <div class="gap-head">action is required, but not every event has one</div>
+        <p><code>action String</code>, with no <code>?</code>. Every <code>pull_request</code> payload carries <code>payload.action</code>, so you are fine today &mdash; but you record deliveries for unhandled events too, and a <code>push</code> payload has no <code>action</code> field at all. Make it nullable now, or meet it the first time you widen <code>HANDLED_EVENTS</code>.</p>
+      </div>
+    </div>
+    <p>One thing the schema got right: <code>installationId</code> stays <code>null</code> for now. It is a foreign key to <code>Installation</code>, and no installation rows exist until Milestone 7 &mdash; writing an ID that is not there would fail the constraint. Nullable was the correct call.</p>
+  </section>
+
+  <section>
+    <h2>Two wiring problems, waiting</h2>
+    <p>Both of these bite the moment you inject <code>PrismaService</code>, and neither is about idempotency &mdash; they are just next in line.</p>
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">PrismaModule is never imported</div>
+        <p><code>app.module.ts</code> imports <code>ConfigModule</code>, <code>HealthModule</code> and <code>WebhooksModule</code>. There is no <code>PrismaModule</code> anywhere in the tree.</p>
+        <p class="verdict">You will get the same <code>Nest can&rsquo;t resolve dependencies</code> error you have already seen twice &mdash; once from the guard needing <code>ConfigService</code>, once after the webhooks refactor.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head">@Global is imported but not applied</div>
+        <p><code>prisma/prisma.module.ts</code> imports <code>Global</code> on line 1, but the class carries only <code>@Module({...})</code>. The decorator was never written.</p>
+        <p class="verdict">So even adding the import to <code>AppModule</code> will not expose <code>PrismaService</code> inside <code>WebhooksModule</code>. Decorate the class, or add <code>imports: [PrismaModule]</code> to the webhooks module. Global is conventional for a database client.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Testing a claim about the database</h2>
+    <p>The checklist item is <em>same delivery ID twice &rarr; one row, handler invoked once</em>. Everything you have tested so far has been a pure function fed a hand-built fake. This one has a real dependency, and that changes the question.</p>
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">Unit test, faked Prisma</div>
+        <p>Stub <code>webhookDelivery.create</code> so the first call resolves and the second rejects with a <code>PrismaClientKnownRequestError</code> carrying <code>code: 'P2002'</code>. Assert your handler spy was called exactly once.</p>
+        <p class="verdict">Fast, no database, runs anywhere &mdash; but it asserts against <em>your belief</em> about what Postgres does, and you wrote both the belief and the test.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head">Integration test, real Postgres</div>
+        <p>It is already in Docker. Call the service twice with the same delivery ID, then count the rows. A <code>beforeEach</code> that truncates the table is enough isolation.</p>
+        <p class="verdict">Slower and needs cleanup &mdash; but it actually proves the constraint exists and fires, which is the entire claim of the milestone.</p>
+      </div>
+    </div>
+    <p>Given that this whole design rests on &ldquo;trust the database,&rdquo; the integration test is the one that tests the thing you are claiming. Write it deliberately rather than mocking your way around the dependency &mdash; learning where the seam belongs is most of the value here.</p>
+  </section>
+
+  <section>
+    <h2>The polish bar</h2>
+    <p>Milestone 4 ended at a terminal with <code>curl</code> and a hand-computed signature. This one ends in GitHub&rsquo;s own UI, which is a better test because it is the real client:</p>
+    <ul class="check">
+      <li><span class="box">&rarr;</span><span>Open <strong>Recent Deliveries</strong> in your App&rsquo;s settings and hit <strong>Redeliver</strong> on a delivery you have already processed.</span></li>
+      <li><span class="box">&rarr;</span><span>Confirm GitHub shows a <strong>2xx</strong>, not a red response.</span></li>
+      <li><span class="box">&rarr;</span><span>Confirm <code>select count(*) from "WebhookDelivery" where "deliveryId" = ...</code> returns exactly <strong>1</strong>.</span></li>
+      <li><span class="box">&rarr;</span><span>Confirm a log line says the duplicate was dropped, tagged with the same delivery ID you have been threading through since Milestone 4.</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    <b>WHAT TO LEARN HERE</b><br>
+    Race conditions and the time-of-check/time-of-use shape &middot; unique constraints as concurrency
+    primitives &middot; Prisma error codes and narrowing <code>unknown</code> in a catch block &middot;
+    at-least-once delivery and why idempotency is the receiver&rsquo;s job &middot; the seam between a
+    unit test and an integration test.<br><br>
+    <b>NEXT</b> Milestone 6 &mdash; App JWT to installation token, cached in Redis.
+  </footer>
+
+</div>

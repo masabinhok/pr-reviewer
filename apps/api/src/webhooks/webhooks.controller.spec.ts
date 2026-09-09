@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WebhooksController } from './webhooks.controller.js';
+import { WebhooksService } from './webhooks.service.js';
 import { GithubSignatureGuard } from '../guards/signature.guard.js';
-import { Logger } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 
@@ -22,10 +22,17 @@ function requestFor(event?: string){
 
 describe('WebhooksController', () => {
   let controller: WebhooksController;
+  let handleWebhook: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    // The controller's whole job is now "read two headers, hand them to the service".
+    // A spy is enough to test that, and it keeps Prisma out of a routing test —
+    // the dispatch and idempotency rules are covered in webhooks.service.spec.ts.
+    handleWebhook = vi.fn().mockResolvedValue({ ok: true, handled: true });
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WebhooksController],
+      providers: [{ provide: WebhooksService, useValue: { handleWebhook } }],
     })
       // The guard is not under test here, and instantiating the real one would drag
       // ConfigService (and a webhook secret) into a test about event dispatch.
@@ -35,33 +42,26 @@ describe('WebhooksController', () => {
       .compile();
 
     controller = module.get<WebhooksController>(WebhooksController);
-
-    // The handler logs on every path; keep the expected noise out of the output.
-    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  it('passes the delivery id and event through to the service', async ()=> {
+    await controller.handleWebhook(requestFor('pull_request'))
 
-  it('returns handled: true for a pull_request event', ()=> {
-    expect(controller.handleWebhook(requestFor('pull_request'))).toEqual({
-      ok: true, 
-      handled: true
+    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'pull_request')
+  })
+
+  it('returns whatever the service returns', async ()=> {
+    handleWebhook.mockResolvedValue({ ok: true, duplicate: true })
+
+    await expect(controller.handleWebhook(requestFor('pull_request'))).resolves.toEqual({
+      ok: true,
+      duplicate: true
     })
   })
 
-  it('returns handled: false for an unhandled event', ()=> {
-    expect(controller.handleWebhook(requestFor('issues'))).toEqual({
-      ok: true, 
-      handled: false
-    })
-  })
+  it('falls back to "unknown" when the event header is missing', async ()=> {
+    await controller.handleWebhook(requestFor())
 
-  it('returns handled: false when the event header is missing', ()=> {
-    expect(controller.handleWebhook(requestFor())).toEqual({
-      ok: true, 
-      handled: false
-    })
+    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'unknown')
   })
 });

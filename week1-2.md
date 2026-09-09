@@ -365,11 +365,11 @@ Write this reasoning into `docs/decisions.md` — "why the DB constraint instead
 pre-check" is a genuinely good interview answer.
 
 **Todo**
-- [ ] Insert-first, catch `P2002`
-- [ ] Duplicates return 2xx (GitHub must not retry) but skip the handler
-- [ ] `processedAt` / `status` updated when handling finishes
-- [ ] Failed handlers recorded as `FAILED` with the error, not silently swallowed
-- [ ] Test: same delivery ID twice → one row, handler invoked once
+- [x] Insert-first, catch `P2002`
+- [x] Duplicates return 2xx (GitHub must not retry) but skip the handler
+- [x] `processedAt` / `status` updated when handling finishes
+- [x] Failed handlers recorded as `FAILED` with the error, not silently swallowed
+- [x] Test: same delivery ID twice → one row, handler invoked once
 
 **Polish bar:** hit **Redeliver** in Recent Deliveries. Confirm 2xx, exactly one row, and
 a log line saying the duplicate was dropped.

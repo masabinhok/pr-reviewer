@@ -74,5 +74,64 @@ race entirely — the constraint is the lock. `status` defaults to `"RECEIVED"` 
 `processedAt` stays nullable so the row can be written before the payload has been
 validated or handled at all — recording receipt has to be safe to do first.
 
-(Handler implementation lands in Milestone 5 — this entry covers the schema-level design
-decided in Milestone 3.)
+(This entry covers the schema-level design decided in Milestone 3. The handler that acts
+on it, and the status vocabulary it writes, are the four entries below.)
+
+## `DeliveryStatus` is an enum, and there is deliberately no `DUPLICATE` value
+
+`WebhookDelivery.status` started as a plain `String` defaulting to `"RECEIVED"`, which
+contradicted the enum reasoning three entries up for no reason other than that it was
+written first. It is now `DeliveryStatus`, with four values: `RECEIVED` (row written,
+outcome not yet known — the default), `PROCESSED` (a handler ran and returned cleanly),
+`IGNORED` (a verified delivery for an event nothing handles), and `FAILED` (the handler
+threw; `error` holds the message).
+
+`DUPLICATE` looks like it belongs and does not. A duplicate delivery's insert *fails*, so
+no second row is ever created — the only row is the original, holding whatever status its
+own run reached. A `DUPLICATE` value could therefore never be written by any honest code
+path, and the only way to write it would be to overwrite the original row, destroying the
+record of what actually happened. Duplicates are an event in the logs, not a state of a
+row.
+
+`IGNORED` is separate from `PROCESSED` for a similar reason: "we looked at this and chose
+not to act" and "we acted successfully" are different facts, and collapsing them would
+make it impossible to answer later how many deliveries the app is actually doing work for.
+
+The value is `PROCESSED` rather than `COMPLETED` (which is what `ReviewStatus` uses for
+the same idea) because it sits next to the `processedAt` column. A column and a status
+disagreeing on the word for the same moment is a small, permanent friction; the
+cross-enum inconsistency is visible in one file and costs nothing.
+
+## Every delivery gets a row, including events nothing handles
+
+The unhandled-event check runs *after* the insert, not before. Recording only the events
+in `HANDLED_EVENTS` would be cheaper and is the obvious first instinct, but it makes the
+idempotency guarantee conditional on the dispatch table: widen `HANDLED_EVENTS` later and
+every event newly added to it has no history, so a redelivery from before the change
+looks new. Inserting first makes redelivery-safety a property of the endpoint rather than
+of whichever events it currently knows about, and it is what gives `IGNORED` something to
+mean. The cost is table growth from events the app does not care about, which is a
+retention problem to solve when it appears, not a reason to lose the audit trail now.
+
+## The dispatch is awaited, even though the milestone says "ACK first"
+
+GitHub times out around ten seconds, so the guidance is to acknowledge before doing the
+work. Right now the "work" is a single log line, and awaiting it is both harmless and
+safer than a floating promise whose rejection nothing observes. The dispatch lives behind
+a private `dispatch()` seam so that when weeks 3–4 replace its body with a BullMQ enqueue,
+nothing around it moves. The enqueue is itself fast, so awaiting will most likely still be
+correct then — the decision to revisit is not "await or not" but "what happens if the
+enqueue itself fails", which needs a real queue to answer.
+
+## The idempotency guarantee is tested against real Postgres, not a mocked Prisma
+
+Both exist. The unit tests in `webhooks.service.spec.ts` fake `create` rejecting with a
+`P2002` error and assert the service's reaction; the integration tests in
+`test/webhooks.idempotency.e2e-spec.ts` run the same paths against the database in Docker.
+The unit tests are the fast feedback loop, but they cannot prove the thing this design
+rests on, because a fake returns whatever it was told to — they assert a belief about
+Postgres that was written by the same person writing the test. The integration test fires
+two concurrent `handleWebhook` calls with the same delivery ID through `Promise.all` and
+asserts exactly one row and exactly one duplicate, which is the actual claim: the
+constraint is the lock. A design whose whole argument is "trust the database" needs at
+least one test that involves the database.

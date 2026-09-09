@@ -1,0 +1,106 @@
+import { config } from 'dotenv';
+
+config({ path: '../../.env' });
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
+import { WebhooksService } from '../src/webhooks/webhooks.service.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { DeliveryStatus } from '../src/generated/prisma/client.js';
+
+/**
+ * The unit tests in src/webhooks/webhooks.service.spec.ts assert what the service does
+ * when Prisma reports P2002. They cannot prove that Postgres actually reports it —
+ * a fake returns whatever you told it to. These tests talk to the real database, so
+ * they test the claim the whole milestone rests on: the unique constraint is the lock.
+ *
+ * Run with `npm run test:e2e` (needs `docker compose up -d` and migrations applied).
+ */
+
+// Every row this file writes is prefixed, so cleanup can delete exactly its own rows
+// and never touch whatever you have been generating through smee.
+const PREFIX = 'itest-';
+const uniqueId = () => `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+describe('WebhooksService idempotency (real database)', () => {
+  let module: TestingModule;
+  let service: WebhooksService;
+  let prisma: PrismaService;
+
+  beforeAll(async () => {
+    module = await Test.createTestingModule({
+      providers: [WebhooksService, PrismaService],
+    }).compile();
+
+    // init() runs the lifecycle hooks, which is what calls PrismaService.$connect().
+    // compile() alone builds the graph without starting anything.
+    await module.init();
+
+    service = module.get(WebhooksService);
+    prisma = module.get(PrismaService);
+
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  });
+
+  afterAll(async () => {
+    await prisma.webhookDelivery.deleteMany({ where: { deliveryId: { startsWith: PREFIX } } });
+    await module.close();
+    vi.restoreAllMocks();
+  });
+
+  it('writes exactly one row when the same delivery arrives twice', async () => {
+    const deliveryId = uniqueId();
+
+    const first = await service.handleWebhook(deliveryId, 'pull_request');
+    const second = await service.handleWebhook(deliveryId, 'pull_request');
+
+    expect(first).toEqual({ ok: true, handled: true });
+    expect(second).toEqual({ ok: true, duplicate: true });
+
+    const rows = await prisma.webhookDelivery.findMany({ where: { deliveryId } });
+    expect(rows).toHaveLength(1);
+  });
+
+  it('leaves the original row untouched when a duplicate arrives', async () => {
+    const deliveryId = uniqueId();
+
+    await service.handleWebhook(deliveryId, 'pull_request');
+    const afterFirst = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+
+    await service.handleWebhook(deliveryId, 'pull_request');
+    const afterSecond = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+
+    // The first run's outcome is the record of what happened. A duplicate must not
+    // overwrite it — including resetting processedAt to a later timestamp.
+    expect(afterSecond.status).toBe(DeliveryStatus.PROCESSED);
+    expect(afterSecond.processedAt).toEqual(afterFirst.processedAt);
+  });
+
+  // This is the test the milestone actually exists for. The two calls are in flight at
+  // the same time, so neither can see the other's row — exactly the interleaving that
+  // defeats check-then-insert. Only the database constraint can separate them.
+  it('lets exactly one of two concurrent deliveries through', async () => {
+    const deliveryId = uniqueId();
+
+    const results = await Promise.all([
+      service.handleWebhook(deliveryId, 'pull_request'),
+      service.handleWebhook(deliveryId, 'pull_request'),
+    ]);
+
+    expect(results.filter((r) => 'duplicate' in r)).toHaveLength(1);
+    expect(results.filter((r) => 'handled' in r)).toHaveLength(1);
+
+    const rows = await prisma.webhookDelivery.findMany({ where: { deliveryId } });
+    expect(rows).toHaveLength(1);
+  });
+
+  it('records an unhandled event as IGNORED rather than dropping it', async () => {
+    const deliveryId = uniqueId();
+
+    await service.handleWebhook(deliveryId, 'issues');
+
+    const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    expect(row.status).toBe(DeliveryStatus.IGNORED);
+    expect(row.event).toBe('issues');
+  });
+});

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { Prisma } from '../generated/prisma/client.js';
+import { DeliveryStatus, Prisma } from '../generated/prisma/client.js';
 
 /**
  * The error Postgres produces when the unique constraint on deliveryId rejects a
@@ -66,27 +66,59 @@ describe('WebhooksService', () => {
     expect(result).toEqual({ ok: true, handled: true });
   });
 
-  // ---- YOUR TURN ----
-  // `uniqueViolation()` above builds the P2002 error. To make an insert fail, point
-  // the stub at it: prisma.webhookDelivery.create.mockRejectedValue(uniqueViolation()).
-  // Assert on the mocks, not just the return value — "the handler did not run" is the
-  // claim that matters, and only `update` (or a dispatch spy) can tell you that.
+  // Pointing the stub at the P2002 error is how you make "the row already exists"
+  // happen without a database.
+  it('returns duplicate: true when the delivery id already exists', async () => {
+    prisma.webhookDelivery.create.mockRejectedValue(uniqueViolation());
 
-  // Insert rejects with P2002 => { ok: true, duplicate: true }.
-  it.todo('returns duplicate: true when the delivery id already exists');
+    const result = await service.handleWebhook('d-1', 'pull_request');
 
-  // Same setup. A duplicate must not touch the row again — the original row's status
-  // is the record of what actually happened, and overwriting it destroys that.
-  it.todo('does not update the row when the delivery is a duplicate');
+    expect(result).toEqual({ ok: true, duplicate: true });
+  });
 
-  // 'issues' is not in HANDLED_EVENTS. The row is still written (every delivery gets
-  // one), then moved to IGNORED. Check the status passed to `update`.
-  it.todo('records an unhandled event and marks it IGNORED');
+  // The return value alone cannot prove this: the shape above comes back whether or
+  // not the handler also ran. Only the absence of the `update` call proves the skip.
+  it('does not update the row when the delivery is a duplicate', async () => {
+    prisma.webhookDelivery.create.mockRejectedValue(uniqueViolation());
 
-  // A pull_request that succeeds should end at PROCESSED with processedAt set.
-  it.todo('marks a handled delivery PROCESSED');
+    await service.handleWebhook('d-1', 'pull_request');
 
-  // Reject the insert with a plain `new Error('connection lost')` instead. It must
-  // propagate — the whole point of the `throw e` is that non-P2002 is never swallowed.
-  it.todo('rethrows an error that is not a unique-constraint violation');
+    expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
+  });
+
+  // 'issues' is not in HANDLED_EVENTS, but the row is still written — every delivery
+  // gets one — and then moved to its terminal status.
+  it('records an unhandled event and marks it IGNORED', async () => {
+    const result = await service.handleWebhook('d-2', 'issues');
+
+    expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
+      data: { deliveryId: 'd-2', event: 'issues' },
+    });
+    expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
+      where: { deliveryId: 'd-2' },
+      // `expect.any(Date)` matches the type without pinning the exact instant — the
+      // service calls `new Date()` itself, so the test cannot know the value.
+      data: { status: DeliveryStatus.IGNORED, processedAt: expect.any(Date), error: undefined },
+    });
+    expect(result).toEqual({ ok: true, handled: false });
+  });
+
+  it('marks a handled delivery PROCESSED', async () => {
+    await service.handleWebhook('d-3', 'pull_request');
+
+    expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
+      where: { deliveryId: 'd-3' },
+      data: { status: DeliveryStatus.PROCESSED, processedAt: expect.any(Date), error: undefined },
+    });
+  });
+
+  // The counterpart to the duplicate test: everything that is NOT a unique-constraint
+  // violation has to propagate. If this ever goes green by returning a value instead
+  // of throwing, the service is swallowing real database failures.
+  it('rethrows an error that is not a unique-constraint violation', async () => {
+    prisma.webhookDelivery.create.mockRejectedValue(new Error('connection lost'));
+
+    await expect(service.handleWebhook('d-4', 'pull_request')).rejects.toThrow('connection lost');
+    expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
+  });
 });

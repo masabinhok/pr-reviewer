@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import {z} from 'zod';
 import { HealthModule } from './health/health.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
+import { GithubModule } from './github/github.module.js';
 import configuration from './config/configuration.js';
 
 @Module({
@@ -24,7 +25,7 @@ import configuration from './config/configuration.js';
     }),
     envFilePath: '../../.env',
     isGlobal: true
-  }), HealthModule, WebhooksModule],
+  }), HealthModule, WebhooksModule, GithubModule],
   controllers: [AppController],
   providers: [AppService],
 })

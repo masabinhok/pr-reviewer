@@ -135,3 +135,45 @@ two concurrent `handleWebhook` calls with the same delivery ID through `Promise.
 asserts exactly one row and exactly one duplicate, which is the actual claim: the
 constraint is the lock. A design whose whole argument is "trust the database" needs at
 least one test that involves the database.
+
+## GitHub App auth is hand-rolled, not `@octokit/auth-app`
+
+Milestone 6 signs the App JWT with `node:crypto` and exchanges it for installation tokens
+with a bare `fetch`, because the point was to learn the two-step flow rather than import
+it. In production the right call is `@octokit/auth-app`. It does the same JWT → token
+exchange, but it also covers the edges this code does not: it corrects for clock drift
+when GitHub rejects a JWT's timestamps, rather than failing until someone fixes the
+server's clock; it can scope a token down to specific repositories and permissions; and
+it plugs into Octokit's request pipeline so every API call picks up a valid token without
+the caller asking. It also accepts a pluggable cache, so the Redis caching here would
+survive a migration as an adapter rather than being thrown away. The hand-rolled version
+is small enough to read in one sitting, which is exactly why it is a good teacher and
+exactly why it should not be trusted with the long tail.
+
+## Two token types, and only the installation token is cached
+
+The App JWT proves "I am this App" and can only call `/app/...` endpoints; the installation
+token acts on one installation's repositories with that installation's permissions. The
+JWT is signed locally in microseconds, so caching it would save nothing and add a second
+expiry to get wrong — `AppJwtService.mint()` returns a fresh one every call. The
+installation token costs a network round trip, so it is cached in Redis under
+`gh:itoken:{installationId}` for `(expires_at − now) − 60s`. Expiring the cache a minute
+early is deliberate: a token served with seconds left can die mid-request, and that shows
+up as a 401 roughly once an hour — the most expensive kind of flake to track down. Redis
+rather than an in-process `Map` for the same reason as the delivery table: it is shared
+across instances and survives a restart.
+
+Known gap: a token revoked *before* its expiry — the installation suspended or deleted —
+stays cached until its TTL runs out, and nothing evicts it on a 401 yet. Milestone 7's
+suspend and delete handlers are the natural place to delete the key.
+
+## Concurrent cache misses both mint, on purpose
+
+Two requests that miss the cache at the same moment each exchange a JWT for their own
+token, and the second `SET` overwrites the first. This looks like the check-then-insert
+race from Milestone 5 and is not the same problem: there, the race produced a duplicate
+review; here, it produces two independently valid tokens, both usable for their full hour.
+The cost is one extra round trip to GitHub, rarely. A lock (or de-duplicating in-flight
+requests per installation) would remove it, and would add a failure mode — a holder that
+dies with the lock held — to prevent something harmless. Not worth it until the metrics
+say otherwise.

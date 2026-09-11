@@ -500,3 +500,24 @@ validation errors — checked by a test that makes validation fail on a request 
 token. Every call costs money, so `/reviews` requires a shared secret (`X-Agent-Secret`,
 compared in constant time) even on localhost, the service refuses to start without one,
 and it binds to 127.0.0.1 by default: nothing but the API should be able to reach it.
+
+## The agent reads a tarball snapshot, not the GitHub API
+
+The agent's tools — `get_file`, `search_repo`, `list_changed_files`, `get_pr_metadata` —
+read a copy of the repository downloaded once per review as a tarball at the PR's head
+SHA. The alternative, a GitHub API call per file the agent asks for, would spend rate limit
+inside the agent's loop, add network latency to every tool call, and offer no search at all
+(GitHub's code search covers only the default branch, which is exactly the wrong commit).
+The snapshot makes every read local and pinned to the commit under review. Checked on the
+testbed: `get_file` returns the PR's version of `auth.ts`, not `main`'s, and a file the PR
+renamed away is reported as missing.
+
+The tarball is treated as hostile. Python 3.12's `tarfile` `data` filter refuses `..`
+components and links pointing outside the target and neutralises absolute paths; on top of
+it the download is capped at 50 MB as it streams, and the archive at 200 MB and 50,000
+entries before extraction. The tools resolve symlinks before reading and refuse anything
+outside the snapshot, so a link committed in the repo cannot become a way to read the host.
+Each tool's output is capped (400 lines per read, 50 search matches), because every tool
+result is re-sent as input on every later turn. Their JSON schemas are generated from the
+same pydantic models that validate their input, and none of them writes anything — the
+first of the structural defences against instructions planted in the code under review.

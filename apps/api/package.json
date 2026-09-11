@@ -20,7 +20,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "prove:token": "nest build && node dist/scripts/prove-installation-token.js"
+    "prove:token": "nest build && node dist/scripts/prove-installation-token.js",
+    "capture:fixtures": "nest build && node dist/scripts/capture-webhook-fixtures.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

@@ -203,6 +203,13 @@ they follow the repo either way. Both cases are covered in
 `test/installations.lifecycle.e2e-spec.ts`; the live install → uninstall → reinstall on
 the testbed settles which one GitHub actually does.
 
+Settled on 2026-09-11: GitHub issues a new installation ID on every reinstall. Three rounds
+on the testbed produced installations 160830774, 160830836 and 160831076, each a new
+`Installation` row, the earlier ones soft-deleted. The testbed's single `Repo` row followed
+all three, re-pointed each time with `deletedAt` cleared. The plan's polish bar — "the
+original `Installation` row is reused" — was based on a premise GitHub does not honour;
+the property it was after, history surviving a reinstall, holds through `Repo`.
+
 ## `Repo.defaultBranch` became nullable
 
 `installation.created` and `installation_repositories.added` list repositories without
@@ -222,3 +229,32 @@ ran out, so every call in that window would 401. `InstallationsService.suspended
 `gh:itoken:{installationId}`. It runs even when there is no `Installation` row to update,
 because the cache is keyed on GitHub's installation ID, not ours. Unsuspending does nothing
 to the cache — the next call is a miss and mints a fresh token.
+
+## The signature is verified against the raw body, never the parsed JSON
+
+GitHub computes `X-Hub-Signature-256` over the exact bytes it sent. By the time a handler
+sees `req.body`, Express has parsed those bytes into an object, and turning that object back
+into a string with `JSON.stringify` does not reproduce them: key order, whitespace, and
+escaping (`\u00e9` versus `é`, `\/` versus `/`) can all differ. So a guard that hashes the
+re-serialised body passes on simple payloads in testing and then fails intermittently in
+production on exactly the payloads that differ — the worst way for an auth check to fail.
+`main.ts` creates the app with `rawBody: true`, which keeps the original `Buffer` on
+`req.rawBody` alongside the parsed body, and the guard hashes only that. It rejects a
+missing or empty `rawBody` with a 401 rather than falling back to anything, because a
+missing raw body means the option was lost, and failing loudly is how that gets noticed.
+The e2e suite's tampered-body test changes one value in the real captured bytes and expects
+a 401, and removing `rawBody: true` from the test app turns every signed request into a 401.
+
+## e2e tests run against their own database, on real captured payloads
+
+`npm run test:e2e` points `DATABASE_URL` at `pr_reviewer_test` (created by `init.sql`),
+applies migrations in a global setup, and truncates between tests — with a guard that
+refuses to truncate any database with another name, so a misconfigured environment fails
+the run instead of wiping development data. Files run one at a time because they share
+that database. The webhook secret is a fixed test value set before `.env` is read, so
+signatures in tests never involve the real one. Payloads in `test/fixtures` are copied
+from the App's delivery history by `npm run capture:fixtures` rather than written by hand:
+a hand-written `installation.created` contains the fields its author expected, and the
+cases worth testing are the ones where GitHub sends something the author did not expect.
+They are sent as the exact captured string, never re-serialised, for the reason in the
+raw-body entry above.

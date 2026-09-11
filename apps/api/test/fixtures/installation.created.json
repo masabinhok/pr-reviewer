@@ -1,0 +1,85 @@
+{
+  "action": "created",
+  "installation": {
+    "id": 160831076,
+    "client_id": "Iv23lidGFoxId1IMXxh8",
+    "account": {
+      "login": "masabinhok",
+      "id": 161845983,
+      "node_id": "U_kgDOCaWS3w",
+      "avatar_url": "https://avatars.githubusercontent.com/u/161845983?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/masabinhok",
+      "html_url": "https://github.com/masabinhok",
+      "followers_url": "https://api.github.com/users/masabinhok/followers",
+      "following_url": "https://api.github.com/users/masabinhok/following{/other_user}",
+      "gists_url": "https://api.github.com/users/masabinhok/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/masabinhok/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/masabinhok/subscriptions",
+      "organizations_url": "https://api.github.com/users/masabinhok/orgs",
+      "repos_url": "https://api.github.com/users/masabinhok/repos",
+      "events_url": "https://api.github.com/users/masabinhok/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/masabinhok/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "repository_selection": "selected",
+    "access_tokens_url": "https://api.github.com/app/installations/160831076/access_tokens",
+    "repositories_url": "https://api.github.com/installation/repositories",
+    "html_url": "https://github.com/settings/installations/160831076",
+    "app_id": 4768230,
+    "app_slug": "pr-reviewer-dev-masabinhok",
+    "target_id": 161845983,
+    "target_type": "User",
+    "permissions": {
+      "checks": "write",
+      "contents": "read",
+      "metadata": "read",
+      "pull_requests": "write"
+    },
+    "events": [
+      "pull_request",
+      "pull_request_review",
+      "pull_request_review_comment"
+    ],
+    "created_at": "2026-09-11T14:43:37.000+05:45",
+    "updated_at": "2026-09-11T14:43:37.000+05:45",
+    "single_file_name": null,
+    "has_multiple_single_files": false,
+    "single_file_paths": [],
+    "suspended_by": null,
+    "suspended_at": null
+  },
+  "repositories": [
+    {
+      "id": 1351192640,
+      "node_id": "R_kgDOUImQQA",
+      "name": "pr-reviewer-testbed",
+      "full_name": "masabinhok/pr-reviewer-testbed",
+      "private": true
+    }
+  ],
+  "requester": null,
+  "sender": {
+    "login": "masabinhok",
+    "id": 161845983,
+    "node_id": "U_kgDOCaWS3w",
+    "avatar_url": "https://avatars.githubusercontent.com/u/161845983?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/masabinhok",
+    "html_url": "https://github.com/masabinhok",
+    "followers_url": "https://api.github.com/users/masabinhok/followers",
+    "following_url": "https://api.github.com/users/masabinhok/following{/other_user}",
+    "gists_url": "https://api.github.com/users/masabinhok/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/masabinhok/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/masabinhok/subscriptions",
+    "organizations_url": "https://api.github.com/users/masabinhok/orgs",
+    "repos_url": "https://api.github.com/users/masabinhok/repos",
+    "events_url": "https://api.github.com/users/masabinhok/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/masabinhok/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  }
+}

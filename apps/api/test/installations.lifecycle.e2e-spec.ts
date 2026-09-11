@@ -16,8 +16,8 @@ import type { InstallationPayload } from '../src/installations/github-payloads.j
  * reachable again after a reinstall — whichever installation ID GitHub hands back.
  */
 
-// GitHub IDs far above anything real, so these rows can never collide with — or be
-// cleaned up alongside — installations you have recorded through smee.
+// GitHub IDs far above anything real, so these rows can never collide with a captured
+// fixture's installation, and cleanup can find exactly its own rows.
 const base = 9_000_000_000_000 + Math.floor(Math.random() * 1_000_000_000);
 const ids = { installation: base, reinstalled: base + 1, repoA: base + 2, repoB: base + 3 };
 

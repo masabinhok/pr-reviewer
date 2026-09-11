@@ -15,11 +15,11 @@ import { InstallationsService } from '../src/installations/installations.service
  * a fake returns whatever you told it to. These tests talk to the real database, so
  * they test the claim the whole milestone rests on: the unique constraint is the lock.
  *
- * Run with `npm run test:e2e` (needs `docker compose up -d` and migrations applied).
+ * Run with `npm run test:e2e` (needs `docker compose up -d`; runs against pr_reviewer_test).
  */
 
-// Every row this file writes is prefixed, so cleanup can delete exactly its own rows
-// and never touch whatever you have been generating through smee.
+// Every row this file writes is prefixed, so cleanup deletes exactly its own rows and
+// leaves the database as the next file expects to find it.
 const PREFIX = 'itest-';
 const uniqueId = () => `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

@@ -8,13 +8,13 @@ dependencies = [
   "uvicorn==0.52.4",
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
+  "httpx2==2.12.0",  # the anthropic SDK's HTTP client; also used here to download tarballs
 ]
 
 [dependency-groups]
 dev = [
   "pytest==9.1.1",
   "ruff==0.16.7",
-  "httpx2==2.12.0",  # FastAPI's TestClient (Starlette has moved to the httpx2 fork)
 ]
 
 [build-system]

@@ -12,6 +12,7 @@ import { REVIEW_QUEUE, reviewJobId } from '../src/reviews/review-queue.js';
 import { ReviewStatus } from '../src/generated/prisma/client.js';
 import { ReviewProcessor } from '../src/reviews/review.processor.js';
 import { GithubRateLimitError } from '../src/github/github-api.errors.js';
+import { GithubApiService } from '../src/github/github-api.service.js';
 import type { PullRequestPayload } from '../src/reviews/pull-request-payload.js';
 import { fixtureJson } from './helpers/fixtures.js';
 import { truncateAll } from './helpers/db.js';
@@ -35,6 +36,11 @@ async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms 
   }
 }
 
+const github = {
+  createCheckRun: vi.fn().mockResolvedValue({ id: 4242 }),
+  completeCheckRun: vi.fn().mockResolvedValue(undefined),
+};
+
 describe('Review queue (real Postgres, Redis and worker)', () => {
   let module: TestingModule;
   let prisma: PrismaService;
@@ -48,7 +54,12 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
         PrismaModule,
         ReviewsModule,
       ],
-    }).compile();
+    })
+      // The worker talks to GitHub for its Check Run. The queue, the rows and the worker
+      // are real here; GitHub is not — only whether the worker called it is checked.
+      .overrideProvider(GithubApiService)
+      .useValue(github)
+      .compile();
     await module.init(); // starts the worker
 
     prisma = module.get(PrismaService);
@@ -67,6 +78,7 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   });
 
   beforeEach(async () => {
+    vi.clearAllMocks();
     await queue.obliterate({ force: true });
     await truncateAll(prisma);
     await prisma.installation.create({
@@ -93,6 +105,13 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
     );
     expect(settled.status).toBe(ReviewStatus.COMPLETED);
     expect(settled.completedAt).toBeInstanceOf(Date);
+    expect(settled.checkRunId).toBe(4242n);
+    expect(github.completeCheckRun).toHaveBeenCalledWith(
+      BigInt(opened.installation!.id),
+      opened.repository.full_name,
+      4242n,
+      expect.objectContaining({ conclusion: 'success' }),
+    );
   });
 
   // Two different deliveries about the same commit — e.g. `opened` and a `synchronize`
@@ -123,14 +142,14 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   // The job has 3 attempts. Being rate limited 3 times and still completing proves the
   // waits did not spend them — against real BullMQ, not a mocked job.
   it('waits out rate limits without spending the job’s attempts', async () => {
-    const processor = module.get(ReviewProcessor) as unknown as { run: () => Promise<void> };
+    const processor = module.get(ReviewProcessor) as unknown as { run: () => Promise<unknown> };
     const limited = () => new GithubRateLimitError('secondary', new Date(Date.now() + 200), '/x');
     const run = vi
       .spyOn(processor, 'run')
       .mockRejectedValueOnce(limited())
       .mockRejectedValueOnce(limited())
       .mockRejectedValueOnce(limited())
-      .mockResolvedValueOnce(undefined);
+      .mockResolvedValueOnce({ kind: 'completed', reviewed: [], skipped: [], findings: [] });
 
     await service.handle(opened, 'd-8');
     const review = await prisma.review.findFirstOrThrow();

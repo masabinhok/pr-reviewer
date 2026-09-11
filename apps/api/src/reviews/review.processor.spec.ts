@@ -1,11 +1,27 @@
 import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
-import { ReviewProcessor } from './review.processor.js';
+import { DelayedError, type Job } from 'bullmq';
+import { ReviewProcessor, type ReviewTarget } from './review.processor.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { GithubApiService } from '../github/github-api.service.js';
 import { ReviewStatus } from '../generated/prisma/client.js';
-import { DelayedError } from 'bullmq';
 import { GithubRateLimitError } from '../github/github-api.errors.js';
 import type { ReviewJobData } from './review-queue.js';
+import type { ReviewOutcome } from './review-outcome.js';
+
+const HEAD = '9ee05f8fb49c7d0c5183c0b0853f1bed0da7f6a8';
+
+function reviewRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'rev-1',
+    status: ReviewStatus.PENDING,
+    prNumber: 3,
+    baseSha: 'base000',
+    headSha: HEAD,
+    checkRunId: null as bigint | null,
+    repo: { fullName: 'octo/widgets', installation: { githubId: 42n } },
+    ...overrides,
+  };
+}
 
 function job(attemptsMade = 0, attempts = 3) {
   return {
@@ -18,21 +34,31 @@ function job(attemptsMade = 0, attempts = 3) {
 
 describe('ReviewProcessor', () => {
   let prisma: { review: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> } };
+  let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
   let processor: ReviewProcessor;
   let run: ReturnType<typeof vi.spyOn>;
 
-  const statuses = () => prisma.review.update.mock.calls.map(([arg]) => arg.data.status);
+  /** Every `data` the row was updated with, in order. */
+  const updates = () => prisma.review.update.mock.calls.map(([arg]) => arg.data);
+  const statuses = () => updates().map((d) => d.status).filter(Boolean);
+  const conclusion = () => github.completeCheckRun.mock.calls[0]?.[3];
 
   beforeEach(() => {
     prisma = {
       review: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'rev-1', status: ReviewStatus.PENDING }),
+        findUnique: vi.fn().mockResolvedValue(reviewRow()),
         update: vi.fn().mockResolvedValue({}),
       },
     };
-    processor = new ReviewProcessor(prisma as unknown as PrismaService);
-    // `run` is the pipeline; here only its outcome matters.
-    run = vi.spyOn(processor as unknown as { run: () => Promise<void> }, 'run').mockResolvedValue();
+    github = {
+      createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
+      completeCheckRun: vi.fn().mockResolvedValue(undefined),
+    };
+    processor = new ReviewProcessor(prisma as unknown as PrismaService, github as unknown as GithubApiService);
+    // `run` is the pipeline; here only what it returns or throws matters.
+    run = vi
+      .spyOn(processor as unknown as { run: (t: ReviewTarget) => Promise<ReviewOutcome> }, 'run')
+      .mockResolvedValue({ kind: 'completed', reviewed: ['src/a.ts'], skipped: [], findings: [] });
     for (const level of ['log', 'warn', 'error'] as const) {
       vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
     }
@@ -40,50 +66,112 @@ describe('ReviewProcessor', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('moves a review PENDING → RUNNING → COMPLETED', async () => {
+  describe('a review that completes', () => {
+    it('runs the pipeline with everything it needs, from the database', async () => {
+      await processor.process(job());
+
+      expect(run).toHaveBeenCalledWith({
+        reviewId: 'rev-1',
+        installationId: 42n,
+        repo: 'octo/widgets',
+        prNumber: 3,
+        baseSha: 'base000',
+        headSha: HEAD,
+      });
+    });
+
+    it('opens a Check Run on the head commit, stores its ID, and completes it as success', async () => {
+      await processor.process(job());
+
+      expect(github.createCheckRun).toHaveBeenCalledWith(42n, 'octo/widgets', {
+        name: 'pr-reviewer',
+        headSha: HEAD,
+        externalId: 'rev-1',
+      });
+      expect(updates()).toContainEqual({ checkRunId: 777n });
+      expect(github.completeCheckRun).toHaveBeenCalledWith(42n, 'octo/widgets', 777n, expect.anything());
+      expect(conclusion()).toMatchObject({ conclusion: 'success', output: { title: 'No findings in 1 file' } });
+      expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.COMPLETED]);
+    });
+
+    // A spinner that stops before the row settles can only be fixed by the retry; a row
+    // that settles first makes the retry skip, and the spinner never stops.
+    it('completes the Check Run before settling the row', async () => {
+      const order: string[] = [];
+      github.completeCheckRun.mockImplementation(async () => void order.push('check'));
+      prisma.review.update.mockImplementation(async ({ data }) => void (data.status === ReviewStatus.COMPLETED && order.push('row')));
+
+      await processor.process(job());
+
+      expect(order).toEqual(['check', 'row']);
+    });
+
+    it('reuses the Check Run a previous attempt created', async () => {
+      prisma.review.findUnique.mockResolvedValue(reviewRow({ status: ReviewStatus.RUNNING, checkRunId: 555n }));
+
+      await processor.process(job(1));
+
+      expect(github.createCheckRun).not.toHaveBeenCalled();
+      expect(github.completeCheckRun).toHaveBeenCalledWith(42n, 'octo/widgets', 555n, expect.anything());
+    });
+  });
+
+  it('records a skipped review as SKIPPED with its reason, and a skipped Check Run', async () => {
+    run.mockResolvedValue({ kind: 'skipped', reason: '62 files to review, over the limit of 50', skipped: [] });
+
     await processor.process(job());
 
-    expect(run).toHaveBeenCalledWith('rev-1');
-    expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.COMPLETED]);
+    expect(conclusion()).toMatchObject({ conclusion: 'skipped' });
+    expect(updates().at(-1)).toMatchObject({
+      status: ReviewStatus.SKIPPED,
+      skipReason: '62 files to review, over the limit of 50',
+    });
   });
 
-  it('does nothing when the review row no longer exists', async () => {
-    prisma.review.findUnique.mockResolvedValue(null);
+  describe('a review that fails', () => {
+    beforeEach(() => {
+      run.mockRejectedValue(new Error('GitHub 502'));
+    });
 
-    await processor.process(job());
+    // Retries left: the review is still going, so the spinner stays and the row stays RUNNING.
+    it('leaves the Check Run and the row alone while retries are left', async () => {
+      await expect(processor.process(job(0, 3))).rejects.toThrow('GitHub 502');
 
-    expect(run).not.toHaveBeenCalled();
-    expect(prisma.review.update).not.toHaveBeenCalled();
-  });
+      expect(github.completeCheckRun).not.toHaveBeenCalled();
+      expect(statuses()).toEqual([ReviewStatus.RUNNING]);
+    });
 
-  it.each([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED])('skips a review that is already %s', async (status) => {
-    prisma.review.findUnique.mockResolvedValue({ id: 'rev-1', status });
+    it('completes the Check Run as failure and marks the row FAILED on the final attempt', async () => {
+      await expect(processor.process(job(2, 3))).rejects.toThrow('GitHub 502');
 
-    await processor.process(job());
+      expect(conclusion()).toMatchObject({ conclusion: 'failure', output: { title: 'Review failed' } });
+      expect(conclusion().output.summary).toContain('GitHub 502');
+      expect(conclusion().output.summary).toContain('after 3 attempts');
+      expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED, error: 'GitHub 502' });
+    });
 
-    expect(run).not.toHaveBeenCalled();
-  });
+    // If GitHub is what's down, completing the check fails too — that must not hide the
+    // real error or stop the row being marked FAILED.
+    it('still marks the row FAILED and rethrows the real error when completing the Check Run fails', async () => {
+      github.completeCheckRun.mockRejectedValue(new Error('GitHub 503'));
 
-  // A retried attempt finds the row RUNNING from the attempt before — that must not stop it.
-  it('runs a review left RUNNING by an earlier attempt', async () => {
-    prisma.review.findUnique.mockResolvedValue({ id: 'rev-1', status: ReviewStatus.RUNNING });
+      await expect(processor.process(job(2, 3))).rejects.toThrow('GitHub 502');
 
-    await processor.process(job(1));
+      expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
+    });
 
-    expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.COMPLETED]);
-  });
+    it('marks it FAILED without touching a Check Run that was never created', async () => {
+      github.createCheckRun.mockRejectedValue(new Error('Resource not accessible by integration'));
 
-  // Marking it FAILED here would make the retry skip it — only the last attempt settles it.
-  it('leaves the review RUNNING and rethrows when an attempt fails with retries left', async () => {
-    run.mockRejectedValue(new Error('GitHub 502'));
+      await expect(processor.process(job(2, 3))).rejects.toThrow('Resource not accessible');
 
-    await expect(processor.process(job(0, 3))).rejects.toThrow('GitHub 502');
-
-    expect(statuses()).toEqual([ReviewStatus.RUNNING]);
+      expect(github.completeCheckRun).not.toHaveBeenCalled();
+      expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
+    });
   });
 
   // Even on the last attempt: waiting for GitHub is not a failure of the review.
-  it('reschedules a rate-limited attempt for the reset time instead of failing it', async () => {
+  it('reschedules a rate-limited attempt for the reset time, leaving the Check Run spinning', async () => {
     const retryAt = new Date(Date.now() + 30 * 60_000);
     run.mockRejectedValue(new GithubRateLimitError('primary', retryAt, '/repos/o/r/pulls/1/files'));
     const finalAttempt = job(2, 3);
@@ -91,15 +179,30 @@ describe('ReviewProcessor', () => {
     await expect(processor.process(finalAttempt, 'lock-token')).rejects.toBeInstanceOf(DelayedError);
 
     expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(retryAt.getTime(), 'lock-token');
+    expect(github.completeCheckRun).not.toHaveBeenCalled();
     expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.PENDING]);
   });
 
-  it('marks the review FAILED with the error on the final attempt, and still rethrows', async () => {
-    run.mockRejectedValue(new Error('GitHub 502'));
+  describe('a review with nothing to do', () => {
+    it('does nothing when the row no longer exists', async () => {
+      prisma.review.findUnique.mockResolvedValue(null);
 
-    await expect(processor.process(job(2, 3))).rejects.toThrow('GitHub 502');
+      await processor.process(job());
 
-    expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.FAILED]);
-    expect(prisma.review.update.mock.calls[1][0].data).toMatchObject({ error: 'GitHub 502' });
+      expect(run).not.toHaveBeenCalled();
+      expect(github.createCheckRun).not.toHaveBeenCalled();
+    });
+
+    it.each([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED])(
+      'skips a review that is already %s',
+      async (status) => {
+        prisma.review.findUnique.mockResolvedValue(reviewRow({ status }));
+
+        await processor.process(job());
+
+        expect(run).not.toHaveBeenCalled();
+        expect(prisma.review.update).not.toHaveBeenCalled();
+      },
+    );
   });
 });

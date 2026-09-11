@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -36,9 +38,16 @@ async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms 
   }
 }
 
+// GitHub is replaced with the real testbed PR's captured files and diff, so the worker runs
+// the whole pipeline — filters, parser, stub reviewer, validation — and stores real findings.
+const diffFixture = (name: string) =>
+  readFileSync(fileURLToPath(new URL(`./fixtures/diffs/${name}`, import.meta.url)), 'utf8');
 const github = {
   createCheckRun: vi.fn().mockResolvedValue({ id: 4242 }),
   completeCheckRun: vi.fn().mockResolvedValue(undefined),
+  listPullRequestFiles: vi.fn().mockResolvedValue(JSON.parse(diffFixture('diff-shapes.files.json'))),
+  getDiff: vi.fn().mockResolvedValue(diffFixture('diff-shapes.diff')),
+  getPullRequest: vi.fn().mockResolvedValue({ title: 'Diff shapes', body: null }),
 };
 
 describe('Review queue (real Postgres, Redis and worker)', () => {
@@ -78,7 +87,7 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   });
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    for (const fn of [github.createCheckRun, github.completeCheckRun]) fn.mockClear();
     await queue.obliterate({ force: true });
     await truncateAll(prisma);
     await prisma.installation.create({
@@ -106,6 +115,14 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
     expect(settled.status).toBe(ReviewStatus.COMPLETED);
     expect(settled.completedAt).toBeInstanceOf(Date);
     expect(settled.checkRunId).toBe(4242n);
+
+    // The stub reviewer's three planted findings, stored against this review.
+    const findings = await prisma.finding.findMany({ where: { reviewId: review.id }, orderBy: { filePath: 'asc' } });
+    expect(findings.map((f) => [f.filePath, f.line, f.side, f.severity])).toEqual([
+      ['src/auth.ts', 26, 'RIGHT', 'LOW'],
+      ['src/helpers.ts', 10, 'RIGHT', 'LOW'],
+      ['src/new-feature.ts', 2, 'RIGHT', 'MEDIUM'],
+    ]);
     expect(github.completeCheckRun).toHaveBeenCalledWith(
       BigInt(opened.installation!.id),
       opened.repository.full_name,

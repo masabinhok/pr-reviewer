@@ -1,14 +1,19 @@
 import { renderCheck } from './check-summary.js';
 import { Severity } from '../generated/prisma/client.js';
-import type { FindingSummary } from './review-outcome.js';
+import type { ValidFinding } from '../reviewer/validate-findings.js';
 
 const HEAD = 'bc26a45357e0d8886c7aab3f2aa409fce73f8e43';
 
-const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 'debug output left in'): FindingSummary => ({
+const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 'debug output left in'): ValidFinding => ({
   severity,
   path,
   line,
   summary,
+  side: 'RIGHT',
+  category: 'debugging',
+  whyItBreaks: 'writes to stdout in production',
+  suggestedFix: null,
+  fingerprint: 'f'.repeat(64),
 });
 
 describe('renderCheck', () => {

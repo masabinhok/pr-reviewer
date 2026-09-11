@@ -8,6 +8,7 @@ import { GithubRateLimitError } from '../github/github-api.errors.js';
 import { GithubApiService } from '../github/github-api.service.js';
 import { CHECK_RUN_NAME, renderCheck, type CheckResult } from './check-summary.js';
 import type { ReviewOutcome } from './review-outcome.js';
+import { ReviewPipeline } from './review-pipeline.js';
 
 /** Everything the pipeline needs to know about the review it is running. */
 export interface ReviewTarget {
@@ -35,6 +36,7 @@ export class ReviewProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly github: GithubApiService,
+    private readonly pipeline: ReviewPipeline,
   ) {
     super();
   }
@@ -106,12 +108,9 @@ export class ReviewProcessor extends WorkerHost {
     }
   }
 
-  /**
-   * The pipeline. A skeleton until milestone 14 fills it in: fetch the files, filter them,
-   * fetch and parse the diff, run the reviewer, and hand back what happened.
-   */
-  protected async run(_target: ReviewTarget): Promise<ReviewOutcome> {
-    return { kind: 'completed', reviewed: [], skipped: [], findings: [] };
+  /** The review itself — see ReviewPipeline. Separate so the lifecycle here can be tested alone. */
+  protected async run(target: ReviewTarget): Promise<ReviewOutcome> {
+    return this.pipeline.run(target);
   }
 
   private async startCheckRun(target: ReviewTarget): Promise<bigint> {
@@ -134,14 +133,41 @@ export class ReviewProcessor extends WorkerHost {
   private async settle(target: ReviewTarget, checkRunId: bigint, outcome: ReviewOutcome): Promise<void> {
     await this.github.completeCheckRun(target.installationId, target.repo, checkRunId, renderCheck(outcome, target.headSha));
 
-    await this.prisma.review.update({
-      where: { id: target.reviewId },
-      data:
-        outcome.kind === 'skipped'
-          ? { status: ReviewStatus.SKIPPED, skipReason: outcome.reason, completedAt: new Date() }
-          : { status: ReviewStatus.COMPLETED, completedAt: new Date() },
-    });
-    this.logger.log(`review ${target.reviewId}: ${outcome.kind === 'skipped' ? `skipped — ${outcome.reason}` : 'completed'}`);
+    if (outcome.kind === 'skipped') {
+      await this.prisma.review.update({
+        where: { id: target.reviewId },
+        data: { status: ReviewStatus.SKIPPED, skipReason: outcome.reason, completedAt: new Date() },
+      });
+      this.logger.log(`review ${target.reviewId}: skipped — ${outcome.reason}`);
+      return;
+    }
+
+    // Findings and COMPLETED land together or not at all. The delete makes a re-settle —
+    // a retry after this transaction failed — replace the findings rather than duplicate them.
+    await this.prisma.$transaction([
+      this.prisma.finding.deleteMany({ where: { reviewId: target.reviewId } }),
+      this.prisma.finding.createMany({
+        data: outcome.findings.map((f) => ({
+          reviewId: target.reviewId,
+          filePath: f.path,
+          line: f.line,
+          side: f.side,
+          severity: f.severity,
+          category: f.category,
+          summary: f.summary,
+          whyItBreaks: f.whyItBreaks,
+          suggestedFix: f.suggestedFix,
+          fingerprint: f.fingerprint,
+        })),
+      }),
+      this.prisma.review.update({
+        where: { id: target.reviewId },
+        data: { status: ReviewStatus.COMPLETED, completedAt: new Date() },
+      }),
+    ]);
+    this.logger.log(
+      `review ${target.reviewId}: completed — ${outcome.reviewed.length} file(s), ${outcome.findings.length} finding(s)`,
+    );
   }
 
   /**

@@ -1,13 +1,8 @@
 import type { SkippedFile } from '../filters/review-filter.js';
-import type { Severity } from '../generated/prisma/client.js';
+import type { ValidFinding } from '../reviewer/validate-findings.js';
 
-/** A finding as the Check Run summary shows it. */
-export interface FindingSummary {
-  path: string;
-  line: number;
-  severity: Severity;
-  summary: string;
-}
+/** The part of a finding the Check Run summary shows. */
+export type FindingSummary = Pick<ValidFinding, 'path' | 'line' | 'severity' | 'summary'>;
 
 /**
  * What the pipeline hands back to the worker when it finishes without throwing. A thrown
@@ -15,5 +10,5 @@ export interface FindingSummary {
  * settles the review.
  */
 export type ReviewOutcome =
-  | { kind: 'completed'; reviewed: string[]; skipped: SkippedFile[]; findings: FindingSummary[] }
+  | { kind: 'completed'; reviewed: string[]; skipped: SkippedFile[]; findings: ValidFinding[] }
   | { kind: 'skipped'; reason: string; skipped: SkippedFile[] };

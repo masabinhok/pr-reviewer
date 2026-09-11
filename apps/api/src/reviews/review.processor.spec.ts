@@ -7,6 +7,9 @@ import { ReviewStatus } from '../generated/prisma/client.js';
 import { GithubRateLimitError } from '../github/github-api.errors.js';
 import type { ReviewJobData } from './review-queue.js';
 import type { ReviewOutcome } from './review-outcome.js';
+import type { ReviewPipeline } from './review-pipeline.js';
+import { Severity } from '../generated/prisma/client.js';
+import type { ValidFinding } from '../reviewer/validate-findings.js';
 
 const HEAD = '9ee05f8fb49c7d0c5183c0b0853f1bed0da7f6a8';
 
@@ -33,7 +36,11 @@ function job(attemptsMade = 0, attempts = 3) {
 }
 
 describe('ReviewProcessor', () => {
-  let prisma: { review: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> } };
+  let prisma: {
+    review: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+    finding: { deleteMany: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> };
+    $transaction: ReturnType<typeof vi.fn>;
+  };
   let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
   let processor: ReviewProcessor;
   let run: ReturnType<typeof vi.spyOn>;
@@ -49,12 +56,22 @@ describe('ReviewProcessor', () => {
         findUnique: vi.fn().mockResolvedValue(reviewRow()),
         update: vi.fn().mockResolvedValue({}),
       },
+      finding: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      // The array form: every operation is built first, then committed together.
+      $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     };
     github = {
       createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
       completeCheckRun: vi.fn().mockResolvedValue(undefined),
     };
-    processor = new ReviewProcessor(prisma as unknown as PrismaService, github as unknown as GithubApiService);
+    processor = new ReviewProcessor(
+      prisma as unknown as PrismaService,
+      github as unknown as GithubApiService,
+      {} as ReviewPipeline, // `run` is spied below, so the pipeline itself is never called
+    );
     // `run` is the pipeline; here only what it returns or throws matters.
     run = vi
       .spyOn(processor as unknown as { run: (t: ReviewTarget) => Promise<ReviewOutcome> }, 'run')
@@ -104,6 +121,44 @@ describe('ReviewProcessor', () => {
       await processor.process(job());
 
       expect(order).toEqual(['check', 'row']);
+    });
+
+    it('stores the findings and COMPLETED in one transaction, replacing any from an earlier attempt', async () => {
+      const found: ValidFinding = {
+        path: 'src/auth.ts',
+        line: 26,
+        side: 'RIGHT',
+        severity: Severity.LOW,
+        category: 'debugging',
+        summary: '`console.log` is left in.',
+        whyItBreaks: 'writes to stdout in production',
+        suggestedFix: null,
+        fingerprint: 'a'.repeat(64),
+      };
+      run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+
+      await processor.process(job());
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.finding.deleteMany).toHaveBeenCalledWith({ where: { reviewId: 'rev-1' } });
+      expect(prisma.finding.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            reviewId: 'rev-1',
+            filePath: 'src/auth.ts',
+            line: 26,
+            side: 'RIGHT',
+            severity: Severity.LOW,
+            category: 'debugging',
+            summary: '`console.log` is left in.',
+            whyItBreaks: 'writes to stdout in production',
+            suggestedFix: null,
+            fingerprint: 'a'.repeat(64),
+          },
+        ],
+      });
+      const [ops] = prisma.$transaction.mock.calls[0];
+      expect(ops).toHaveLength(3); // delete, create, COMPLETED — all or nothing
     });
 
     it('reuses the Check Run a previous attempt created', async () => {

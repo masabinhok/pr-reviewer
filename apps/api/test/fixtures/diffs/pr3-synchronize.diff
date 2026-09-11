@@ -1,0 +1,96 @@
+diff --git a/assets/logo.png b/assets/logo.png
+index 1d20459..bf0acf5 100644
+Binary files a/assets/logo.png and b/assets/logo.png differ
+diff --git a/docs/old name.md b/docs/new name.md
+similarity index 100%
+rename from docs/old name.md
+rename to docs/new name.md
+diff --git a/legacy/remove-me.ts b/legacy/remove-me.ts
+deleted file mode 100644
+index 6ccb980..0000000
+--- a/legacy/remove-me.ts
++++ /dev/null
+@@ -1 +0,0 @@
+-export const legacy = true;
+diff --git a/package-lock.json b/package-lock.json
+index 802f13c..e00c7e1 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,5 +1,7 @@
+ {
+   "name": "testbed",
+   "lockfileVersion": 3,
+-  "packages": {}
++  "packages": {
++    "": { "name": "testbed" }
++  }
+ }
+diff --git a/src/auth.ts b/src/auth.ts
+index 024c3b9..6dc6118 100644
+--- a/src/auth.ts
++++ b/src/auth.ts
+@@ -5,14 +5,15 @@ export interface Session {
+   expiresAt: number;
+ }
+ 
+-const SESSION_TTL_MS = 60 * 60 * 1000;
++const SESSION_TTL_MS = 30 * 60 * 1000;
++const CLOCK_SKEW_MS = 5_000;
+ 
+ export function createSession(userId: string, now = Date.now()): Session {
+   return { userId, expiresAt: now + SESSION_TTL_MS };
+ }
+ 
+ export function isExpired(session: Session, now = Date.now()): boolean {
+-  return session.expiresAt < now;
++  return session.expiresAt - CLOCK_SKEW_MS < now;
+ }
+ 
+ export function sign(value: string, secret: string): string {
+@@ -22,15 +23,15 @@ export function sign(value: string, secret: string): string {
+ export function verify(value: string, signature: string, secret: string): boolean {
+   const expected = Buffer.from(sign(value, secret));
+   const received = Buffer.from(signature);
++  console.log('verifying', value);
++  if (expected.length !== received.length) return false;
+   return timingSafeEqual(expected, received);
+ }
+ 
+ export function parseToken(token: string): { value: string; signature: string } | null {
++  console.log('parsing token');
+   const parts = token.split('.');
+   if (parts.length !== 2) return null;
+   return { value: parts[0], signature: parts[1] };
+ }
+ 
+-export function describe(session: Session): string {
+-  return `session for ${session.userId}`;
+-}
+diff --git a/src/config.ts b/src/config.ts
+old mode 100644
+new mode 100755
+diff --git a/src/utils.ts b/src/helpers.ts
+similarity index 86%
+rename from src/utils.ts
+rename to src/helpers.ts
+index 8a7c8ea..92f1b01 100644
+--- a/src/utils.ts
++++ b/src/helpers.ts
+@@ -7,5 +7,6 @@ export function chunk<T>(items: T[], size: number): T[][] {
+ }
+ 
+ export function unique<T>(items: T[]): T[] {
++  // TODO: keep first-seen order explicitly
+   return [...new Set(items)];
+ }
+diff --git a/src/new-feature.ts b/src/new-feature.ts
+new file mode 100644
+index 0000000..3dc2f0e
+--- /dev/null
++++ b/src/new-feature.ts
+@@ -0,0 +1,4 @@
++export function greet(name: string): string {
++  debugger;
++  return `hello ${name}`;
++}
+\ No newline at end of file

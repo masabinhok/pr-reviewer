@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
-import { REVIEW_QUEUE, reviewJobDefaults } from '../reviews/review-queue.js';
+import { REVIEW_QUEUE, reviewJobOptions } from '../reviews/review-queue.js';
 
 /**
  * BullMQ's connection to Redis. Deliberately *connection options*, not the app's
@@ -18,7 +18,13 @@ import { REVIEW_QUEUE, reviewJobDefaults } from '../reviews/review-queue.js';
         prefix: config.getOrThrow<string>('queue.prefix'),
       }),
     }),
-    BullModule.registerQueue({ name: REVIEW_QUEUE, defaultJobOptions: reviewJobDefaults }),
+    BullModule.registerQueueAsync({
+      name: REVIEW_QUEUE,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        defaultJobOptions: reviewJobOptions(config.getOrThrow<number>('queue.retryDelayMs')),
+      }),
+    }),
   ],
   exports: [BullModule],
 })

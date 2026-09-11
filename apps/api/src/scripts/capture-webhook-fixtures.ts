@@ -23,6 +23,7 @@ const WANTED = [
   'installation.created',
   'installation.deleted',
   'pull_request.opened',
+  'pull_request.synchronize',
   'check_suite.requested',
 ];
 

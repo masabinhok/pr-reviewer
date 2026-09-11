@@ -50,6 +50,9 @@ const github = {
   listPullRequestFiles: vi.fn().mockResolvedValue(JSON.parse(diffFixture('diff-shapes.files.json'))),
   getDiff: vi.fn().mockResolvedValue(diffFixture('diff-shapes.diff')),
   getPullRequest: vi.fn().mockResolvedValue({ title: 'Diff shapes', body: null }),
+  listReviews: vi.fn().mockResolvedValue([]),
+  createReview: vi.fn().mockResolvedValue({ id: 7001, html_url: 'https://github.com/o/r/pull/1#pullrequestreview-7001' }),
+  listReviewComments: vi.fn().mockResolvedValue([]),
 };
 
 const stub = new StubReviewer();

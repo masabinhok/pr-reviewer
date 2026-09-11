@@ -94,6 +94,9 @@ model Review {
   completionTokens  Int?
   costCents         Int?
   checkRunId        BigInt?
+  // The GitHub review posted for this Review. Set right after posting; a retry that finds
+  // it posts nothing.
+  githubReviewId    BigInt?
 
   findings Finding[]
 

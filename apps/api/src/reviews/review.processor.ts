@@ -9,6 +9,9 @@ import { GithubApiService } from '../github/github-api.service.js';
 import { CHECK_RUN_NAME, renderCheck, type CheckResult } from './check-summary.js';
 import type { ReviewOutcome } from './review-outcome.js';
 import { ReviewPipeline } from './review-pipeline.js';
+import { ReviewPublisher, type Publication } from './review-publisher.js';
+import type { ValidFinding } from '../reviewer/validate-findings.js';
+import type { Finding } from '../generated/prisma/client.js';
 
 /** Everything the pipeline needs to know about the review it is running. */
 export interface ReviewTarget {
@@ -37,6 +40,7 @@ export class ReviewProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly github: GithubApiService,
     private readonly pipeline: ReviewPipeline,
+    private readonly publisher: ReviewPublisher,
   ) {
     super();
   }
@@ -127,15 +131,19 @@ export class ReviewProcessor extends WorkerHost {
   }
 
   /**
-   * The Check Run is completed *before* the row is settled. The other order has a trap: if
-   * the row says COMPLETED and then the GitHub call fails, the retry sees a settled review
-   * and skips it — leaving the spinner on the PR forever. This way a failed GitHub call
-   * just means the retry completes it.
+   * Settling a completed review, in an order where every step is safe to repeat — a retry
+   * after any of them failing redoes nothing that was already done:
+   *
+   * 1. findings are written once per review; a retry keeps the rows (and the comment IDs
+   *    recorded on them) instead of rewriting them;
+   * 2. the review is posted on the PR once (ReviewPublisher);
+   * 3. the Check Run is completed — *before* the row settles, because a row that says
+   *    COMPLETED makes a retry skip the review, and the spinner would never stop;
+   * 4. the row is marked COMPLETED, last.
    */
   private async settle(target: ReviewTarget, checkRunId: bigint, outcome: ReviewOutcome): Promise<void> {
-    await this.github.completeCheckRun(target.installationId, target.repo, checkRunId, renderCheck(outcome, target.headSha));
-
     if (outcome.kind === 'skipped') {
+      await this.github.completeCheckRun(target.installationId, target.repo, checkRunId, renderCheck(outcome, target.headSha));
       await this.prisma.review.update({
         where: { id: target.reviewId },
         data: { status: ReviewStatus.SKIPPED, skipReason: outcome.reason, completedAt: new Date() },
@@ -144,13 +152,33 @@ export class ReviewProcessor extends WorkerHost {
       return;
     }
 
-    // Findings and COMPLETED land together or not at all. The delete makes a re-settle —
-    // a retry after this transaction failed — replace the findings rather than duplicate them.
-    await this.prisma.$transaction([
-      this.prisma.finding.deleteMany({ where: { reviewId: target.reviewId } }),
-      this.prisma.finding.createMany({
-        data: outcome.findings.map((f) => ({
-          reviewId: target.reviewId,
+    const findings = await this.storeFindings(target.reviewId, outcome.findings);
+    const publication: Publication = await this.publisher.publish(target, findings);
+
+    await this.github.completeCheckRun(
+      target.installationId,
+      target.repo,
+      checkRunId,
+      renderCheck(outcome, target.headSha, publication),
+    );
+    await this.prisma.review.update({
+      where: { id: target.reviewId },
+      data: { status: ReviewStatus.COMPLETED, completedAt: new Date() },
+    });
+    this.logger.log(
+      `review ${target.reviewId}: completed — ${outcome.reviewed.length} file(s), ${findings.length} finding(s), ${publication.posted} posted`,
+    );
+  }
+
+  /** The review's Finding rows: written the first time, returned as they are after that. */
+  private storeFindings(reviewId: string, findings: ValidFinding[]): Promise<Finding[]> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });
+      if (existing.length > 0) return existing;
+
+      await tx.finding.createMany({
+        data: findings.map((f) => ({
+          reviewId,
           filePath: f.path,
           line: f.line,
           side: f.side,
@@ -161,15 +189,9 @@ export class ReviewProcessor extends WorkerHost {
           suggestedFix: f.suggestedFix,
           fingerprint: f.fingerprint,
         })),
-      }),
-      this.prisma.review.update({
-        where: { id: target.reviewId },
-        data: { status: ReviewStatus.COMPLETED, completedAt: new Date() },
-      }),
-    ]);
-    this.logger.log(
-      `review ${target.reviewId}: completed — ${outcome.reviewed.length} file(s), ${outcome.findings.length} finding(s)`,
-    );
+      });
+      return tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });
+    });
   }
 
   /**

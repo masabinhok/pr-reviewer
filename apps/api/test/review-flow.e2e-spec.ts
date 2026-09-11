@@ -111,6 +111,45 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     ]);
   });
 
+  it('posts one review, COMMENT only, with the findings that meet the severity gate', async () => {
+    await deliver('pull_request', SYNC).expect(200);
+    const review = await settledReview(sync.pull_request.head.sha);
+
+    expect(github.reviews).toHaveLength(1);
+    const [posted] = github.reviews;
+    expect(posted.event).toBe('COMMENT');
+    expect(posted.commitId).toBe(sync.pull_request.head.sha);
+    // The stub's four findings are three low and one medium: only the medium is posted.
+    expect(posted.comments.map((c) => [c.path, c.line, c.side])).toEqual([['src/new-feature.ts', 2, 'RIGHT']]);
+    expect(posted.body).toContain('3 lower-severity notes are in the pr-reviewer check');
+
+    const medium = review!.findings.find((f) => f.severity === 'MEDIUM');
+    expect(medium?.githubCommentId).toBe(BigInt(posted.comments[0].id));
+    expect(review!.findings.filter((f) => f.githubCommentId !== null)).toHaveLength(1);
+  });
+
+  // Posting is the visible step. A job that fails after it — here, GitHub refusing the
+  // Check Run update once — must retry without posting a second review.
+  it('does not post a second review when the job is retried after posting', async () => {
+    const fetchWithOneCheckRunFailure = github.fetch;
+    let failed = false;
+    vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+      if (!failed && (init.method ?? 'GET') === 'PATCH' && String(input).includes('/check-runs/')) {
+        failed = true;
+        return new Response(JSON.stringify({ message: 'Bad Gateway' }), { status: 502 });
+      }
+      return fetchWithOneCheckRunFailure(input, init);
+    });
+
+    await deliver('pull_request', SYNC).expect(200);
+    const review = await settledReview(sync.pull_request.head.sha);
+
+    expect(failed).toBe(true);
+    expect(review?.status).toBe(ReviewStatus.COMPLETED);
+    expect(github.reviews).toHaveLength(1);
+    expect(review?.githubReviewId).toBe(BigInt(github.reviews[0].id));
+  });
+
   it('opens a Check Run on the head commit and completes it with the findings', async () => {
     await deliver('pull_request', SYNC).expect(200);
     await settledReview(sync.pull_request.head.sha);
@@ -119,6 +158,7 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     const [completed] = github.completedCheckRuns();
     expect(completed.conclusion).toBe('success');
     expect(completed.output.title).toBe('4 findings in 3 files');
+    expect(completed.output.summary).toContain('Posted 1 comment on the pull request');
     expect(completed.output.summary).toContain('| `package-lock.json` | lockfile |');
   });
 

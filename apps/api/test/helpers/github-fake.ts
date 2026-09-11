@@ -27,9 +27,21 @@ export interface RecordedCall {
   body?: unknown;
 }
 
+export interface PostedReview {
+  id: number;
+  prNumber: number;
+  body: string;
+  event: string;
+  commitId: string;
+  comments: { id: number; path: string; line: number; side: string; body: string }[];
+}
+
 export function fakeGithub(options: FakeGithubOptions) {
   const calls: RecordedCall[] = [];
   let nextCheckRunId = 5000;
+  let nextReviewId = 7000;
+  let nextCommentId = 90000;
+  const reviews: PostedReview[] = [];
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -65,6 +77,35 @@ export function fakeGithub(options: FakeGithubOptions) {
       if (!pr) throw new Error(`fake GitHub: no pull request in ${m[1]}`);
       return new Response(typeof pr.diff === 'string' ? pr.diff : pr.diff(m[2], m[3]), { status: 200 });
     }
+    if (method === 'GET' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews$/))) {
+      return json(reviews.filter((r) => r.prNumber === Number(m![2])).map((r) => ({ id: r.id, body: r.body, html_url: `https://github.com/${m![1]}/pull/${m![2]}#pullrequestreview-${r.id}` })));
+    }
+    if (method === 'POST' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews$/))) {
+      const review: PostedReview = {
+        id: nextReviewId++,
+        prNumber: Number(m[2]),
+        body: body.body,
+        event: body.event,
+        commitId: body.commit_id,
+        comments: body.comments.map((c: { path: string; line: number; side: string; body: string }) => ({ id: nextCommentId++, ...c })),
+      };
+      reviews.push(review);
+      return json({ id: review.id, html_url: `https://github.com/${m[1]}/pull/${m[2]}#pullrequestreview-${review.id}` });
+    }
+    // Faithful to GitHub, including its quirk: the per-review endpoint leaves line and side
+    // null, and only the PR-level comment list fills them in. (An earlier fake returned them
+    // from both, and a real bug passed its tests.)
+    if (method === 'GET' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews\/(\d+)\/comments$/))) {
+      const review = reviews.find((r) => r.id === Number(m![3]));
+      return json((review?.comments ?? []).map(({ id, path: p }) => ({ id, path: p, line: null, side: null })));
+    }
+    if (method === 'GET' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/comments$/))) {
+      return json(
+        reviews
+          .filter((r) => r.prNumber === Number(m![2]))
+          .flatMap((r) => r.comments.map(({ id, path: p, line, side }) => ({ id, path: p, line, side, pull_request_review_id: r.id }))),
+      );
+    }
     if (method === 'POST' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/check-runs$/))) {
       return json({ id: nextCheckRunId++ }, 201);
     }
@@ -78,6 +119,8 @@ export function fakeGithub(options: FakeGithubOptions) {
   return {
     fetch: handle,
     calls,
+    /** Reviews posted to the fake, with their comments. */
+    reviews,
     /** The body of every Check Run completion, in order. */
     completedCheckRuns: () =>
       calls

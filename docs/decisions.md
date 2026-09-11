@@ -588,3 +588,30 @@ That same run found a leak: `httpx2` logs every request URL at INFO, and GitHub 
 tarball download to `codeload.github.com` with a short-lived `token=` in the query string.
 The agent now logs `httpx2` at WARNING, which carries no URLs, and a test downloads through
 a tokened redirect and checks the log.
+
+## Findings are posted as one COMMENT review, exactly once
+
+After validation a severity gate decides what reaches the PR: high and medium findings
+become inline comments; low ones are stored and listed only in the Check Run summary, so
+the review stays short enough to be read. Everything posted goes in a single `POST
+/pulls/{n}/reviews` with a `comments[]` array — one notification instead of twelve — and
+the event is always `COMMENT`. The App never approves and never requests changes: an
+approval is the one thing an injected instruction in the code would most want, so no code
+path can produce one.
+
+Posting is the visible step, so it happens once. The settle order was rebuilt so each step
+is safe to repeat: findings are written only if the review has none yet (a retry keeps the
+rows and the comment IDs recorded on them), then the review is posted, then the Check Run
+completed, then the row marked `COMPLETED`. The GitHub review's ID is stored right after
+posting and a retry that finds it posts nothing. That leaves one gap — a crash between
+GitHub accepting the review and the ID being stored — so the review body carries a hidden
+marker with our review ID, and before posting, the publisher looks for a review with that
+marker on the PR and adopts it. GitHub itself is the record of whether we already posted.
+
+The first live post surfaced a real bug that the tests had passed: GitHub's
+`/reviews/{id}/comments` endpoint returns the review's comments with `line` and `side` set
+to null — only the PR-level `/pulls/{n}/comments` list fills them in — so no comment could
+be matched back to its finding. The fix reads the PR-level list filtered by review ID. The
+reason the tests missed it is the lesson: the fake GitHub returned `line` and `side` from
+both endpoints, modelling an assumption rather than GitHub. It now reproduces the quirk,
+and the old code fails against it.

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { TEST_WEBHOOK_SECRET, testDatabaseUrl } from './test/helpers/test-env.js';
+import { TEST_WEBHOOK_SECRET, testDatabaseUrl, testRedisUrl } from './test/helpers/test-env.js';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -17,6 +17,8 @@ export default defineConfig({
       // Test jobs go to their own Redis keys, never to the queue a running dev server
       // is consuming — and a dev server's worker never picks up a test's job.
       QUEUE_PREFIX: 'pr-reviewer-test',
+      REDIS_URL: testRedisUrl(),
+      REVIEW_RETRY_DELAY_MS: '50',
     },
     // One database, shared by every file: run files one at a time so one file's
     // truncate can never land in the middle of another file's test.

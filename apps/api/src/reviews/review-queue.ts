@@ -20,12 +20,14 @@ export function reviewJobId(reviewId: string): string {
 
 export const REVIEW_JOB_ATTEMPTS = 3;
 
-export const reviewJobDefaults: DefaultJobOptions = {
-  attempts: REVIEW_JOB_ATTEMPTS,
-  // 10s, 20s between attempts: long enough for a GitHub blip or a restart to pass.
-  backoff: { type: 'exponential', delay: 10_000 },
-  // Keep finished jobs long enough to debug with, then let Redis forget them. The
-  // Review row is the durable record; the job is just the transport.
-  removeOnComplete: { age: 24 * 60 * 60, count: 1000 },
-  removeOnFail: { age: 7 * 24 * 60 * 60 },
-};
+export function reviewJobOptions(retryDelayMs: number): DefaultJobOptions {
+  return {
+    attempts: REVIEW_JOB_ATTEMPTS,
+    // By default 10s, then 20s: long enough for a GitHub blip or a restart to pass.
+    backoff: { type: 'exponential', delay: retryDelayMs },
+    // Keep finished jobs long enough to debug with, then let Redis forget them. The
+    // Review row is the durable record; the job is just the transport.
+    removeOnComplete: { age: 24 * 60 * 60, count: 1000 },
+    removeOnFail: { age: 7 * 24 * 60 * 60 },
+  };
+}

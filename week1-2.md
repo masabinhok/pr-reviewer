@@ -438,11 +438,11 @@ Events: `installation.created`, `installation.deleted`, and (bonus, cheap)
 - **suspend/unsuspend** — set/clear `suspendedAt`.
 
 **Todo**
-- [ ] `installation.created` → upsert installation + repos, clears `deletedAt`
-- [ ] `installation.deleted` → soft delete, history intact
-- [ ] Suspend/unsuspend handled
-- [ ] Handler dispatch is a map/switch that's easy to extend in week 3
-- [ ] Test the install → uninstall → reinstall cycle
+- [x] `installation.created` → upsert installation + repos, clears `deletedAt`
+- [x] `installation.deleted` → soft delete, history intact
+- [x] Suspend/unsuspend handled
+- [x] Handler dispatch is a map/switch that's easy to extend in week 3
+- [x] Test the install → uninstall → reinstall cycle
 
 **Polish bar:** run the full cycle against the real App on `pr-reviewer-testbed`. After
 reinstalling, the original `Installation` row is reused with `deletedAt` cleared.

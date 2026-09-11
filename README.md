@@ -2,8 +2,9 @@
 
 A GitHub App that reviews pull requests. When a pull request is opened or pushed to,
 GitHub sends a webhook; the app verifies it and queues a review. A worker fetches the diff,
-works out exactly which lines can take a comment, and asks a **LangGraph agent running on
-Claude** to review the change — reading the repository at that commit for context. Findings
+works out exactly which lines can take a comment, and asks a **LangGraph agent** to review
+the change — reading the repository at that commit for context. The agent runs on a **local
+model through Ollama by default, for free**, or on Claude with your own API key. Findings
 with a concrete failure scenario are posted back as **one GitHub review with inline
 comments**, and a Check Run on the PR shows progress and the summary.
 
@@ -37,10 +38,9 @@ live runs.** What works today:
   retries; errors a retry can't fix fail the review at once
 - `GET /healthz` reports Postgres and Redis
 
-Not yet: the agent has not reviewed a real PR — that needs an `ANTHROPIC_API_KEY`, and is
-the first step of milestone 21 (dogfooding, measuring cost, and a screenshot for this page).
-Until a key is configured, the app can run with the deterministic stub reviewer
-(`REVIEWER=stub`), which flags `console.log`, `debugger` and new `TODO`s.
+Not yet: dogfooding on real pull requests, and a screenshot for this page (milestone 21).
+The app can also run with the deterministic stub reviewer (`REVIEWER=stub`), which flags
+`console.log`, `debugger` and new `TODO`s and needs no model at all.
 
 ## Architecture
 
@@ -71,7 +71,8 @@ flowchart LR
     end
 
     AR -- contract --> EP
-    LG -- anthropic SDK --> CLAUDE[Claude<br/>claude-opus-5]
+    LG -- anthropic SDK --> OLLAMA[Ollama · local model<br/>default, free]
+    LG -. your key .-> CLAUDE[Claude<br/>claude-opus-5]
     PR -- review-pr job --> Q[(Redis<br/>BullMQ · token cache)]
     Q --> W
     T <--> Q
@@ -95,9 +96,11 @@ review's exact base and head SHAs, parse it, filter again, then ask the reviewer
 
 **The agent:** `AgentReviewer` posts the reviewable files and a fresh installation token to
 the agent (`contracts/` holds the request and response both test suites check). The agent
-downloads the repository at the head SHA, then loops between Claude and its tools until
-Claude calls `submit_review`. Everything from the PR is treated as data, never
-instructions; the tools only read.
+downloads the repository at the head SHA, then loops between the model and its tools until
+the model calls `submit_review`. Everything from the PR is treated as data, never
+instructions; the tools only read. Ollama serves the same Messages API as Claude, so one
+SDK client and one graph drive either; Claude's extra features (adaptive thinking, prompt
+caching, strict tools) are used only when the model is Claude.
 
 **Back in the API:** the answer is stored, validated against the line map, and written as
 `Finding` rows. High and medium findings are posted as one GitHub review; the Check Run is
@@ -116,7 +119,11 @@ happened, so a retry after a failure part-way through picks up where it stopped.
   checkbox; GitHub delivers them to every App.
 - **A smee.io channel** ([smee.io/new](https://smee.io/new)) set as the App's webhook URL,
   so GitHub can reach your machine during development
-- **An Anthropic API key** for the agent. Every agent review is billed to it.
+- **[Ollama](https://ollama.com)** for the agent's model. The default, qwen2.5 7B with a
+  32k context window, needs about 6.5 GB of GPU memory (an 8 GB card is enough); on a
+  smaller one Ollama runs part of it on the CPU, more slowly.
+- *Optional:* an **Anthropic API key**, to review with Claude instead. Every review is then
+  billed to it.
 
 ## Setup
 
@@ -125,8 +132,15 @@ git clone https://github.com/masabinhok/pr-reviewer.git
 cd pr-reviewer
 npm install
 (cd apps/agent && uv sync)
+ollama pull qwen2.5:7b
+npm run agent:model        # builds pr-reviewer:qwen2.5-7b: the same model, with a 32k window
 cp .env.example .env
 ```
+
+Ollama gives every model a 4096-token context unless told otherwise, and silently drops the
+start of a longer conversation — for the agent, its instructions and the diff. `agent:model`
+builds a variant from [`apps/agent/ollama/Modelfile`](apps/agent/ollama/Modelfile) with room
+for a review.
 
 Fill in `.env`:
 
@@ -142,11 +156,18 @@ Fill in `.env`:
 | `SMEE_URL` | Your smee.io channel URL |
 | `AGENT_URL` | `http://localhost:8000` |
 | `AGENT_SHARED_SECRET` | Any long random string: `openssl rand -hex 32` |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
+| `AGENT_PROVIDER` | `ollama` (the default, free) or `anthropic` (Claude, your key) |
+| `ANTHROPIC_API_KEY` | Only for `anthropic`: [console.anthropic.com](https://console.anthropic.com) |
+
+A key in the environment never switches the provider on its own; Claude is used only when
+`AGENT_PROVIDER=anthropic` says so.
 
 Optional: `REVIEWER` (`agent` or `stub`; defaults to `agent` when `AGENT_URL` is set),
-`AGENT_MODEL` (default `claude-opus-5`), `AGENT_EFFORT` (default `high`),
-`AGENT_MAX_TURNS` / `AGENT_MAX_TOOL_CALLS` (20 / 40), `AGENT_TIMEOUT_MS` (how long the API
+`AGENT_MODEL` (default `pr-reviewer:qwen2.5-7b` on Ollama, `claude-opus-5` on Anthropic),
+`OLLAMA_URL` (default `http://localhost:11434`), `AGENT_CONTEXT_TOKENS` (the local model's
+window, default 32768 — keep it equal to `num_ctx` in the Modelfile), `AGENT_EFFORT`
+(Claude only, default `high`), `AGENT_MAX_TURNS` / `AGENT_MAX_TOOL_CALLS` (20 / 40),
+`AGENT_TIMEOUT_MS` (how long the API
 waits for the agent, default 15 minutes), `QUEUE_PREFIX` (Redis key prefix for the queue,
 default `pr-reviewer`) and `REVIEW_RETRY_DELAY_MS` (first retry delay, default 10000,
 doubling after).
@@ -164,7 +185,7 @@ npm run start:dev                                 # API + worker on http://local
 From the repository root, in two more terminals:
 
 ```bash
-npm run agent                                     # the agent on http://127.0.0.1:8000
+npm run agent                                     # the agent on http://127.0.0.1:8000 (Ollama must be running)
 npm run tunnel                                    # smee → localhost:3333/webhooks/github
 ```
 
@@ -189,7 +210,7 @@ them from `apps/api`; each builds first.
 
 ## Tests
 
-None of the suites need an API key or reach the network.
+None of the suites need Ollama, an API key or the network.
 
 ```bash
 cd apps/api
@@ -198,7 +219,7 @@ npm run test:e2e       # e2e — needs `docker compose up -d`
 npm run lint           # oxlint
 
 cd ../agent
-uv run pytest          # the agent, against a scripted fake Claude
+uv run pytest          # the agent, against a scripted fake model
 uv run ruff check .
 ```
 
@@ -238,6 +259,7 @@ apps/agent/                   Python: the review agent
 │   ├── agent/                LangGraph graph, prompt, submit_review, pricing
 │   ├── repo/                 repository snapshot and read-only tools
 │   └── main.py               POST /reviews
+├── ollama/Modelfile          the local model, with a context window big enough for a review
 └── tests/
 contracts/                    the API ↔ agent request and response
 docs/decisions.md             why things are the way they are

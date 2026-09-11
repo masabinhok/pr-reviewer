@@ -635,3 +635,44 @@ the whole flow — delivery, queue, worker, the HTTP call to the agent, validati
 cost stored and shown — runs with only the two outside services replaced. It also covers
 the agent's failures from the API's side: a 503 is retried on every attempt, a 422 fails
 the review at once, and a retry after posting neither calls the agent nor posts again.
+
+## A local model by default; Claude is bring-your-own-key
+
+The agent was built on Claude, and Claude needs a paid API key. This project is run by a
+student without one, so the default had to be free. A local model through Ollama is: it
+runs on the laptop's GPU, has no rate limits, and sends the reviewed code nowhere. Free
+hosted tiers were the other option, but they cap requests per day and some keep what they
+are sent to train on.
+
+It cost little to support both, because Ollama serves the same Messages API as Claude. The
+same `anthropic` SDK client, pointed at `localhost:11434`, gets the same `tool_use` blocks
+and stop reasons back, so the graph, the tools, the prompt, the contract and the API side
+are unchanged. What differs is what is sent. Adaptive thinking, effort, prompt caching,
+refusal fallbacks and `strict` tools are Claude's, and are sent only to Claude. Ollama
+accepts all of them and silently ignores them, which is the reason not to send them: a
+request that says `strict: true` looks like it has a guarantee that it doesn't. Without it,
+`parse_submission` is the only check, and an invalid submission goes back to the model to
+correct, as it always did.
+
+The provider is chosen with `AGENT_PROVIDER`, never inferred from `ANTHROPIC_API_KEY` being
+set: that variable is often exported for other tools, and finding it must not quietly start
+billing someone.
+
+Two things a local model needs that Claude didn't. **Context:** Ollama gives a model 4096
+tokens unless told otherwise and, when a conversation is longer, drops its start — the
+system prompt and the diff — without an error. The agent's model is a variant built from a
+committed Modelfile with a 32k window, which fits on an 8 GB GPU next to qwen2.5 7B because
+that model keeps a small KV cache. The graph then tells the model to submit once three
+quarters of the window is used, and logs a warning when a prompt nearly fills it, since
+that is the only sign a cut happened. **Cost:** none per review, reported as $0 rather than
+left blank, so "free" is a measurement and not a missing value.
+
+The first live run, on the planted-bugs PR, is the baseline to improve on. It went through
+the real flow end to end in 27 seconds, for $0: 7 turns, 5 tool calls, about 21k tokens in.
+It found 1 of the 7 planted bugs — the `===` signature comparison — but rated it low, not
+high. It missed the SQL injection, the missing `await`, the shared-array mutation and the
+inverted session check. Its second finding sat on the injection comment and described no
+real defect. Both findings were low, so nothing was posted. The severity gate did its job:
+a weak review left a line in the Check Run, not noise on the pull request. Better local
+models, the prompt and the budgets are tuned against this answer key in milestone 21, and
+Claude remains one setting away for anyone with a key.

@@ -56,7 +56,7 @@ describe('ReviewProcessor', () => {
     expect(prisma.review.update).not.toHaveBeenCalled();
   });
 
-  it.each([ReviewStatus.COMPLETED, ReviewStatus.FAILED])('skips a review that is already %s', async (status) => {
+  it.each([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED])('skips a review that is already %s', async (status) => {
     prisma.review.findUnique.mockResolvedValue({ id: 'rev-1', status });
 
     await processor.process(job());

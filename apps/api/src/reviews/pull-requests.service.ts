@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, ReviewStatus } from '../generated/prisma/client.js';
 import type { PullRequestPayload } from './pull-request-payload.js';
+import { retryOnUniqueViolation } from '../prisma/unique-violation.js';
 import { REVIEW_QUEUE, reviewJobId, type ReviewJobData } from './review-queue.js';
 
 export type PullRequestOutcome =
@@ -51,7 +52,8 @@ export class PullRequestsService {
       return 'unknown-installation';
     }
 
-    const repo = await this.prisma.repo.upsert({
+    // Two deliveries for a repo the app has never seen can race here; see the helper.
+    const repo = await retryOnUniqueViolation(() => this.prisma.repo.upsert({
       where: { githubId: BigInt(repository.id) },
       create: {
         githubId: BigInt(repository.id),
@@ -69,7 +71,7 @@ export class PullRequestsService {
         defaultBranch: repository.default_branch,
         deletedAt: null,
       },
-    });
+    }));
 
     const review = await this.createReview(repo.id, prNumber, pr.base.sha, pr.head.sha);
     if (review.existing && review.status !== ReviewStatus.PENDING) {

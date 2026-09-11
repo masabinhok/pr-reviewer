@@ -8,6 +8,7 @@ import { GithubRateLimitError } from '../github/github-api.errors.js';
 import type { ReviewJobData } from './review-queue.js';
 import type { ReviewOutcome } from './review-outcome.js';
 import type { ReviewPipeline } from './review-pipeline.js';
+import type { ReviewPublisher } from './review-publisher.js';
 import { Severity } from '../generated/prisma/client.js';
 import type { ValidFinding } from '../reviewer/validate-findings.js';
 
@@ -38,10 +39,12 @@ function job(attemptsMade = 0, attempts = 3) {
 describe('ReviewProcessor', () => {
   let prisma: {
     review: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
-    finding: { deleteMany: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> };
+    finding: { findMany: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> };
     $transaction: ReturnType<typeof vi.fn>;
   };
   let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
+  let publisher: { publish: ReturnType<typeof vi.fn> };
+  let order: string[];
   let processor: ReviewProcessor;
   let run: ReturnType<typeof vi.spyOn>;
 
@@ -57,12 +60,14 @@ describe('ReviewProcessor', () => {
         update: vi.fn().mockResolvedValue({}),
       },
       finding: {
-        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findMany: vi.fn().mockResolvedValue([]),
         createMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
-      // The array form: every operation is built first, then committed together.
-      $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+      // The callback form: the stub doubles as the transaction client.
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
     };
+    order = [];
+    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null })) };
     github = {
       createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
       completeCheckRun: vi.fn().mockResolvedValue(undefined),
@@ -71,6 +76,7 @@ describe('ReviewProcessor', () => {
       prisma as unknown as PrismaService,
       github as unknown as GithubApiService,
       {} as ReviewPipeline, // `run` is spied below, so the pipeline itself is never called
+      publisher as unknown as ReviewPublisher,
     );
     // `run` is the pipeline; here only what it returns or throws matters.
     run = vi
@@ -114,33 +120,31 @@ describe('ReviewProcessor', () => {
     // A spinner that stops before the row settles can only be fixed by the retry; a row
     // that settles first makes the retry skip, and the spinner never stops.
     it('completes the Check Run before settling the row', async () => {
-      const order: string[] = [];
       github.completeCheckRun.mockImplementation(async () => void order.push('check'));
       prisma.review.update.mockImplementation(async ({ data }) => void (data.status === ReviewStatus.COMPLETED && order.push('row')));
 
       await processor.process(job());
 
-      expect(order).toEqual(['check', 'row']);
+      expect(order).toEqual(['publish', 'check', 'row']);
     });
 
-    it('stores the findings and COMPLETED in one transaction, replacing any from an earlier attempt', async () => {
-      const found: ValidFinding = {
-        path: 'src/auth.ts',
-        line: 26,
-        side: 'RIGHT',
-        severity: Severity.LOW,
-        category: 'debugging',
-        summary: '`console.log` is left in.',
-        whyItBreaks: 'writes to stdout in production',
-        suggestedFix: null,
-        fingerprint: 'a'.repeat(64),
-      };
+    const found: ValidFinding = {
+      path: 'src/auth.ts',
+      line: 26,
+      side: 'RIGHT',
+      severity: Severity.LOW,
+      category: 'debugging',
+      summary: '`console.log` is left in.',
+      whyItBreaks: 'writes to stdout in production',
+      suggestedFix: null,
+      fingerprint: 'a'.repeat(64),
+    };
+
+    it('writes the findings the first time', async () => {
       run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
 
       await processor.process(job());
 
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(prisma.finding.deleteMany).toHaveBeenCalledWith({ where: { reviewId: 'rev-1' } });
       expect(prisma.finding.createMany).toHaveBeenCalledWith({
         data: [
           {
@@ -157,8 +161,39 @@ describe('ReviewProcessor', () => {
           },
         ],
       });
-      const [ops] = prisma.$transaction.mock.calls[0];
-      expect(ops).toHaveLength(3); // delete, create, COMPLETED — all or nothing
+    });
+
+    // On a retry the rows are already there — with the comment IDs recorded on them after
+    // posting. Rewriting them would lose those IDs.
+    it('keeps the findings a previous attempt wrote instead of rewriting them', async () => {
+      const stored = [{ id: 'f-1', filePath: 'src/auth.ts', githubCommentId: 99n }];
+      prisma.finding.findMany.mockResolvedValue(stored);
+      run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+
+      await processor.process(job(1));
+
+      expect(prisma.finding.createMany).not.toHaveBeenCalled();
+      expect(publisher.publish).toHaveBeenCalledWith(expect.objectContaining({ reviewId: 'rev-1' }), stored);
+    });
+
+    it('posts the review, then completes the Check Run, then settles the row', async () => {
+      github.completeCheckRun.mockImplementation(async () => void order.push('check'));
+      prisma.review.update.mockImplementation(async ({ data }) => void (data.status === ReviewStatus.COMPLETED && order.push('row')));
+
+      await processor.process(job());
+
+      expect(order).toEqual(['publish', 'check', 'row']);
+    });
+
+    it('tells the Check Run what was posted', async () => {
+      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1' });
+      run.mockResolvedValue({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [found, found] });
+
+      await processor.process(job());
+
+      expect(conclusion().output.summary).toContain(
+        'Posted 2 comments on the pull request in [a review](https://github.com/o/r/pull/3#pullrequestreview-1)',
+      );
     });
 
     it('reuses the Check Run a previous attempt created', async () => {

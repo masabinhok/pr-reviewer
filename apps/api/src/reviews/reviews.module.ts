@@ -8,6 +8,7 @@ import { REVIEWER } from '../reviewer/reviewer.js';
 import { StubReviewer } from '../reviewer/stub-reviewer.js';
 import { AgentReviewer } from '../reviewer/agent-reviewer.js';
 import { ReviewerResultStore } from './reviewer-result.store.js';
+import { ReviewPublisher } from './review-publisher.js';
 import { ConfigService } from '@nestjs/config';
 import { InstallationTokenService } from '../github/installation-token.service.js';
 
@@ -18,6 +19,7 @@ import { InstallationTokenService } from '../github/installation-token.service.j
     ReviewProcessor,
     ReviewPipeline,
     ReviewerResultStore,
+    ReviewPublisher,
     // The agent when it is configured, the stub otherwise (see agent.reviewer in the config).
     // A factory, not two providers: AgentReviewer refuses to construct without its settings,
     // which is right when it is selected and wrong when it is not.

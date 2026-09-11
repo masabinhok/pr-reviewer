@@ -1,6 +1,7 @@
 import type { CheckConclusion, CheckRunOutput } from '../github/github-api.service.js';
 import type { FindingSummary, ReviewOutcome } from './review-outcome.js';
 import type { ReviewerRun } from '../reviewer/reviewer.js';
+import type { Publication } from './review-publisher.js';
 import { Severity } from '../generated/prisma/client.js';
 
 export const CHECK_RUN_NAME = 'pr-reviewer';
@@ -26,7 +27,11 @@ export type CheckResult =
  *
  * A pure function, so every wording and edge case is testable without GitHub.
  */
-export function renderCheck(result: CheckResult, headSha: string): { conclusion: CheckConclusion; output: CheckRunOutput } {
+export function renderCheck(
+  result: CheckResult,
+  headSha: string,
+  publication?: Publication,
+): { conclusion: CheckConclusion; output: CheckRunOutput } {
   const at = `\`${headSha.slice(0, 7)}\``;
 
   if (result.kind === 'failed') {
@@ -67,6 +72,7 @@ export function renderCheck(result: CheckResult, headSha: string): { conclusion:
       summary: cap(
         `Reviewed ${files} at ${at}.\n\n` +
           reviewerNote(reviewer) +
+          publicationNote(publication, findings.length) +
           findingsSection(findings) +
           skippedSection(skipped) +
           reviewerFooter(reviewer),
@@ -87,6 +93,16 @@ const OUTCOME_NOTES: Record<string, string> = {
 function reviewerNote(run: ReviewerRun | undefined): string {
   const note = run && OUTCOME_NOTES[run.outcome];
   return note ? `> ${note}\n\n` : '';
+}
+
+function publicationNote(publication: Publication | undefined, total: number): string {
+  if (!publication || total === 0) return '';
+  if (publication.posted === 0) {
+    return 'None of these met the bar for a comment on the pull request (high or medium severity).\n\n';
+  }
+  const comments = `${publication.posted} comment${publication.posted === 1 ? '' : 's'}`;
+  const where = publication.url ? `[a review](${publication.url})` : 'a review';
+  return `Posted ${comments} on the pull request in ${where}; high and medium severity only.\n\n`;
 }
 
 function reviewerFooter(run: ReviewerRun | undefined): string {

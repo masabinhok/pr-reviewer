@@ -429,3 +429,37 @@ third.
 The summary is built by a pure function (`renderCheck`), capped below GitHub's
 65,535-character limit and at 50 finding rows, with pipes and newlines escaped so a finding
 can't break its table — every wording and edge case is tested without GitHub.
+
+## A stub reviewer behind the interface the agent will implement
+
+Weeks 3–4 build everything around the reviewer before the reviewer exists. The seam is one
+interface, `Reviewer.review(context) → ProposedFinding[]`, where `ProposedFinding` is the
+roadmap's agent schema field for field; the implementation is chosen by a Nest token, so
+weeks 5–6 replace one provider line. Until then `StubReviewer` flags three patterns —
+`console.log`, `debugger`, a new `TODO` — and only on lines the PR *adds*, since flagging
+code the author didn't touch is the noise that gets review bots uninstalled. The stub is
+deliberately dumb: its job is to give validation, fingerprinting, storage and the Check Run
+real findings to handle, so that when the agent arrives, every step after it is already
+proven. Everything the pipeline does is in `ReviewPipeline`, which reads from GitHub and
+returns an outcome but writes nothing; the worker owns the row and the Check Run.
+
+## Every proposed finding passes a gate before it is stored
+
+A reviewer's output is not trusted. `validateFindings` drops a finding whose path, line and
+side aren't commentable according to the line map (`outside-diff` — a reviewer bug, and in
+weeks 5–6 it would get the whole review rejected), and one with no concrete failure
+scenario (`no-failure-scenario` — the roadmap's rule that a finding without a "why it
+breaks" is an opinion). Drops are logged, not fatal. A renamed file's old path is stored as
+its new one. The severity gate — only high and medium get posted — is not applied here:
+every valid finding is stored, and posting decides what to show.
+
+Each finding gets a `fingerprint`: a SHA-256 of the path, the code on the line
+(whitespace collapsed), and the category. Not the line number — a push that adds lines
+above an unchanged problem moves it down without making it new, and weeks 7–8 dedupe
+across pushes on exactly this value.
+
+The findings and the review's `COMPLETED` status are written in one transaction that also
+deletes the review's existing findings first, so a retry after a failed write replaces
+rather than duplicates. Checked live: a push to the testbed's diff-shapes PR produced four
+findings, and `npm run prove:findings` posted each as a pending review comment — GitHub put
+all four on exactly the line of code the finding describes.

@@ -1,0 +1,45 @@
+{
+  "findings": [
+    {
+      "file": "src/auth.ts",
+      "line": 26,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "security",
+      "summary": "verify() logs the value being verified.",
+      "whyItBreaks": "Every call writes the token under verification to stdout, so anyone with log access can replay it.",
+      "suggestedFix": "Remove the console.log call."
+    },
+    {
+      "file": "src/new-feature.ts",
+      "line": 2,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "A debugger statement is left in.",
+      "whyItBreaks": "With an inspector attached, greet() halts until someone resumes it.",
+      "suggestedFix": null
+    },
+    {
+      "file": "src/helpers.ts",
+      "line": 10,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "maintainability",
+      "summary": "A new TODO is added.",
+      "whyItBreaks": "The ordering the TODO describes is not implemented.",
+      "suggestedFix": null
+    }
+  ],
+  "model": "claude-opus-5",
+  "usage": {
+    "inputTokens": 2400,
+    "outputTokens": 1800,
+    "cacheReadInputTokens": 41000,
+    "cacheCreationInputTokens": 9000,
+    "costUsd": 0.0921
+  },
+  "outcome": "submitted",
+  "turns": 6,
+  "toolCalls": 5
+}

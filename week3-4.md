@@ -426,10 +426,10 @@ the `fetch` boundary using captured responses:
 worker, new scripts documented.
 
 **Todo**
-- [ ] e2e cases above green
-- [ ] Fixtures for `synchronize`, a real diff, a real files list
-- [ ] `decisions.md` entries above
-- [ ] README current
+- [x] e2e cases above green
+- [x] Fixtures for `synchronize`, a real diff, a real files list
+- [x] `decisions.md` entries above
+- [x] README current
 - [ ] Optional (carried from M8): GitHub Actions CI running lint + unit + e2e
 
 ---

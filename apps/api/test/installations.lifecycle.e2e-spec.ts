@@ -93,7 +93,7 @@ describe('Installation lifecycle (real database)', () => {
 
     // Stand-in for week 3: a review now hangs off this repo. It is what must survive.
     await prisma.review.create({
-      data: { repoId: repo.id, prNumber: 1, headSha: 'abc123', status: ReviewStatus.COMPLETED },
+      data: { repoId: repo.id, prNumber: 1, baseSha: 'base123', headSha: 'abc123', status: ReviewStatus.COMPLETED },
     });
   });
 

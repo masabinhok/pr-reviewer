@@ -14,6 +14,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: testDatabaseUrl(),
       GITHUB_WEBHOOK_SECRET: TEST_WEBHOOK_SECRET,
+      // Test jobs go to their own Redis keys, never to the queue a running dev server
+      // is consuming — and a dev server's worker never picks up a test's job.
+      QUEUE_PREFIX: 'pr-reviewer-test',
     },
     // One database, shared by every file: run files one at a time so one file's
     // truncate can never land in the middle of another file's test.

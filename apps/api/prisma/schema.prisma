@@ -79,6 +79,7 @@ model Review {
   repo              Repo         @relation(fields: [repoId], references: [id])
   repoId            String
   prNumber          Int
+  baseSha           String
   headSha           String
   status            ReviewStatus
   startedAt         DateTime     @default(now())

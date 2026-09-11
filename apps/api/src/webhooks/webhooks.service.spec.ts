@@ -4,6 +4,7 @@ import { WebhooksService } from './webhooks.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DeliveryStatus, Prisma } from '../generated/prisma/client.js';
 import { InstallationsService } from '../installations/installations.service.js';
+import { PullRequestsService } from '../reviews/pull-requests.service.js';
 
 /**
  * The error Postgres produces when the unique constraint on deliveryId rejects a
@@ -20,14 +21,16 @@ function uniqueViolation() {
 }
 
 /**
- * Only the two calls the service makes. `create` is what the constraint rejects;
- * `update` is the status bookkeeping that follows a successful insert.
+ * The calls the service makes. `create` is what the constraint rejects; `update` is the
+ * status bookkeeping after a successful insert; `updateMany` is the conditional
+ * FAILED → RECEIVED reclaim, which finds nothing to reclaim unless a test says so.
  */
 function prismaStub() {
   return {
     webhookDelivery: {
       create: vi.fn().mockResolvedValue({}),
       update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   };
 }
@@ -48,16 +51,19 @@ describe('WebhooksService', () => {
   let service: WebhooksService;
   let prisma: ReturnType<typeof prismaStub>;
   let installations: ReturnType<typeof installationsStub>;
+  let pullRequests: { handle: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     prisma = prismaStub();
     installations = installationsStub();
+    pullRequests = { handle: vi.fn().mockResolvedValue('enqueued') };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhooksService,
         { provide: PrismaService, useValue: prisma },
         { provide: InstallationsService, useValue: installations },
+        { provide: PullRequestsService, useValue: pullRequests },
       ],
     }).compile();
 
@@ -101,6 +107,34 @@ describe('WebhooksService', () => {
     expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
   });
 
+  describe('a redelivery of a delivery that FAILED', () => {
+    beforeEach(() => {
+      prisma.webhookDelivery.create.mockRejectedValue(uniqueViolation());
+    });
+
+    it('reclaims the row only if it is FAILED, then processes it again', async () => {
+      prisma.webhookDelivery.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.handleWebhook('d-11', 'pull_request', { action: 'opened' });
+
+      expect(prisma.webhookDelivery.updateMany).toHaveBeenCalledWith({
+        where: { deliveryId: 'd-11', status: DeliveryStatus.FAILED },
+        data: { status: DeliveryStatus.RECEIVED, error: null, processedAt: null },
+      });
+      expect(pullRequests.handle).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    // updateMany matched nothing: the original is PROCESSED or IGNORED — or another
+    // concurrent redelivery already reclaimed it. Either way this one is a duplicate.
+    it('is dropped as a duplicate when there was nothing FAILED to reclaim', async () => {
+      const result = await service.handleWebhook('d-12', 'pull_request', { action: 'opened' });
+
+      expect(result).toEqual({ ok: true, duplicate: true });
+      expect(pullRequests.handle).not.toHaveBeenCalled();
+    });
+  });
+
   // 'issues' has no entry in the dispatch table, but the row is still written — every delivery
   // gets one — and then moved to its terminal status.
   it('records an unhandled event and marks it IGNORED', async () => {
@@ -119,7 +153,7 @@ describe('WebhooksService', () => {
   });
 
   it('marks a handled delivery PROCESSED', async () => {
-    await service.handleWebhook('d-3', 'pull_request');
+    await service.handleWebhook('d-3', 'pull_request', { action: 'opened' });
 
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
       where: { deliveryId: 'd-3' },
@@ -161,6 +195,26 @@ describe('WebhooksService', () => {
 
       expect(installations[method]).toHaveBeenCalledWith(payload);
       expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    it.each(['opened', 'reopened', 'synchronize', 'ready_for_review'])(
+      'routes pull_request.%s to PullRequestsService',
+      async (action) => {
+        const payload = { action, number: 1 };
+
+        const result = await service.handleWebhook('d-9', 'pull_request', payload);
+
+        expect(pullRequests.handle).toHaveBeenCalledWith(payload, 'd-9');
+        expect(result).toEqual({ ok: true, handled: true });
+      },
+    );
+
+    // Closing, labelling, editing a PR is not new code — nothing to review.
+    it.each(['closed', 'labeled', 'edited'])('ignores pull_request.%s', async (action) => {
+      const result = await service.handleWebhook('d-10', 'pull_request', { action });
+
+      expect(result).toEqual({ ok: true, handled: false });
+      expect(pullRequests.handle).not.toHaveBeenCalled();
     });
 
     // The key is event.action, so a known event with an unknown action is unhandled —

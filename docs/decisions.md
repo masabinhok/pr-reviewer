@@ -258,3 +258,58 @@ a hand-written `installation.created` contains the fields its author expected, a
 cases worth testing are the ones where GitHub sends something the author did not expect.
 They are sent as the exact captured string, never re-serialised, for the reason in the
 raw-body entry above.
+
+## BullMQ v6, with its own Redis connection
+
+The queue is BullMQ 6 through `@nestjs/bullmq` 12. v6 shipped on 2026-07-30 with breaking
+changes and most examples online are still v5, so Milestone 9 started with a smoke test —
+one queue, a duplicate job ID, a job that fails once — before building on it; all three
+behaved, so there was no reason to pin the older major. BullMQ is given plain connection
+options (`REDIS_URL`), not the app's `RedisService` client: workers use blocking Redis
+commands, and v6 throws if handed an ioredis client whose `maxRetriesPerRequest` isn't
+null, which `RedisService`'s isn't. Given options, BullMQ builds its own connections and
+sets that itself. Every key is prefixed (`QUEUE_PREFIX`), and the e2e suite uses its own
+prefix, so a running dev server's worker never picks up a test's job.
+
+## A Review row is written before its job is enqueued, and the job carries only its ID
+
+The `pull_request` handler inserts `Review` (`PENDING`, with base and head SHA) first and
+enqueues second, with the job ID derived from the review's ID and a payload of
+`{ reviewId }` alone. The insert is the same pattern as `WebhookDelivery`:
+`@@unique([repoId, prNumber, headSha])` decides whether this commit is already being
+reviewed, so two *different* deliveries about the same commit — which delivery-ID
+idempotency cannot catch — still produce one review. The job ID makes BullMQ refuse a
+duplicate job too, which is what makes one failure mode repairable: if the row was
+written but the enqueue failed, a later delivery for the same commit finds the review
+still `PENDING` and adds the job again, and if the job did exist that add is a no-op. The
+payload is an ID because a job can wait in Redis; everything it needs is read fresh from
+the database when it runs, never from a snapshot taken at webhook time.
+
+## The worker runs inside the API process, for now
+
+`ReviewProcessor` is a Nest provider in the same process as the webhook endpoint.
+Splitting it into a separate worker process is the right shape for production — a slow
+review shouldn't compete with webhook handling for the event loop, and the two should
+scale separately — but it is a deployment change, not a code change: the processor class
+is the same either way, only where its module is loaded moves. Until there is a deploy
+target (roadmap: week 8), one process is one less thing to run locally.
+
+## Only a job's final attempt marks the review FAILED
+
+A review job gets three attempts with exponential backoff. An attempt that throws with
+retries left leaves the row `RUNNING` and rethrows, so BullMQ schedules the retry; only the
+last attempt writes `FAILED` and the error. Marking it `FAILED` on the first error would be
+wrong twice over: the retry would see a settled row and skip it, and a transient GitHub
+502 would read as a permanent failure. The settling happens inside the processor, awaited,
+rather than in a `failed` event listener, so it cannot race the job's own completion.
+
+## A redelivery of a FAILED delivery is processed again
+
+Milestone 5 dropped every repeat of a delivery ID as a duplicate. That was right for the
+common case and wrong for one: when a handler fails, the delivery is `FAILED` and GitHub
+sees a 500, and the way to retry it is GitHub's Redeliver button — which then got dropped
+as a duplicate, leaving no way to recover. Now a unique-constraint hit reclaims the row
+with `updateMany where { deliveryId, status: FAILED }` → `RECEIVED` and processes it again.
+The condition is what keeps it race-safe: of two concurrent redeliveries only one update
+can match, and the other falls through to "duplicate". `PROCESSED` and `IGNORED`
+deliveries are still never processed twice.

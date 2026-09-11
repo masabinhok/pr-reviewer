@@ -561,3 +561,30 @@ ends up; whether the model resists it is judged live, on the testbed's planted-b
 whose answer key is in `docs/evals/planted-bugs.md`. The same constant system prompt and a
 tool list built once in a fixed order are what make the prompt-cache prefix stable across
 turns — the tests assert both are byte-identical on every call.
+
+## The agent's answer is stored before anything else can fail
+
+The reviewer is the one step in a review that costs money, and it sits in the middle of the
+pipeline: after it come validation, the Check Run update, and writing the findings, any of
+which can fail and make BullMQ retry the whole job. So `ReviewPipeline` stores the
+reviewer's raw answer on the `Review` (`agentResult`, plus `promptTokens`,
+`completionTokens`, `costCents`) the moment it arrives, and a retry that finds one reuses it
+instead of calling the agent again — it still goes through validation, which is cheap and
+deterministic. That is the pipeline's only write; everything else stays the worker's.
+Proven with the real queue and worker: a Check Run update that fails once after the
+reviewer answered produces a retry, a completed review, and exactly one reviewer call.
+
+`AgentReviewer` sorts the agent's failures by whether a retry could help, because retrying
+costs money too. A 503, any 5xx, a timeout (15 minutes by default — a review is many model
+turns) or a refused connection is an ordinary error, and BullMQ retries with backoff. A 401
+or 422 — the request is wrong, or the repository can't be reviewed — is thrown as BullMQ's
+`UnrecoverableError`, which fails the job at once. The worker treats that as the final
+attempt, so the review is marked `FAILED` and the Check Run completed immediately instead
+of waiting for retries that will never come. Checked live with a deliberately invalid
+Anthropic key: webhook → agent → a real tarball from GitHub → Anthropic's 401 → the agent's
+422 → a red Check Run on the first attempt, naming the cause.
+
+That same run found a leak: `httpx2` logs every request URL at INFO, and GitHub redirects a
+tarball download to `codeload.github.com` with a short-lived `token=` in the query string.
+The agent now logs `httpx2` at WARNING, which carries no URLs, and a test downloads through
+a tokened redirect and checks the log.

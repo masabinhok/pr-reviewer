@@ -7,12 +7,14 @@ import { REVIEWER, type Reviewer } from '../reviewer/reviewer.js';
 import { validateFindings } from '../reviewer/validate-findings.js';
 import type { ReviewOutcome } from './review-outcome.js';
 import type { ReviewTarget } from './review.processor.js';
+import { ReviewerResultStore } from './reviewer-result.store.js';
 
 /**
  * One review, start to finish, as data: list the files, filter, fetch and parse the diff,
  * filter again, run the reviewer, validate what it proposes. It reads from GitHub and
- * returns an outcome; it writes nothing — the worker owns the Review row and the Check
- * Run, and settles both from what this returns.
+ * returns an outcome; the worker owns the Review row and the Check Run, and settles both
+ * from what this returns. The single exception is the reviewer's answer, stored as soon as
+ * it arrives — see ReviewerResultStore.
  */
 @Injectable()
 export class ReviewPipeline {
@@ -21,6 +23,7 @@ export class ReviewPipeline {
   constructor(
     private readonly github: GithubApiService,
     @Inject(REVIEWER) private readonly reviewer: Reviewer,
+    private readonly results: ReviewerResultStore,
   ) {}
 
   async run(target: ReviewTarget): Promise<ReviewOutcome> {
@@ -39,19 +42,28 @@ export class ReviewPipeline {
     const parsed = filterDiffFiles(parseDiff(diff), new Set(listed.kept.map((f) => f.filename)));
     const lines = new LineMap(parsed.kept);
 
-    const pr = await this.github.getPullRequest(installationId, repo, prNumber);
-    const proposed = await this.reviewer.review({
-      repo,
-      prNumber,
-      title: pr.title,
-      body: pr.body ?? '',
-      baseSha,
-      headSha,
-      files: parsed.kept,
-      lines,
-    });
+    // Never pay twice: a retry after the reviewer already answered reuses that answer.
+    let answer = await this.results.load(reviewId);
+    if (answer) {
+      this.logger.log(`review ${reviewId}: reusing the reviewer's stored answer`);
+    } else {
+      const pr = await this.github.getPullRequest(installationId, repo, prNumber);
+      answer = await this.reviewer.review({
+        installationId,
+        repo,
+        prNumber,
+        title: pr.title,
+        body: pr.body ?? '',
+        baseSha,
+        headSha,
+        files: parsed.kept,
+        lines,
+      });
+      await this.results.save(reviewId, answer);
+    }
 
-    const { accepted, dropped } = validateFindings(proposed, lines);
+    // Validated every time, stored answer or not: the check is cheap and deterministic.
+    const { accepted, dropped } = validateFindings(answer.findings, lines);
     for (const { finding, reason } of dropped) {
       // Not an error in the review, but a bug in the reviewer worth seeing.
       this.logger.warn(`review ${reviewId}: dropped a finding at ${finding.file}:${finding.line} ${finding.side} (${reason})`);
@@ -62,6 +74,7 @@ export class ReviewPipeline {
       reviewed: parsed.kept.map((f) => f.path),
       skipped: [...listed.skipped, ...parsed.skipped],
       findings: accepted,
+      reviewer: answer.run,
     };
   }
 }

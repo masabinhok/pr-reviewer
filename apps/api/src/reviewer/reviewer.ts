@@ -7,7 +7,29 @@ import type { LineMap } from '../diff/line-map.js';
  * interface has to change.
  */
 export interface Reviewer {
-  review(context: ReviewContext): Promise<ProposedFinding[]>;
+  review(context: ReviewContext): Promise<ReviewerResult>;
+}
+
+/** What a reviewer hands back: its findings, and — for an LLM reviewer — how the run went. */
+export interface ReviewerResult {
+  findings: ProposedFinding[];
+  run?: ReviewerRun;
+}
+
+/** An LLM reviewer's run: which model answered, how it finished, and what it cost. */
+export interface ReviewerRun {
+  model: string;
+  /** submitted, refused, budget, no-submission, or truncated — see the agent. */
+  outcome: string;
+  turns: number;
+  toolCalls: number;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    costUsd: number | null;
+  };
 }
 
 /** Nest injection token for the active Reviewer implementation. */
@@ -15,6 +37,8 @@ export const REVIEWER = Symbol('REVIEWER');
 
 /** Everything a reviewer may look at. Only files that survived filtering are included. */
 export interface ReviewContext {
+  /** GitHub's installation ID — an LLM reviewer reads the repository with its token. */
+  installationId: bigint;
   repo: string;
   prNumber: number;
   title: string;

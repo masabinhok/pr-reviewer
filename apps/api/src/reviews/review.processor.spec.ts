@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { DelayedError, type Job } from 'bullmq';
+import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
 import { ReviewProcessor, type ReviewTarget } from './review.processor.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { GithubApiService } from '../github/github-api.service.js';
@@ -212,6 +212,17 @@ describe('ReviewProcessor', () => {
 
       await expect(processor.process(job(2, 3))).rejects.toThrow('GitHub 502');
 
+      expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
+    });
+
+    // BullMQ fails an UnrecoverableError at once, whatever attempts are left — so the row
+    // and the spinner must settle on the first attempt, not wait for a retry that won't come.
+    it('settles on the first attempt when the error is unrecoverable', async () => {
+      run.mockRejectedValue(new UnrecoverableError('agent answered 422: repository snapshot too large'));
+
+      await expect(processor.process(job(0, 3))).rejects.toBeInstanceOf(UnrecoverableError);
+
+      expect(conclusion()).toMatchObject({ conclusion: 'failure' });
       expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
     });
 

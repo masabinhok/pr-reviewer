@@ -100,6 +100,45 @@ describe('renderCheck', () => {
     });
   });
 
+  describe('an agent run', () => {
+    const run = (outcome = 'submitted') => ({
+      model: 'claude-opus-5',
+      outcome,
+      turns: 4,
+      toolCalls: 3,
+      usage: { inputTokens: 1200, outputTokens: 800, cacheReadInputTokens: 9000, cacheCreationInputTokens: 3000, costUsd: 0.0507 },
+    });
+
+    it('credits the model and says what the review cost', () => {
+      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run() }, HEAD);
+
+      expect(output.summary).toContain(
+        '<sub>Reviewed by `claude-opus-5` in 4 turns, 3 tool calls · 13,200 in / 800 out tokens · $0.05</sub>',
+      );
+    });
+
+    it.each([
+      ['refused', 'declined to review this change'],
+      ['budget', 'ran out of its turn budget'],
+      ['no-submission', 'stopped without submitting'],
+    ])('explains an agent that ended %s', (outcome, words) => {
+      const { output } = renderCheck(
+        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run(outcome) },
+        HEAD,
+      );
+
+      expect(output.summary).toContain(words);
+    });
+
+    it('adds no note when the agent submitted normally, and no footer for the stub', () => {
+      const withAgent = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run() }, HEAD);
+      const stub = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [] }, HEAD);
+
+      expect(withAgent.output.summary).not.toContain('> ');
+      expect(stub.output.summary).not.toContain('Reviewed by');
+    });
+  });
+
   it('marks a too-large PR as skipped, with the limit it hit', () => {
     const { conclusion, output } = renderCheck(
       { kind: 'skipped', reason: '62 files to review, over the limit of 50', skipped: [] },

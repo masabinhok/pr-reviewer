@@ -96,3 +96,26 @@ def test_tells_the_caller_whether_a_snapshot_failure_is_worth_retrying(serve, st
 
     assert response.status_code == expected
     assert "ghs_" not in response.text
+
+
+# Found on the first live run: httpx2 logged the codeload redirect URL, which carries a
+# short-lived download token in its query string.
+def test_never_logs_the_download_token_in_githubs_redirect(serve, caplog):
+    import logging
+
+    call, _ = serve
+    caplog.set_level(logging.DEBUG)
+    body = tarball({"a.ts": "x"})
+
+    def github(request: httpx2.Request) -> httpx2.Response:
+        if request.url.host == "api.github.com":
+            return httpx2.Response(
+                302,
+                headers={"location": "https://codeload.github.com/x.tar.gz?token=CODELOADSECRET"},
+            )
+        return httpx2.Response(200, content=body)
+
+    call(FakeClaude(message(tool_use("submit_review", findings=[]))), github)
+
+    assert "CODELOADSECRET" not in caplog.text
+    assert "ghs_" not in caplog.text

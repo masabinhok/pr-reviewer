@@ -7,6 +7,8 @@ import type { GithubApiService, PullRequestFile } from '../github/github-api.ser
 import { StubReviewer } from '../reviewer/stub-reviewer.js';
 import type { Reviewer } from '../reviewer/reviewer.js';
 import { Severity } from '../generated/prisma/client.js';
+import type { ReviewerResultStore } from './reviewer-result.store.js';
+import type { ReviewerResult } from '../reviewer/reviewer.js';
 
 // A real PR, as GitHub returned it: the file list and the SHA-pinned diff.
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../../test/fixtures/diffs/${name}`, import.meta.url)), 'utf8');
@@ -29,8 +31,10 @@ describe('ReviewPipeline', () => {
     getPullRequest: ReturnType<typeof vi.fn>;
   };
 
+  let store: { load: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> };
+
   const pipeline = (reviewer: Reviewer = new StubReviewer()) =>
-    new ReviewPipeline(github as unknown as GithubApiService, reviewer);
+    new ReviewPipeline(github as unknown as GithubApiService, reviewer, store as unknown as ReviewerResultStore);
 
   beforeEach(() => {
     github = {
@@ -38,7 +42,9 @@ describe('ReviewPipeline', () => {
       getDiff: vi.fn().mockResolvedValue(DIFF),
       getPullRequest: vi.fn().mockResolvedValue({ title: 'Diff shapes', body: null }),
     };
+    store = { load: vi.fn().mockResolvedValue(null), save: vi.fn().mockResolvedValue(undefined) };
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -77,27 +83,74 @@ describe('ReviewPipeline', () => {
   });
 
   it('gives the reviewer only the files it may comment on, and the PR’s metadata', async () => {
-    const reviewer = { review: vi.fn().mockResolvedValue([]) };
+    const reviewer = { review: vi.fn().mockResolvedValue({ findings: [] }) };
 
     await pipeline(reviewer).run(target);
 
     const context = reviewer.review.mock.calls[0][0];
     expect(context.files.map((f: { path: string }) => f.path)).toEqual(['src/auth.ts', 'src/helpers.ts', 'src/new-feature.ts']);
-    expect(context).toMatchObject({ title: 'Diff shapes', body: '', headSha: 'bc26a45', prNumber: 3 });
+    expect(context).toMatchObject({ title: 'Diff shapes', body: '', headSha: 'bc26a45', prNumber: 3, installationId: 160831076n });
     // The lockfile was filtered out, so a finding on it would not be commentable.
     expect(context.lines.canComment('package-lock.json', 4, 'RIGHT')).toBe(false);
   });
 
   it('drops a finding the reviewer places outside the diff', async () => {
     const reviewer = {
-      review: vi.fn().mockResolvedValue([
-        { file: 'src/auth.ts', line: 21, side: 'RIGHT', severity: 'high', category: 'x', summary: 's', whyItBreaks: 'w' },
-      ]),
+      review: vi.fn().mockResolvedValue({
+        findings: [
+          { file: 'src/auth.ts', line: 21, side: 'RIGHT', severity: 'high', category: 'x', summary: 's', whyItBreaks: 'w' },
+        ],
+      }),
     };
 
     const outcome = await pipeline(reviewer).run(target);
 
     expect(outcome.kind === 'completed' && outcome.findings).toEqual([]);
+  });
+
+  describe('never paying the reviewer twice', () => {
+    const run = {
+      model: 'claude-opus-5',
+      outcome: 'submitted',
+      turns: 3,
+      toolCalls: 2,
+      usage: { inputTokens: 100, outputTokens: 50, cacheReadInputTokens: 900, cacheCreationInputTokens: 0, costUsd: 0.01 },
+    };
+
+    it('stores the reviewer’s answer as soon as it arrives', async () => {
+      const answer: ReviewerResult = { findings: [], run };
+      const reviewer = { review: vi.fn().mockResolvedValue(answer) };
+
+      const outcome = await pipeline(reviewer).run(target);
+
+      expect(store.save).toHaveBeenCalledWith('rev-1', answer);
+      expect(outcome.kind === 'completed' && outcome.reviewer).toEqual(run);
+    });
+
+    // The retry after a failure *after* the agent answered — completing the Check Run,
+    // writing findings — must not call the agent again.
+    it('reuses a stored answer instead of calling the reviewer again', async () => {
+      store.load.mockResolvedValue({
+        findings: [{ file: 'src/auth.ts', line: 26, side: 'RIGHT', severity: 'low', category: 'debugging', summary: 's', whyItBreaks: 'w' }],
+        run,
+      });
+      const reviewer = { review: vi.fn() };
+
+      const outcome = await pipeline(reviewer).run(target);
+
+      expect(reviewer.review).not.toHaveBeenCalled();
+      expect(store.save).not.toHaveBeenCalled();
+      expect(github.getPullRequest).not.toHaveBeenCalled();
+      // The stored answer still goes through validation.
+      expect(outcome.kind === 'completed' && outcome.findings.map((f) => f.line)).toEqual([26]);
+    });
+
+    it('does not store anything when the reviewer throws', async () => {
+      const reviewer = { review: vi.fn().mockRejectedValue(new Error('agent unreachable')) };
+
+      await expect(pipeline(reviewer).run(target)).rejects.toThrow('agent unreachable');
+      expect(store.save).not.toHaveBeenCalled();
+    });
   });
 
   // Too large is decided on the file list alone, so the diff — which GitHub may refuse

@@ -313,3 +313,41 @@ with `updateMany where { deliveryId, status: FAILED }` → `RECEIVED` and proces
 The condition is what keeps it race-safe: of two concurrent redeliveries only one update
 can match, and the other falls through to "duplicate". `PROCESSED` and `IGNORED`
 deliveries are still never processed twice.
+
+## One GitHub client, and "slow down" is not a failure
+
+Every installation-authenticated call goes through `GithubApiService`, which owns the
+token, the headers, `Link`-header pagination, and turning a bad response into the right
+error. Rate limits get their own error, `GithubRateLimitError`, carrying when to retry:
+the primary limit from `x-ratelimit-reset`, a secondary limit from `retry-after`, or a
+minute when a secondary limit arrives without one. The worker catches it, moves the job to
+BullMQ's delayed set until that time, and throws `DelayedError` — which BullMQ treats as
+"rescheduled", so waiting for GitHub never spends one of the job's three attempts. Treating
+it as an ordinary failure would have turned an hour-long rate limit into three quick
+retries and a `FAILED` review. A 401 drops the cached installation token and retries the
+request once, which closes Milestone 6's known gap for tokens revoked before their TTL.
+
+## The diff comes from compare `base...head`, and that was checked, not assumed
+
+`getDiff` uses `/compare/{base}...{head}` with the SHAs recorded on the `Review`, never
+`/pulls/{n}`, whose diff moves every time the author pushes. Three dots means "from the
+merge base", which is what a PR's Files changed tab shows — but that equivalence was the
+kind of claim worth verifying rather than trusting, so `npm run prove:diff` fetches both
+and compares them byte for byte. On the testbed's diff-shapes PR (a binary, a rename with
+spaces in the name, a deletion, a mode change, a file without a final newline) they were
+identical.
+
+## Prisma's upsert can lose a race, so the pull_request path retries it
+
+`prisma.repo.upsert` is read-then-write. Two `pull_request` deliveries for a repo the app
+has never seen can both read "absent" and both insert, and the loser fails on a unique
+index — here `Repo.fullName`, not the `githubId` in `where`, because Postgres reports
+whichever index it checks first. The e2e race test caught it failing three runs in five.
+`retryOnUniqueViolation` runs the write once more on P2002; on the second run the read
+finds the winner's row and the upsert becomes an update. The alternative, raw
+`INSERT … ON CONFLICT`, would only cover the one index named in the conflict clause and
+would give up Prisma's typing for a single statement. The installation handlers do not
+need the retry and do not have it: `Installation` has a single unique column, so its
+upsert is a native `INSERT … ON CONFLICT`, and the second transaction waits on the first's
+row lock — a concurrent-install test passes with or without a retry, which is how that was
+established.

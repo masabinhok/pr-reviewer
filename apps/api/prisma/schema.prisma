@@ -64,7 +64,7 @@ model Repo {
   fullName       String       @unique
   installation   Installation @relation(fields: [installationId], references: [id])
   installationId String
-  defaultBranch  String
+  defaultBranch  String?
   private        Boolean
   deletedAt      DateTime?
 

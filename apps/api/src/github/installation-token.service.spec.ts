@@ -28,6 +28,10 @@ class FakeRedis {
     return 'OK';
   }
 
+  async del(key: string): Promise<number> {
+    return this.store.delete(key) ? 1 : 0;
+  }
+
   /** Seconds left, like `redis-cli TTL`: -2 when the key does not exist. */
   ttl(key: string): number {
     const entry = this.store.get(key);
@@ -148,6 +152,21 @@ describe('InstallationTokenService', () => {
 
       // 3541s in: GitHub would still accept ghs_first for another 59s, but we don't risk it.
       vi.setSystemTime(new Date(NOW.getTime() + 3541 * 1000));
+      const token = await service.getToken(INSTALLATION_ID);
+
+      expect(token).toBe('ghs_second');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // Suspend and uninstall revoke the token on GitHub's side immediately; the cache must
+  // not keep handing it out for the rest of its hour.
+  describe('invalidate', () => {
+    it('drops the cached token so the next call mints a fresh one', async () => {
+      await service.getToken(INSTALLATION_ID);
+      fetchMock.mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_second')));
+
+      await service.invalidate(INSTALLATION_ID);
       const token = await service.getToken(INSTALLATION_ID);
 
       expect(token).toBe('ghs_second');

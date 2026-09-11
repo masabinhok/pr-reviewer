@@ -17,7 +17,7 @@ function requestFor(event?: string){
 
   if (event) headers['x-github-event'] = event;
 
-  return {headers} as unknown as RawBodyRequest<Request>;
+  return {headers, body: { action: 'opened' }} as unknown as RawBodyRequest<Request>;
 }
 
 describe('WebhooksController', () => {
@@ -25,7 +25,7 @@ describe('WebhooksController', () => {
   let handleWebhook: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    // The controller's whole job is now "read two headers, hand them to the service".
+    // The controller's whole job is "read two headers and the body, hand them to the service".
     // A spy is enough to test that, and it keeps Prisma out of a routing test —
     // the dispatch and idempotency rules are covered in webhooks.service.spec.ts.
     handleWebhook = vi.fn().mockResolvedValue({ ok: true, handled: true });
@@ -44,10 +44,10 @@ describe('WebhooksController', () => {
     controller = module.get<WebhooksController>(WebhooksController);
   });
 
-  it('passes the delivery id and event through to the service', async ()=> {
+  it('passes the delivery id, event and parsed body through to the service', async ()=> {
     await controller.handleWebhook(requestFor('pull_request'))
 
-    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'pull_request')
+    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'pull_request', { action: 'opened' })
   })
 
   it('returns whatever the service returns', async ()=> {
@@ -62,6 +62,6 @@ describe('WebhooksController', () => {
   it('falls back to "unknown" when the event header is missing', async ()=> {
     await controller.handleWebhook(requestFor())
 
-    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'unknown')
+    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'unknown', { action: 'opened' })
   })
 });

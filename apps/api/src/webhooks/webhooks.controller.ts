@@ -20,6 +20,7 @@ export class WebhooksController {
     const event = (req.headers['x-github-event'] as string) ?? 'unknown';
 
 
-    return this.webhooksService.handleWebhook(deliveryId, event)
+    // The guard verified the signature over rawBody; req.body is the same bytes, parsed.
+    return this.webhooksService.handleWebhook(deliveryId, event, req.body ?? {})
   }
 }

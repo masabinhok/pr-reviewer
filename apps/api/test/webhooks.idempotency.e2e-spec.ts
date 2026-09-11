@@ -7,6 +7,7 @@ import { Logger } from '@nestjs/common';
 import { WebhooksService } from '../src/webhooks/webhooks.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { DeliveryStatus } from '../src/generated/prisma/client.js';
+import { InstallationsService } from '../src/installations/installations.service.js';
 
 /**
  * The unit tests in src/webhooks/webhooks.service.spec.ts assert what the service does
@@ -29,7 +30,9 @@ describe('WebhooksService idempotency (real database)', () => {
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      providers: [WebhooksService, PrismaService],
+      // Idempotency is decided before any handler runs, so the installation handlers
+      // never execute here — a bare stub satisfies the dependency.
+      providers: [WebhooksService, PrismaService, { provide: InstallationsService, useValue: {} }],
     }).compile();
 
     // init() runs the lifecycle hooks, which is what calls PrismaService.$connect().
@@ -51,8 +54,8 @@ describe('WebhooksService idempotency (real database)', () => {
   it('writes exactly one row when the same delivery arrives twice', async () => {
     const deliveryId = uniqueId();
 
-    const first = await service.handleWebhook(deliveryId, 'pull_request');
-    const second = await service.handleWebhook(deliveryId, 'pull_request');
+    const first = await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
+    const second = await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
 
     expect(first).toEqual({ ok: true, handled: true });
     expect(second).toEqual({ ok: true, duplicate: true });
@@ -64,10 +67,10 @@ describe('WebhooksService idempotency (real database)', () => {
   it('leaves the original row untouched when a duplicate arrives', async () => {
     const deliveryId = uniqueId();
 
-    await service.handleWebhook(deliveryId, 'pull_request');
+    await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
     const afterFirst = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
 
-    await service.handleWebhook(deliveryId, 'pull_request');
+    await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
     const afterSecond = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
 
     // The first run's outcome is the record of what happened. A duplicate must not
@@ -83,8 +86,8 @@ describe('WebhooksService idempotency (real database)', () => {
     const deliveryId = uniqueId();
 
     const results = await Promise.all([
-      service.handleWebhook(deliveryId, 'pull_request'),
-      service.handleWebhook(deliveryId, 'pull_request'),
+      service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
+      service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
     ]);
 
     expect(results.filter((r) => 'duplicate' in r)).toHaveLength(1);
@@ -97,7 +100,7 @@ describe('WebhooksService idempotency (real database)', () => {
   it('records an unhandled event as IGNORED rather than dropping it', async () => {
     const deliveryId = uniqueId();
 
-    await service.handleWebhook(deliveryId, 'issues');
+    await service.handleWebhook(deliveryId, 'issues', { action: 'opened' });
 
     const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
     expect(row.status).toBe(DeliveryStatus.IGNORED);

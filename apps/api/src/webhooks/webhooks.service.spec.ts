@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DeliveryStatus, Prisma } from '../generated/prisma/client.js';
+import { InstallationsService } from '../installations/installations.service.js';
 
 /**
  * The error Postgres produces when the unique constraint on deliveryId rejects a
@@ -31,17 +32,32 @@ function prismaStub() {
   };
 }
 
+/** Every handler the dispatch table can route to, as spies. */
+function installationsStub() {
+  return {
+    created: vi.fn().mockResolvedValue(undefined),
+    deleted: vi.fn().mockResolvedValue(undefined),
+    suspended: vi.fn().mockResolvedValue(undefined),
+    unsuspended: vi.fn().mockResolvedValue(undefined),
+    reposAdded: vi.fn().mockResolvedValue(undefined),
+    reposRemoved: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('WebhooksService', () => {
   let service: WebhooksService;
   let prisma: ReturnType<typeof prismaStub>;
+  let installations: ReturnType<typeof installationsStub>;
 
   beforeEach(async () => {
     prisma = prismaStub();
+    installations = installationsStub();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhooksService,
         { provide: PrismaService, useValue: prisma },
+        { provide: InstallationsService, useValue: installations },
       ],
     }).compile();
 
@@ -56,12 +72,11 @@ describe('WebhooksService', () => {
     vi.restoreAllMocks();
   });
 
-  // ---- WORKED EXAMPLE: the happy path ----
   it('records the delivery and reports it handled', async () => {
-    const result = await service.handleWebhook('d-1', 'pull_request');
+    const result = await service.handleWebhook('d-1', 'pull_request', { action: 'opened' });
 
     expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
-      data: { deliveryId: 'd-1', event: 'pull_request' },
+      data: { deliveryId: 'd-1', event: 'pull_request', action: 'opened' },
     });
     expect(result).toEqual({ ok: true, handled: true });
   });
@@ -86,13 +101,13 @@ describe('WebhooksService', () => {
     expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
   });
 
-  // 'issues' is not in HANDLED_EVENTS, but the row is still written — every delivery
+  // 'issues' has no entry in the dispatch table, but the row is still written — every delivery
   // gets one — and then moved to its terminal status.
   it('records an unhandled event and marks it IGNORED', async () => {
-    const result = await service.handleWebhook('d-2', 'issues');
+    const result = await service.handleWebhook('d-2', 'issues', { action: 'opened' });
 
     expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
-      data: { deliveryId: 'd-2', event: 'issues' },
+      data: { deliveryId: 'd-2', event: 'issues', action: 'opened' },
     });
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
       where: { deliveryId: 'd-2' },
@@ -120,5 +135,61 @@ describe('WebhooksService', () => {
 
     await expect(service.handleWebhook('d-4', 'pull_request')).rejects.toThrow('connection lost');
     expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
+  });
+
+  // Some events (`push`, `ping`) carry no `action`. The column is nullable for them.
+  it('records a null action when the payload has none', async () => {
+    await service.handleWebhook('d-5', 'push', {});
+
+    expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
+      data: { deliveryId: 'd-5', event: 'push', action: null },
+    });
+  });
+
+  describe('dispatch', () => {
+    it.each([
+      ['installation', 'created', 'created'],
+      ['installation', 'deleted', 'deleted'],
+      ['installation', 'suspend', 'suspended'],
+      ['installation', 'unsuspend', 'unsuspended'],
+      ['installation_repositories', 'added', 'reposAdded'],
+      ['installation_repositories', 'removed', 'reposRemoved'],
+    ] as const)('routes %s.%s to InstallationsService.%s', async (event, action, method) => {
+      const payload = { action, installation: { id: 1 } };
+
+      const result = await service.handleWebhook('d-6', event, payload);
+
+      expect(installations[method]).toHaveBeenCalledWith(payload);
+      expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    // The key is event.action, so a known event with an unknown action is unhandled —
+    // it must not fall into some other installation handler.
+    it('ignores an action of a known event that has no handler', async () => {
+      const result = await service.handleWebhook('d-7', 'installation', {
+        action: 'new_permissions_accepted',
+      });
+
+      expect(result).toEqual({ ok: true, handled: false });
+      expect(Object.values(installations).some((fn) => fn.mock.calls.length > 0)).toBe(false);
+      expect(prisma.webhookDelivery.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: DeliveryStatus.IGNORED }) }),
+      );
+    });
+
+    // A handler that throws must leave a FAILED row carrying the message, and the error
+    // must still propagate — GitHub then sees a 500 and redelivers later.
+    it('records FAILED with the error when a handler throws, then rethrows', async () => {
+      installations.created.mockRejectedValue(new Error('database went away'));
+
+      await expect(
+        service.handleWebhook('d-8', 'installation', { action: 'created' }),
+      ).rejects.toThrow('database went away');
+
+      expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
+        where: { deliveryId: 'd-8' },
+        data: { status: DeliveryStatus.FAILED, processedAt: expect.any(Date), error: 'database went away' },
+      });
+    });
   });
 });

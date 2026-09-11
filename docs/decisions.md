@@ -177,3 +177,48 @@ The cost is one extra round trip to GitHub, rarely. A lock (or de-duplicating in
 requests per installation) would remove it, and would add a failure mode — a holder that
 dies with the lock held — to prevent something harmless. Not worth it until the metrics
 say otherwise.
+
+## Webhook dispatch is a table keyed on `event.action`
+
+`WebhooksService` routes through a `Record<string, Handler>` whose keys are either
+`event.action` (`installation.created`) or a bare event (`pull_request`) that catches every
+action of it, with the specific key winning. A `switch` on the event would have needed a
+second, nested `switch` on the action for every event whose actions mean different things
+— `installation.created` and `installation.deleted` do opposite work — and week 3 adds a
+handful more. A flat table keeps adding an event to one line, and makes "what does this app
+react to" readable in one place. A known event with an unknown action
+(`installation.new_permissions_accepted`) has no key, so it lands as `IGNORED` rather than
+falling into a neighbouring handler.
+
+## Review history hangs off `Repo`, so a reinstall can come back under a new installation ID
+
+The milestone plan says a reinstall should reuse the original `Installation` row. That only
+happens if GitHub returns the same installation ID, and it may not — uninstalling deletes
+the installation on GitHub's side, and a reinstall can be a brand-new one. The design does
+not depend on which: `Installation` is upserted on its GitHub ID (so the same ID revives
+the old row, `deletedAt` cleared), and each `Repo` is upserted on the *repo's* GitHub ID,
+which does survive an uninstall, with `installationId` re-pointed at whichever
+`Installation` row the reinstall produced. Reviews reference `Repo`, not `Installation`, so
+they follow the repo either way. Both cases are covered in
+`test/installations.lifecycle.e2e-spec.ts`; the live install → uninstall → reinstall on
+the testbed settles which one GitHub actually does.
+
+## `Repo.defaultBranch` became nullable
+
+`installation.created` and `installation_repositories.added` list repositories without
+`default_branch`, so the first time this app hears about a repo it does not know that
+value. Filling it would mean either a GitHub API call per repo inside a webhook handler, on
+the clock of GitHub's ten-second timeout, or a placeholder such as `"main"` — which the
+nullable-fields entry above rules out, and which is wrong for every repo still on `master`.
+`pull_request` payloads do carry `repository.default_branch`, so week 3 fills it in the
+first time a pull request arrives, which is also the first time it is needed.
+
+## Suspending or uninstalling evicts the cached installation token
+
+Milestone 6 left a known gap: GitHub revokes an installation's tokens the moment it is
+suspended or uninstalled, but the Redis cache kept serving the revoked token until its TTL
+ran out, so every call in that window would 401. `InstallationsService.suspended` and
+`deleted` now call `InstallationTokenService.invalidate`, which deletes
+`gh:itoken:{installationId}`. It runs even when there is no `Installation` row to update,
+because the cache is keyed on GitHub's installation ID, not ours. Unsuspending does nothing
+to the cache — the next call is a miss and mints a fresh token.

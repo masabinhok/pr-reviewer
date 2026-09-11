@@ -53,6 +53,15 @@ export class InstallationTokenService {
     return token;
   }
 
+  /**
+   * Drops the cached token for an installation. Called when an installation is suspended
+   * or uninstalled: GitHub revokes the token immediately, but the cache would otherwise
+   * keep serving it for up to an hour, and every call made with it would 401.
+   */
+  async invalidate(installationId: InstallationId): Promise<void> {
+    await this.redis.del(installationTokenCacheKey(installationId));
+  }
+
   private async exchange(installationId: InstallationId): Promise<{ token: string; expiresAt: Date }> {
     const response = await fetch(`${GITHUB_API}/app/installations/${installationId}/access_tokens`, {
       method: 'POST',

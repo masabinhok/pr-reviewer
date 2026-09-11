@@ -32,13 +32,13 @@ prompt work.
 
 Least glamorous, most valuable. Get it right.
 
-- [ ] Register a GitHub App (dev). Permissions: `contents: read`, `pull_requests: write`, `checks: write`
-- [ ] Nest project + Docker Compose (Postgres, Redis)
-- [ ] Prisma schema: Installation, Repo, Review, Finding, Feedback
-- [ ] Webhook endpoint with HMAC-SHA256 signature verification on the **raw body**, not the parsed JSON. This trips everyone up.
-- [ ] Idempotency: store `X-GitHub-Delivery` ID, drop duplicates. GitHub redelivers.
-- [ ] App JWT (RS256, 10 min expiry) then exchange for an installation access token, cache in Redis with TTL
-- [ ] Handle `installation.created` / `installation.deleted`
+- [x] Register a GitHub App (dev). Permissions: `contents: read`, `pull_requests: write`, `checks: write`
+- [x] Nest project + Docker Compose (Postgres, Redis)
+- [x] Prisma schema: Installation, Repo, Review, Finding, Feedback
+- [x] Webhook endpoint with HMAC-SHA256 signature verification on the **raw body**, not the parsed JSON. This trips everyone up.
+- [x] Idempotency: store `X-GitHub-Delivery` ID, drop duplicates. GitHub redelivers.
+- [x] App JWT (RS256, 10 min expiry) then exchange for an installation access token, cache in Redis with TTL
+- [x] Handle `installation.created` / `installation.deleted`
 
 Use `smee.io` or `gh webhook forward` to get webhooks to localhost.
 

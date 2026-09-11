@@ -167,10 +167,10 @@ it returns, the test that covers it.
 - Each tool's description, input schema and output are written for a model to read.
 
 **Todo**
-- [ ] Tarball download at the head SHA, size cap, safe extraction, cleanup
-- [ ] The four tools, with caps on output size
-- [ ] Tests: a tarball built in the test, including hostile entries that must be rejected
-- [ ] Tool schemas generated from the same definitions the code uses
+- [x] Tarball download at the head SHA, size cap, safe extraction, cleanup
+- [x] The four tools, with caps on output size
+- [x] Tests: a tarball built in the test, including hostile entries that must be rejected
+- [x] Tool schemas generated from the same definitions the code uses
 
 **Polish bar:** against the testbed, `search_repo("createSession")` finds its definition
 and every caller, and `get_file` returns the right lines at the PR's head SHA — not `main`.

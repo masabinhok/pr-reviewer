@@ -215,6 +215,41 @@ describe('GithubApiService', () => {
     });
   });
 
+  // The App never approves or requests changes — whatever the code it read says.
+  it('posts a review as a plain COMMENT with every inline comment in it', async () => {
+    fetchMock.mockResolvedValue(json({ id: 9001, html_url: 'https://github.com/x' }));
+
+    await service.createReview(INSTALLATION, REPO, 6, {
+      commitId: 'head111',
+      body: 'pr-reviewer found 1 issue (1 high).',
+      comments: [{ path: 'src/users.ts', line: 18, side: 'RIGHT', body: '**High** · security — …' }],
+    });
+
+    const { url, init } = call(0);
+    expect(url).toBe('https://api.github.com/repos/octo/widgets/pulls/6/reviews');
+    expect(JSON.parse(String(init.body))).toEqual({
+      commit_id: 'head111',
+      body: 'pr-reviewer found 1 issue (1 high).',
+      event: 'COMMENT',
+      comments: [{ path: 'src/users.ts', line: 18, side: 'RIGHT', body: '**High** · security — …' }],
+    });
+  });
+
+  // /reviews/{id}/comments returns line: null and side: null; the PR-level list has them.
+  it('reads a review’s comments from the PR’s comment list, where line and side are filled in', async () => {
+    fetchMock.mockResolvedValue(
+      json([
+        { id: 1, path: 'a.ts', line: 2, side: 'RIGHT', pull_request_review_id: 9001 },
+        { id: 2, path: 'b.ts', line: 5, side: 'RIGHT', pull_request_review_id: 1234 },
+      ]),
+    );
+
+    const comments = await service.listReviewComments(INSTALLATION, REPO, 6, 9001n);
+
+    expect(call(0).url).toBe('https://api.github.com/repos/octo/widgets/pulls/6/comments?per_page=100');
+    expect(comments.map((c) => c.id)).toEqual([1]);
+  });
+
   it('reports failures with GitHub’s message and the path, never the token', async () => {
     fetchMock.mockResolvedValue(json({ message: 'Not Found' }, { status: 404 }));
 

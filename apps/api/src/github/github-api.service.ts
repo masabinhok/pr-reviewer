@@ -44,6 +44,21 @@ export interface CheckRunOutput {
   summary: string;
 }
 
+/** One inline comment in a review, anchored the way the line map anchors it. */
+export interface ReviewCommentInput {
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
+  body: string;
+}
+
+export interface PostedReviewComment {
+  id: number;
+  path: string;
+  line: number | null;
+  side: 'LEFT' | 'RIGHT' | null;
+}
+
 interface RequestOptions {
   accept?: string;
   method?: string;
@@ -122,6 +137,44 @@ export class GithubApiService {
         output: result.output,
       },
     });
+  }
+
+  /**
+   * Posts one review with all its inline comments. `event` is always COMMENT: this App
+   * never approves or requests changes, whatever the code it read says (see
+   * docs/decisions.md). GitHub rejects the whole review if any comment is outside the diff.
+   */
+  async createReview(
+    installationId: InstallationId,
+    repo: string,
+    prNumber: number,
+    review: { commitId: string; body: string; comments: ReviewCommentInput[] },
+  ): Promise<{ id: number; html_url: string }> {
+    return this.json(installationId, `/repos/${repo}/pulls/${prNumber}/reviews`, {
+      method: 'POST',
+      body: { commit_id: review.commitId, body: review.body, event: 'COMMENT', comments: review.comments },
+    });
+  }
+
+  listReviews(installationId: InstallationId, repo: string, prNumber: number) {
+    return this.paginate<{ id: number; body: string | null; html_url: string }>(
+      installationId,
+      `/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`,
+    );
+  }
+
+  /**
+   * The comments of one posted review, with their `line` and `side`. Read from the PR's
+   * comment list, filtered by review — not from `/reviews/{id}/comments`, which returns
+   * `line: null, side: null` for the same comments (found on the testbed: GitHub fills in
+   * the anchoring fields only on the PR-level endpoint).
+   */
+  async listReviewComments(installationId: InstallationId, repo: string, prNumber: number, reviewId: bigint | number) {
+    const all = await this.paginate<PostedReviewComment & { pull_request_review_id: number | null }>(
+      installationId,
+      `/repos/${repo}/pulls/${prNumber}/comments?per_page=100`,
+    );
+    return all.filter((c) => c.pull_request_review_id !== null && BigInt(c.pull_request_review_id) === BigInt(reviewId));
   }
 
   async json<T>(installationId: InstallationId, path: string, options: RequestOptions = {}): Promise<T> {

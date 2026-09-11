@@ -277,11 +277,11 @@ Findings reach the PR.
 - No postable findings → no review, and the Check Run says so.
 
 **Todo**
-- [ ] Severity gate; low findings in the Check Run only
-- [ ] One review with inline comments, `event: COMMENT`, always
-- [ ] `Review.githubReviewId` (migration) and `Finding.githubCommentId` stored; no double post
-- [ ] Comment body format
-- [ ] Tests: gate, body, idempotency on retry, the review request shape
+- [x] Severity gate; low findings in the Check Run only
+- [x] One review with inline comments, `event: COMMENT`, always
+- [x] `Review.githubReviewId` (migration) and `Finding.githubCommentId` stored; no double post
+- [x] Comment body format
+- [x] Tests: gate, body, idempotency on retry, the review request shape
 
 **Polish bar:** a testbed PR gets exactly one review with an inline comment on the right
 line for each high/medium finding; forcing a retry after posting doesn't post again.

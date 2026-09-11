@@ -330,10 +330,10 @@ forever. Only the *final* failure does this; a failure that will be retried leav
 spinner running.
 
 **Todo**
-- [ ] Create the Check Run at job start, store `checkRunId`
-- [ ] Complete it with the conclusion table above and a Markdown summary
-- [ ] Final-attempt failures complete the Check Run as `failure`
-- [ ] Unit tests for the summary and conclusion mapping; mocked-API test for the lifecycle
+- [x] Create the Check Run at job start, store `checkRunId`
+- [x] Complete it with the conclusion table above and a Markdown summary
+- [x] Final-attempt failures complete the Check Run as `failure`
+- [x] Unit tests for the summary and conclusion mapping; mocked-API test for the lifecycle
 
 **Polish bar:** open a testbed PR → the spinner appears within seconds → it turns green
 with a readable summary. Make the stub reviewer throw → after the retries the check turns

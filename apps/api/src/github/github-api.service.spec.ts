@@ -176,6 +176,45 @@ describe('GithubApiService', () => {
     });
   });
 
+  describe('Check Runs', () => {
+    it('creates one in progress on the head commit, tied to the review', async () => {
+      fetchMock.mockResolvedValue(json({ id: 9001 }, { status: 201 }));
+
+      const run = await service.createCheckRun(INSTALLATION, REPO, { name: 'pr-reviewer', headSha: 'abc123', externalId: 'rev-1' });
+
+      expect(run).toEqual({ id: 9001 });
+      const { url, init } = call(0);
+      expect(url).toBe('https://api.github.com/repos/octo/widgets/check-runs');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(String(init.body))).toEqual({
+        name: 'pr-reviewer',
+        head_sha: 'abc123',
+        external_id: 'rev-1',
+        status: 'in_progress',
+        started_at: NOW.toISOString(),
+      });
+    });
+
+    it('completes one with a conclusion and a summary', async () => {
+      fetchMock.mockResolvedValue(json({ id: 9001 }));
+
+      await service.completeCheckRun(INSTALLATION, REPO, 9001n, {
+        conclusion: 'success',
+        output: { title: 'No findings in 1 file', summary: 'Reviewed 1 file.' },
+      });
+
+      const { url, init } = call(0);
+      expect(url).toBe('https://api.github.com/repos/octo/widgets/check-runs/9001');
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(String(init.body))).toEqual({
+        status: 'completed',
+        conclusion: 'success',
+        completed_at: NOW.toISOString(),
+        output: { title: 'No findings in 1 file', summary: 'Reviewed 1 file.' },
+      });
+    });
+  });
+
   it('reports failures with GitHub’s message and the path, never the token', async () => {
     fetchMock.mockResolvedValue(json({ message: 'Not Found' }, { status: 404 }));
 

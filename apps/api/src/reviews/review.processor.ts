@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { DelayedError, type Job } from 'bullmq';
+import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReviewStatus } from '../generated/prisma/client.js';
 import { REVIEW_QUEUE, type ReviewJobData } from './review-queue.js';
@@ -90,7 +90,9 @@ export class ReviewProcessor extends WorkerHost {
       // Only the last attempt settles the row. Earlier failures leave it RUNNING and let
       // BullMQ retry; marking it FAILED then would make the retry skip it. The Check Run
       // keeps spinning meanwhile — the review really is still going.
-      if (isFinalAttempt(job)) {
+      // UnrecoverableError makes BullMQ fail the job now, retries or not — so it is the
+      // final attempt too, and must settle the row and stop the spinner like one.
+      if (isFinalAttempt(job) || e instanceof UnrecoverableError) {
         await this.completeCheckRunQuietly(target, checkRunId, {
           kind: 'failed',
           error: message,

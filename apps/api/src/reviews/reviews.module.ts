@@ -6,6 +6,10 @@ import { ReviewProcessor } from './review.processor.js';
 import { ReviewPipeline } from './review-pipeline.js';
 import { REVIEWER } from '../reviewer/reviewer.js';
 import { StubReviewer } from '../reviewer/stub-reviewer.js';
+import { AgentReviewer } from '../reviewer/agent-reviewer.js';
+import { ReviewerResultStore } from './reviewer-result.store.js';
+import { ConfigService } from '@nestjs/config';
+import { InstallationTokenService } from '../github/installation-token.service.js';
 
 @Module({
   imports: [QueueModule, GithubModule],
@@ -13,8 +17,16 @@ import { StubReviewer } from '../reviewer/stub-reviewer.js';
     PullRequestsService,
     ReviewProcessor,
     ReviewPipeline,
-    // Weeks 5–6 swap this one line for the agent.
-    { provide: REVIEWER, useClass: StubReviewer },
+    ReviewerResultStore,
+    // The agent when it is configured, the stub otherwise (see agent.reviewer in the config).
+    // A factory, not two providers: AgentReviewer refuses to construct without its settings,
+    // which is right when it is selected and wrong when it is not.
+    {
+      provide: REVIEWER,
+      inject: [ConfigService, InstallationTokenService],
+      useFactory: (config: ConfigService, tokens: InstallationTokenService) =>
+        config.get<string>('agent.reviewer') === 'agent' ? new AgentReviewer(config, tokens) : new StubReviewer(),
+    },
   ],
   exports: [PullRequestsService],
 })

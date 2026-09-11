@@ -14,6 +14,15 @@ export default () => ({
     // "fails every attempt" doesn't wait half a minute.
     retryDelayMs: Number(process.env.REVIEW_RETRY_DELAY_MS ?? 10_000),
   },
+  agent: {
+    // Which Reviewer runs: the agent when it is configured, the stub otherwise. REVIEWER
+    // overrides either way (the e2e suite pins it to the stub).
+    reviewer: process.env.REVIEWER ?? (process.env.AGENT_URL ? 'agent' : 'stub'),
+    url: process.env.AGENT_URL,
+    sharedSecret: process.env.AGENT_SHARED_SECRET,
+    // A review is many model turns — minutes. Past this the job gives up and retries.
+    timeoutMs: Number(process.env.AGENT_TIMEOUT_MS ?? 15 * 60_000),
+  },
   github: {
     appId: process.env.GITHUB_APP_ID,
     clientId: process.env.GITHUB_APP_CLIENT_ID,

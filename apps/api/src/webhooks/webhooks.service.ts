@@ -68,15 +68,23 @@ export class WebhooksService {
     }
     catch(e){
         if(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'){
-            this.logger.log(`[${deliveryId}] duplicate delivery dropped`)
-            return {
-                ok: true,
-                duplicate: true
+            // A redelivery of a delivery that FAILED is a retry, not a duplicate — that is
+            // what the Redeliver button is for. Reclaiming the row with a conditional
+            // update keeps it race-safe: of two concurrent redeliveries, only one can flip
+            // FAILED back to RECEIVED, and the other is dropped as a duplicate.
+            if (!(await this.reclaimFailed(deliveryId))) {
+                this.logger.log(`[${deliveryId}] duplicate delivery dropped`)
+                return {
+                    ok: true,
+                    duplicate: true
+                }
             }
+            this.logger.log(`[${deliveryId}] redelivery of a FAILED delivery — processing it again`)
+        } else {
+            // Anything else is a real failure — never swallow it, or the row silently
+            // disagrees with what actually happened.
+            throw e
         }
-        // Anything else is a real failure — never swallow it, or the row silently
-        // disagrees with what actually happened.
-        throw e
     }
 
     const name = action ? `${event}.${action}` : event
@@ -109,6 +117,15 @@ export class WebhooksService {
     /** Most specific wins: `installation.created` before a catch-all `installation`. */
     private handlerFor(event: string, action: string | null): Handler | undefined {
         return (action ? this.handlers[`${event}.${action}`] : undefined) ?? this.handlers[event]
+    }
+
+    /** FAILED → RECEIVED, only if it is currently FAILED. True if this call won it. */
+    private async reclaimFailed(deliveryId: string): Promise<boolean> {
+        const { count } = await this.prisma.webhookDelivery.updateMany({
+            where: { deliveryId, status: DeliveryStatus.FAILED },
+            data: { status: DeliveryStatus.RECEIVED, error: null, processedAt: null }
+        })
+        return count === 1
     }
 
     /** Moves a delivery off RECEIVED to its terminal status. */

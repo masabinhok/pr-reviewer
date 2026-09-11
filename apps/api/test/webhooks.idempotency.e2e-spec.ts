@@ -24,6 +24,8 @@ import { PullRequestsService } from '../src/reviews/pull-requests.service.js';
 const PREFIX = 'itest-';
 const uniqueId = () => `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const pullRequests = { handle: async () => 'enqueued' as const };
+
 describe('WebhooksService idempotency (real database)', () => {
   let module: TestingModule;
   let service: WebhooksService;
@@ -37,7 +39,7 @@ describe('WebhooksService idempotency (real database)', () => {
         WebhooksService,
         PrismaService,
         { provide: InstallationsService, useValue: {} },
-        { provide: PullRequestsService, useValue: { handle: async () => 'enqueued' } },
+        { provide: PullRequestsService, useValue: pullRequests },
       ],
     }).compile();
 
@@ -49,6 +51,7 @@ describe('WebhooksService idempotency (real database)', () => {
     prisma = module.get(PrismaService);
 
     vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
 
   afterAll(async () => {
@@ -101,6 +104,32 @@ describe('WebhooksService idempotency (real database)', () => {
 
     const rows = await prisma.webhookDelivery.findMany({ where: { deliveryId } });
     expect(rows).toHaveLength(1);
+  });
+
+  // GitHub's Redeliver button on a delivery whose handler failed must actually retry it —
+  // and two concurrent redeliveries must still only retry it once.
+  it('reprocesses a redelivery of a FAILED delivery exactly once, even under a race', async () => {
+    const deliveryId = uniqueId();
+    const handle = vi.spyOn(pullRequests, 'handle').mockRejectedValueOnce(new Error('Redis down'));
+
+    await expect(
+      service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
+    ).rejects.toThrow('Redis down');
+    expect((await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } })).status).toBe(
+      DeliveryStatus.FAILED,
+    );
+
+    const results = await Promise.all([
+      service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
+      service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
+    ]);
+
+    expect(results.filter((r) => 'duplicate' in r)).toHaveLength(1);
+    expect(handle).toHaveBeenCalledTimes(2); // the failed first run, then exactly one retry
+    const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    expect(row.status).toBe(DeliveryStatus.PROCESSED);
+    expect(row.error).toBeNull();
+    handle.mockRestore();
   });
 
   it('records an unhandled event as IGNORED rather than dropping it', async () => {

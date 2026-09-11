@@ -21,14 +21,16 @@ function uniqueViolation() {
 }
 
 /**
- * Only the two calls the service makes. `create` is what the constraint rejects;
- * `update` is the status bookkeeping that follows a successful insert.
+ * The calls the service makes. `create` is what the constraint rejects; `update` is the
+ * status bookkeeping after a successful insert; `updateMany` is the conditional
+ * FAILED → RECEIVED reclaim, which finds nothing to reclaim unless a test says so.
  */
 function prismaStub() {
   return {
     webhookDelivery: {
       create: vi.fn().mockResolvedValue({}),
       update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   };
 }
@@ -103,6 +105,34 @@ describe('WebhooksService', () => {
     await service.handleWebhook('d-1', 'pull_request');
 
     expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
+  });
+
+  describe('a redelivery of a delivery that FAILED', () => {
+    beforeEach(() => {
+      prisma.webhookDelivery.create.mockRejectedValue(uniqueViolation());
+    });
+
+    it('reclaims the row only if it is FAILED, then processes it again', async () => {
+      prisma.webhookDelivery.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.handleWebhook('d-11', 'pull_request', { action: 'opened' });
+
+      expect(prisma.webhookDelivery.updateMany).toHaveBeenCalledWith({
+        where: { deliveryId: 'd-11', status: DeliveryStatus.FAILED },
+        data: { status: DeliveryStatus.RECEIVED, error: null, processedAt: null },
+      });
+      expect(pullRequests.handle).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    // updateMany matched nothing: the original is PROCESSED or IGNORED — or another
+    // concurrent redelivery already reclaimed it. Either way this one is a duplicate.
+    it('is dropped as a duplicate when there was nothing FAILED to reclaim', async () => {
+      const result = await service.handleWebhook('d-12', 'pull_request', { action: 'opened' });
+
+      expect(result).toEqual({ ok: true, duplicate: true });
+      expect(pullRequests.handle).not.toHaveBeenCalled();
+    });
   });
 
   // 'issues' has no entry in the dispatch table, but the row is still written — every delivery

@@ -1,18 +1,18 @@
 {
   "action": "opened",
-  "number": 1,
+  "number": 5,
   "pull_request": {
-    "url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1",
-    "id": 4487629983,
-    "node_id": "PR_kwDOUImQQM8AAAABC3vMnw",
-    "html_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/1",
-    "diff_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/1.diff",
-    "patch_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/1.patch",
-    "issue_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/1",
-    "number": 1,
+    "url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5",
+    "id": 4507014139,
+    "node_id": "PR_kwDOUImQQM8AAAABDKOT-w",
+    "html_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/5",
+    "diff_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/5.diff",
+    "patch_url": "https://github.com/masabinhok/pr-reviewer-testbed/pull/5.patch",
+    "issue_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/5",
+    "number": 5,
     "state": "open",
     "locked": false,
-    "title": "add test.md",
+    "title": "Too large to review",
     "user": {
       "login": "masabinhok",
       "id": 161845983,
@@ -34,9 +34,9 @@
       "user_view_type": "public",
       "site_admin": false
     },
-    "body": "test",
-    "created_at": "2026-09-09T17:26:32Z",
-    "updated_at": "2026-09-09T17:26:32Z",
+    "body": "60 files — over pr-reviewer's 50-file limit (M14).",
+    "created_at": "2026-09-11T14:52:18Z",
+    "updated_at": "2026-09-11T14:52:18Z",
     "closed_at": null,
     "merged_at": null,
     "merge_commit_sha": null,
@@ -46,15 +46,15 @@
     "labels": [],
     "milestone": null,
     "draft": false,
-    "commits_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1/commits",
-    "review_comments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1/comments",
+    "commits_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5/commits",
+    "review_comments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5/comments",
     "review_comment_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/comments{/number}",
-    "comments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/1/comments",
-    "statuses_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/statuses/9ee05f8fb49c7d0c5183c0b0853f1bed0da7f6a8",
+    "comments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/5/comments",
+    "statuses_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/statuses/a8dbb118fce5bbc8f9a536f162e03082d1c83b1e",
     "head": {
-      "label": "masabinhok:test",
-      "ref": "test",
-      "sha": "9ee05f8fb49c7d0c5183c0b0853f1bed0da7f6a8",
+      "label": "masabinhok:too-large",
+      "ref": "too-large",
+      "sha": "a8dbb118fce5bbc8f9a536f162e03082d1c83b1e",
       "user": {
         "login": "masabinhok",
         "id": 161845983,
@@ -144,17 +144,17 @@
         "releases_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/releases{/id}",
         "deployments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/deployments",
         "created_at": "2026-08-30T07:24:42Z",
-        "updated_at": "2026-08-30T07:25:44Z",
-        "pushed_at": "2026-09-09T17:26:23Z",
+        "updated_at": "2026-09-11T14:22:59Z",
+        "pushed_at": "2026-09-11T14:52:15Z",
         "git_url": "git://github.com/masabinhok/pr-reviewer-testbed.git",
         "ssh_url": "git@github.com:masabinhok/pr-reviewer-testbed.git",
         "clone_url": "https://github.com/masabinhok/pr-reviewer-testbed.git",
         "svn_url": "https://github.com/masabinhok/pr-reviewer-testbed",
         "homepage": null,
-        "size": 0,
+        "size": 1,
         "stargazers_count": 0,
         "watchers_count": 0,
-        "language": null,
+        "language": "TypeScript",
         "has_issues": true,
         "has_projects": true,
         "has_downloads": false,
@@ -165,7 +165,7 @@
         "mirror_url": null,
         "archived": false,
         "disabled": false,
-        "open_issues_count": 1,
+        "open_issues_count": 5,
         "license": null,
         "allow_forking": true,
         "is_template": false,
@@ -175,7 +175,7 @@
         "topics": [],
         "visibility": "private",
         "forks": 0,
-        "open_issues": 1,
+        "open_issues": 5,
         "watchers": 0,
         "default_branch": "main",
         "allow_squash_merge": true,
@@ -194,7 +194,7 @@
     "base": {
       "label": "masabinhok:main",
       "ref": "main",
-      "sha": "0bd1cb10592cb6815eb0dc5dc2df277e9dbe623e",
+      "sha": "f17b224238794ca9277140368062ed22da2bdd2d",
       "user": {
         "login": "masabinhok",
         "id": 161845983,
@@ -284,17 +284,17 @@
         "releases_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/releases{/id}",
         "deployments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/deployments",
         "created_at": "2026-08-30T07:24:42Z",
-        "updated_at": "2026-08-30T07:25:44Z",
-        "pushed_at": "2026-09-09T17:26:23Z",
+        "updated_at": "2026-09-11T14:22:59Z",
+        "pushed_at": "2026-09-11T14:52:15Z",
         "git_url": "git://github.com/masabinhok/pr-reviewer-testbed.git",
         "ssh_url": "git@github.com:masabinhok/pr-reviewer-testbed.git",
         "clone_url": "https://github.com/masabinhok/pr-reviewer-testbed.git",
         "svn_url": "https://github.com/masabinhok/pr-reviewer-testbed",
         "homepage": null,
-        "size": 0,
+        "size": 1,
         "stargazers_count": 0,
         "watchers_count": 0,
-        "language": null,
+        "language": "TypeScript",
         "has_issues": true,
         "has_projects": true,
         "has_downloads": false,
@@ -305,7 +305,7 @@
         "mirror_url": null,
         "archived": false,
         "disabled": false,
-        "open_issues_count": 1,
+        "open_issues_count": 5,
         "license": null,
         "allow_forking": true,
         "is_template": false,
@@ -315,7 +315,7 @@
         "topics": [],
         "visibility": "private",
         "forks": 0,
-        "open_issues": 1,
+        "open_issues": 5,
         "watchers": 0,
         "default_branch": "main",
         "allow_squash_merge": true,
@@ -333,28 +333,28 @@
     },
     "_links": {
       "self": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5"
       },
       "html": {
-        "href": "https://github.com/masabinhok/pr-reviewer-testbed/pull/1"
+        "href": "https://github.com/masabinhok/pr-reviewer-testbed/pull/5"
       },
       "issue": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/1"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/5"
       },
       "comments": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/1/comments"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/issues/5/comments"
       },
       "review_comments": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1/comments"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5/comments"
       },
       "review_comment": {
         "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/comments{/number}"
       },
       "commits": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/1/commits"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/pulls/5/commits"
       },
       "statuses": {
-        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/statuses/9ee05f8fb49c7d0c5183c0b0853f1bed0da7f6a8"
+        "href": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/statuses/a8dbb118fce5bbc8f9a536f162e03082d1c83b1e"
       }
     },
     "author_association": "OWNER",
@@ -370,9 +370,9 @@
     "review_comments": 0,
     "maintainer_can_modify": false,
     "commits": 1,
-    "additions": 0,
+    "additions": 60,
     "deletions": 0,
-    "changed_files": 1
+    "changed_files": 60
   },
   "repository": {
     "id": 1351192640,
@@ -442,17 +442,17 @@
     "releases_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/releases{/id}",
     "deployments_url": "https://api.github.com/repos/masabinhok/pr-reviewer-testbed/deployments",
     "created_at": "2026-08-30T07:24:42Z",
-    "updated_at": "2026-08-30T07:25:44Z",
-    "pushed_at": "2026-09-09T17:26:23Z",
+    "updated_at": "2026-09-11T14:22:59Z",
+    "pushed_at": "2026-09-11T14:52:15Z",
     "git_url": "git://github.com/masabinhok/pr-reviewer-testbed.git",
     "ssh_url": "git@github.com:masabinhok/pr-reviewer-testbed.git",
     "clone_url": "https://github.com/masabinhok/pr-reviewer-testbed.git",
     "svn_url": "https://github.com/masabinhok/pr-reviewer-testbed",
     "homepage": null,
-    "size": 0,
+    "size": 1,
     "stargazers_count": 0,
     "watchers_count": 0,
-    "language": null,
+    "language": "TypeScript",
     "has_issues": true,
     "has_projects": true,
     "has_downloads": false,
@@ -463,7 +463,7 @@
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 1,
+    "open_issues_count": 5,
     "license": null,
     "allow_forking": true,
     "is_template": false,
@@ -473,7 +473,7 @@
     "topics": [],
     "visibility": "private",
     "forks": 0,
-    "open_issues": 1,
+    "open_issues": 5,
     "watchers": 0,
     "default_branch": "main"
   },
@@ -499,7 +499,7 @@
     "site_admin": false
   },
   "installation": {
-    "id": 157663669,
-    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uMTU3NjYzNjY5"
+    "id": 160831076,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uMTYwODMxMDc2"
   }
 }

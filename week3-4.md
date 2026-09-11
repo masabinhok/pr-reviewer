@@ -196,13 +196,13 @@ milestone calls `github.listPullRequestFiles(...)` instead of hand-building `fet
   3000-file cap from trap 4), `getDiff(base, head)` via compare (trap 3).
 
 **Todo**
-- [ ] `GithubApiService` with shared headers, JSON + diff responses, redacted errors
-- [ ] Generic `Link`-header pagination
-- [ ] `GithubRateLimitError` for primary and secondary limits
-- [ ] 401 → invalidate token → retry once
-- [ ] `getPullRequest`, `listPullRequestFiles`, `getDiff(base, head)`
-- [ ] Unit tests with mocked `fetch`: three-page pagination, both rate-limit kinds, 401 retry
-- [ ] `npm run prove:diff <owner/repo> <pr>` against the testbed
+- [x] `GithubApiService` with shared headers, JSON + diff responses, redacted errors
+- [x] Generic `Link`-header pagination
+- [x] `GithubRateLimitError` for primary and secondary limits
+- [x] 401 → invalidate token → retry once
+- [x] `getPullRequest`, `listPullRequestFiles`, `getDiff(base, head)`
+- [x] Unit tests with mocked `fetch`: three-page pagination, both rate-limit kinds, 401 retry
+- [x] `npm run prove:diff <owner/repo> <pr>` against the testbed
 
 **Polish bar:** `prove:diff` on a real testbed PR prints the file count, diff size, and
 remaining rate limit; the diff it prints matches the PR's "Files changed" tab.

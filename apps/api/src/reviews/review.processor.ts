@@ -1,9 +1,10 @@
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import type { Job } from 'bullmq';
+import { DelayedError, type Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReviewStatus } from '../generated/prisma/client.js';
 import { REVIEW_QUEUE, type ReviewJobData } from './review-queue.js';
+import { GithubRateLimitError } from '../github/github-api.errors.js';
 
 /**
  * The review worker. It runs inside the API process for now (see docs/decisions.md);
@@ -18,7 +19,7 @@ export class ReviewProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<ReviewJobData>): Promise<void> {
+  async process(job: Job<ReviewJobData>, token?: string): Promise<void> {
     const { reviewId } = job.data;
     const attempt = `attempt ${job.attemptsMade + 1}/${job.opts.attempts ?? 1}`;
 
@@ -41,6 +42,10 @@ export class ReviewProcessor extends WorkerHost {
     try {
       await this.run(review.id);
     } catch (e) {
+      if (e instanceof GithubRateLimitError) {
+        await this.waitForRateLimit(job, token, e);
+      }
+
       const message = e instanceof Error ? e.message : String(e);
 
       // Only the last attempt settles the row. Earlier failures leave it RUNNING and let
@@ -62,6 +67,27 @@ export class ReviewProcessor extends WorkerHost {
       data: { status: ReviewStatus.COMPLETED, completedAt: new Date() },
     });
     this.logger.log(`review ${reviewId}: completed`);
+  }
+
+  /**
+   * GitHub asked us to slow down. That is not a failure of the review, so it must not use
+   * up one of the job's attempts: move the job to the delayed set until GitHub's reset
+   * time and throw DelayedError, which BullMQ treats as "rescheduled", not "failed". The
+   * review goes back to PENDING — it is waiting, not running.
+   */
+  private async waitForRateLimit(job: Job<ReviewJobData>, token: string | undefined, error: GithubRateLimitError): Promise<never> {
+    // Never schedule into the past (clock skew), and never busy-loop on a reset "now".
+    const until = Math.max(error.retryAt.getTime(), Date.now() + 1000);
+
+    await this.prisma.review.update({
+      where: { id: job.data.reviewId },
+      data: { status: ReviewStatus.PENDING },
+    });
+    await job.moveToDelayed(until, token);
+    this.logger.warn(
+      `review ${job.data.reviewId}: GitHub ${error.kind} rate limit — waiting until ${new Date(until).toISOString()}`,
+    );
+    throw new DelayedError();
   }
 
   /**

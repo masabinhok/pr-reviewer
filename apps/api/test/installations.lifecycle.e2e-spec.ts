@@ -172,6 +172,26 @@ describe('Installation lifecycle (real database)', () => {
     expect((await repoRow(ids.repoB)).deletedAt).toBeInstanceOf(Date);
   });
 
+  // Two deliveries creating the same new rows at once. No retry is needed here, unlike the
+  // pull_request path: `Installation` has a single unique column, so its upsert is a
+  // native INSERT … ON CONFLICT, and the second transaction waits on the first's row lock
+  // until it commits — the repo upserts after it can no longer race. This pins that down.
+  it('survives two concurrent installation.created deliveries for the same new installation', async () => {
+    const racer = base + 50;
+    const racerRepo = { id: base + 51, name: 'race' };
+
+    await Promise.all([
+      service.created(installationEvent('created', racer, [racerRepo])),
+      service.created(installationEvent('created', racer, [racerRepo])),
+    ]);
+
+    expect(await prisma.installation.count({ where: { githubId: BigInt(racer) } })).toBe(1);
+    expect(await prisma.repo.count({ where: { githubId: BigInt(racerRepo.id) } })).toBe(1);
+
+    await prisma.repo.deleteMany({ where: { githubId: BigInt(racerRepo.id) } });
+    await prisma.installation.deleteMany({ where: { githubId: BigInt(racer) } });
+  });
+
   it('uninstalling an installation that was never recorded is a no-op, not an error', async () => {
     await expect(service.deleted(installationEvent('deleted', base + 99))).resolves.toBeUndefined();
     expect(invalidate).toHaveBeenCalledWith(base + 99);

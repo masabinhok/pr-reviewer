@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ProposedFinding, ReviewContext, Reviewer } from './reviewer.js';
+import type { ProposedFinding, ReviewContext, Reviewer, ReviewerResult } from './reviewer.js';
 
 interface Rule {
   test: RegExp;
@@ -47,7 +47,7 @@ const RULES: Rule[] = [
 
 @Injectable()
 export class StubReviewer implements Reviewer {
-  async review({ files }: ReviewContext): Promise<ProposedFinding[]> {
+  async review({ files }: ReviewContext): Promise<ReviewerResult> {
     const findings: ProposedFinding[] = [];
 
     for (const file of files) {
@@ -71,6 +71,6 @@ export class StubReviewer implements Reviewer {
       }
     }
 
-    return findings;
+    return { findings };
   }
 }

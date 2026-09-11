@@ -1,5 +1,6 @@
 import type { CheckConclusion, CheckRunOutput } from '../github/github-api.service.js';
 import type { FindingSummary, ReviewOutcome } from './review-outcome.js';
+import type { ReviewerRun } from '../reviewer/reviewer.js';
 import { Severity } from '../generated/prisma/client.js';
 
 export const CHECK_RUN_NAME = 'pr-reviewer';
@@ -55,7 +56,7 @@ export function renderCheck(result: CheckResult, headSha: string): { conclusion:
     };
   }
 
-  const { reviewed, findings, skipped } = result;
+  const { reviewed, findings, skipped, reviewer } = result;
   const files = `${reviewed.length} file${reviewed.length === 1 ? '' : 's'}`;
   const count = `${findings.length} finding${findings.length === 1 ? '' : 's'}`;
 
@@ -64,10 +65,37 @@ export function renderCheck(result: CheckResult, headSha: string): { conclusion:
     output: {
       title: findings.length ? `${count} in ${files}` : `No findings in ${files}`,
       summary: cap(
-        `Reviewed ${files} at ${at}.\n\n` + findingsSection(findings) + skippedSection(skipped),
+        `Reviewed ${files} at ${at}.\n\n` +
+          reviewerNote(reviewer) +
+          findingsSection(findings) +
+          skippedSection(skipped) +
+          reviewerFooter(reviewer),
       ),
     },
   };
+}
+
+// When an agent run ended some way other than submitting, the findings may be partial or
+// absent for reasons the author should know — say so above them.
+const OUTCOME_NOTES: Record<string, string> = {
+  refused: 'The reviewer declined to review this change, so there are no findings.',
+  budget: 'The reviewer ran out of its turn budget before finishing; the findings may be incomplete.',
+  'no-submission': 'The reviewer stopped without submitting a review, so there are no findings.',
+  truncated: 'The reviewer hit its output limit before submitting a review, so there are no findings.',
+};
+
+function reviewerNote(run: ReviewerRun | undefined): string {
+  const note = run && OUTCOME_NOTES[run.outcome];
+  return note ? `> ${note}\n\n` : '';
+}
+
+function reviewerFooter(run: ReviewerRun | undefined): string {
+  if (!run) return '';
+  const { usage } = run;
+  const tokens = `${(usage.inputTokens + usage.cacheReadInputTokens + usage.cacheCreationInputTokens).toLocaleString('en-US')} in / ${usage.outputTokens.toLocaleString('en-US')} out`;
+  const cost = usage.costUsd === null ? '' : ` · $${usage.costUsd.toFixed(2)}`;
+  const turns = `${run.turns} turn${run.turns === 1 ? '' : 's'}, ${run.toolCalls} tool call${run.toolCalls === 1 ? '' : 's'}`;
+  return `\n\n<sub>Reviewed by \`${run.model}\` in ${turns} · ${tokens} tokens${cost}</sub>`;
 }
 
 function findingsSection(findings: FindingSummary[]): string {

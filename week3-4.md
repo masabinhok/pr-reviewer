@@ -295,11 +295,11 @@ A skipped review needs somewhere to say so: add `SKIPPED` to `ReviewStatus` and 
 is fetched (trap 4).
 
 **Todo**
-- [ ] Rules as data, in one config object with the defaults above
-- [ ] `filterFiles()` → `{ kept, skipped: [{ path, reason }] }`, a pure function
-- [ ] PR-level limits → review `SKIPPED` with `skipReason`
-- [ ] Migration: `ReviewStatus.SKIPPED`, `Review.skipReason`
-- [ ] Table-driven unit tests for every rule and both limits
+- [x] Rules as data, in one config object with the defaults above
+- [x] `filterFiles()` → `{ kept, skipped: [{ path, reason }] }`, a pure function
+- [x] PR-level limits → review `SKIPPED` with `skipReason`
+- [x] Migration: `ReviewStatus.SKIPPED`, `Review.skipReason`
+- [x] Table-driven unit tests for every rule and both limits
 
 **Polish bar:** a testbed PR touching `package-lock.json` and a source file — only the
 source file reaches the reviewer, and the lockfile's skip reason is recorded.

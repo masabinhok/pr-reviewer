@@ -46,12 +46,12 @@ Learn: Nest modules/guards/interceptors, raw-body middleware, Prisma.
 
 ## Weeks 3 to 4: Job pipeline and diff handling
 
-- [ ] BullMQ queue: `pull_request.opened` / `synchronize` enqueues `review-pr`
-- [ ] Worker fetches the PR diff (`Accept: application/vnd.github.v3.diff`) and changed-file list
-- [ ] Parse the unified diff into hunks. Keep file path + line + side (LEFT/RIGHT) for every changed line. You need this to anchor comments later.
-- [ ] Filter out lockfiles, generated files, vendored dirs, PRs over N files
-- [ ] Post a "review in progress" Check Run, complete it when done. Looks professional in the PR UI.
-- [ ] Store Review and Finding rows
+- [x] BullMQ queue: `pull_request.opened` / `synchronize` enqueues `review-pr`
+- [x] Worker fetches the PR diff (`Accept: application/vnd.github.v3.diff`) and changed-file list
+- [x] Parse the unified diff into hunks. Keep file path + line + side (LEFT/RIGHT) for every changed line. You need this to anchor comments later.
+- [x] Filter out lockfiles, generated files, vendored dirs, PRs over N files
+- [x] Post a "review in progress" Check Run, complete it when done. Looks professional in the PR UI.
+- [x] Store Review and Finding rows
 
 Learn: BullMQ retries/backoff, GitHub REST pagination and rate limits.
 

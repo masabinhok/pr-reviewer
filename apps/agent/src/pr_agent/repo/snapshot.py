@@ -25,7 +25,12 @@ MAX_MEMBERS = 50_000
 
 
 class SnapshotError(Exception):
-    """The snapshot could not be taken: too large, unreadable, or GitHub refused."""
+    """The snapshot could not be taken. `retryable` says whether trying again could help:
+    GitHub being down could clear up; a repository over the size cap never will."""
+
+    def __init__(self, message: str, *, retryable: bool = False):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 @dataclass(frozen=True)
@@ -45,16 +50,26 @@ def download_tarball(client: httpx2.Client, repo: str, sha: str, token: str) -> 
         "User-Agent": "pr-reviewer-agent",
     }
     # GitHub answers with a redirect to codeload; follow it.
-    with client.stream("GET", url, headers=headers, follow_redirects=True) as response:
-        if response.status_code != 200:
-            # Never include the request: it carries the token.
-            raise SnapshotError(f"GitHub {response.status_code} downloading {repo}@{sha[:7]}")
-        buffer = io.BytesIO()
-        for chunk in response.iter_bytes():
-            buffer.write(chunk)
-            if buffer.tell() > MAX_TARBALL_BYTES:
-                raise SnapshotError(f"{repo} is over {MAX_TARBALL_BYTES // 2**20} MB compressed")
-        return buffer.getvalue()
+    try:
+        with client.stream("GET", url, headers=headers, follow_redirects=True) as response:
+            if response.status_code != 200:
+                # Never include the request: it carries the token.
+                raise SnapshotError(
+                    f"GitHub {response.status_code} downloading {repo}@{sha[:7]}",
+                    retryable=response.status_code >= 500 or response.status_code == 429,
+                )
+            buffer = io.BytesIO()
+            for chunk in response.iter_bytes():
+                buffer.write(chunk)
+                if buffer.tell() > MAX_TARBALL_BYTES:
+                    raise SnapshotError(
+                        f"{repo} is over {MAX_TARBALL_BYTES // 2**20} MB compressed"
+                    )
+            return buffer.getvalue()
+    except httpx2.TransportError as error:
+        raise SnapshotError(
+            f"network error downloading {repo}@{sha[:7]}: {type(error).__name__}", retryable=True
+        ) from error
 
 
 def extract(tarball: bytes, into: Path) -> Path:

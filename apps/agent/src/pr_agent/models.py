@@ -79,9 +79,17 @@ class Usage(Wire):
     output_tokens: int = 0
     cache_read_input_tokens: int = 0
     cache_creation_input_tokens: int = 0
+    # None when the model isn't in the price table — never a guess.
+    cost_usd: float | None = None
 
 
 class ReviewResponse(Wire):
     findings: list[ProposedFinding]
+    # Which model answered — may be a refusal fallback rather than the one requested.
     model: str
     usage: Usage
+    # How the agent finished: submitted, refused, budget, no-submission, truncated, or none
+    # when no agent ran.
+    outcome: str = "none"
+    turns: int = 0
+    tool_calls: int = 0

@@ -248,11 +248,11 @@ The seam from weeks 3–4 gets its real implementation.
   retrying won't help.
 
 **Todo**
-- [ ] `AgentReviewer` behind the `REVIEWER` token; stub still available
-- [ ] Usage and cost stored on the Review
-- [ ] The agent's result is stored before anything else can fail, and reused on retry
-- [ ] Error mapping: retryable vs not
-- [ ] Unit tests with the agent faked; e2e with the stub unchanged
+- [x] `AgentReviewer` behind the `REVIEWER` token; stub still available
+- [x] Usage and cost stored on the Review
+- [x] The agent's result is stored before anything else can fail, and reused on retry
+- [x] Error mapping: retryable vs not
+- [x] Unit tests with the agent faked; e2e with the stub unchanged
 
 **Polish bar:** a testbed PR reviewed end to end by the real agent; the Review row shows
 tokens and cost; killing the worker after the agent answered and letting the job retry

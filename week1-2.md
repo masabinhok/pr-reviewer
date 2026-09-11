@@ -411,12 +411,12 @@ Hand-roll this (the point is learning it). Add a `decisions.md` note that
 `@octokit/auth-app` is what you'd reach for in production and why.
 
 **Todo**
-- [ ] `AppJwtService` — RS256, backdated `iat`, 600s `exp`
-- [ ] `InstallationTokenService` — exchange + Redis cache with skew-adjusted TTL
-- [ ] Cache miss → mint; cache hit → no network call
-- [ ] Token values never logged (redact to `ghs_***`)
-- [ ] `token.service.spec.ts`: cache hit, cache miss, near-expiry refresh
-- [ ] Prove it end to end: fetch `GET /repos/masabinhok/pr-reviewer-testbed` with the token
+- [x] `AppJwtService` — RS256, backdated `iat`, 600s `exp`
+- [x] `InstallationTokenService` — exchange + Redis cache with skew-adjusted TTL
+- [x] Cache miss → mint; cache hit → no network call
+- [x] Token values never logged (redact to `ghs_***`)
+- [x] `token.service.spec.ts`: cache hit, cache miss, near-expiry refresh
+- [x] Prove it end to end: fetch `GET /repos/masabinhok/pr-reviewer-testbed` with the token
 
 **Polish bar:** call twice, and show via Redis (`redis-cli TTL gh:itoken:...`) that the
 second call served from cache. Confirm the TTL is ~3540s, not 3600s.

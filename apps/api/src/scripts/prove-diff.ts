@@ -2,6 +2,8 @@ import { config } from 'dotenv';
 
 config({ path: '../../.env' });
 
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
 import { AppJwtService } from '../github/app-jwt.service.js';
@@ -11,10 +13,14 @@ import { GithubApiService } from '../github/github-api.service.js';
  * Milestone 10's proof, against the real API: fetch a PR, its files and its diff the way
  * the worker will, and check the SHA-pinned diff matches the PR's own.
  *
- * Usage: npm run prove:diff <owner/repo> <pr-number>
+ * Usage: npm run prove:diff <owner/repo> <pr-number> [fixture-name]
+ *
+ * With a fixture name it also writes the diff and the files list to
+ * test/fixtures/diffs/<name>.diff and <name>.files.json, so tests run on a diff GitHub
+ * actually produced. (Positional, not a --flag: `npm run` would swallow the flag.)
  */
 
-const [repo = 'masabinhok/pr-reviewer-testbed', prArg] = process.argv.slice(2);
+const [repo = 'masabinhok/pr-reviewer-testbed', prArg, saveAs] = process.argv.slice(2);
 
 async function main() {
   const number = Number(prArg);
@@ -64,6 +70,14 @@ async function main() {
     console.log('');
     console.log(diff.split('\n').slice(0, 20).join('\n'));
     console.log('');
+
+    if (saveAs) {
+      const dir = join(process.cwd(), 'test', 'fixtures', 'diffs');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, `${saveAs}.diff`), diff);
+      writeFileSync(join(dir, `${saveAs}.files.json`), JSON.stringify(files, null, 2) + '\n');
+      console.log(`saved test/fixtures/diffs/${saveAs}.diff and ${saveAs}.files.json`);
+    }
 
     if (diff !== byNumber) process.exitCode = 1;
   } finally {

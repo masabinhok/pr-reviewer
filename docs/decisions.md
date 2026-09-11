@@ -406,3 +406,26 @@ to the code that applies it. A skipped review is `ReviewStatus.SKIPPED` with a
 `skipReason`, a state of its own rather than `COMPLETED` with no findings, because "we
 chose not to look" and "we looked and found nothing" are different answers to give an
 author.
+
+## The Check Run is created once, completed on the final outcome, and never left spinning
+
+Each review opens one `pr-reviewer` Check Run on its head commit and stores its ID on the
+`Review`, so a retried attempt completes the same run instead of adding a second spinner.
+Conclusions follow what happened to the *review*, not what it found: `success` when it ran
+(findings are its content, not a failure of the PR), `skipped` when the PR was too large,
+`failure` only when the review itself broke after every retry. An attempt that fails with
+retries left leaves the run `in_progress`, because the review really is still going; so
+does a rate-limit wait.
+
+Two orderings matter. On success the Check Run is completed *before* the row is settled:
+the other way round, a failing GitHub call after the row says `COMPLETED` would make the
+retry skip a settled review and the spinner would never stop. On the final failure the
+Check Run is completed first but *quietly* — if GitHub is the thing that's down, that
+error is logged and the row is still marked `FAILED` with the original error, which is the
+one worth keeping. Checked live on the testbed: a reviewer forced to crash showed
+`in_progress` through two retries, then `failure` with the error in the summary after the
+third.
+
+The summary is built by a pure function (`renderCheck`), capped below GitHub's
+65,535-character limit and at 50 finding rows, with pipes and newlines escaped so a finding
+can't break its table — every wording and edge case is tested without GitHub.

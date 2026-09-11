@@ -257,11 +257,11 @@ on which side) are the whole point, and the parser is small enough to own. Recor
 `decisions.md`.
 
 **Todo**
-- [ ] Parser for every case above, throwing on malformed hunks
-- [ ] `LineMap` with `canComment(path, line, side)` including context lines
-- [ ] Real diffs captured from testbed PRs as fixtures (at least one multi-file, one rename,
+- [x] Parser for every case above, throwing on malformed hunks
+- [x] `LineMap` with `canComment(path, line, side)` including context lines
+- [x] Real diffs captured from testbed PRs as fixtures (at least one multi-file, one rename,
       one binary)
-- [ ] Table-driven unit tests: one case per format feature, plus the real fixtures
+- [x] Table-driven unit tests: one case per format feature, plus the real fixtures
 
 **Polish bar:** parse the diff of a real multi-file testbed PR; for five lines picked from
 GitHub's "Files changed" view — including a deleted line and a context line — the map gives

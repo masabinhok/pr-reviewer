@@ -1,16 +1,18 @@
 """POST /reviews end to end inside the agent: the real snapshot, tools and graph, with
-GitHub replaced by an httpx2 mock transport and Claude by the scripted fake."""
+GitHub replaced by an httpx2 mock transport and the model by the scripted fake."""
 
+import anthropic
 import httpx2
 import pytest
 
 from pr_agent.config import Settings, get_settings
-from pr_agent.main import app, get_client_factory, get_http_client
+from pr_agent.main import app, get_client_factory, get_http_client, model_client
 
 from .fake_claude import FakeClaude, finding, message, tool_use
 from .test_snapshot import tarball
 
 SECRET = "test-agent-secret"
+OLLAMA = httpx2.Request("POST", "http://localhost:11434/v1/messages")
 
 
 @pytest.fixture
@@ -27,9 +29,12 @@ def serve(review_request):
             ),
         )
 
-    def call(claude: FakeClaude, github_handler=github):
+    def call(claude: FakeClaude, github_handler=github, provider="anthropic"):
         app.dependency_overrides[get_settings] = lambda: Settings(
-            _env_file=None, agent_shared_secret=SECRET, anthropic_api_key="sk-test"
+            _env_file=None,
+            agent_shared_secret=SECRET,
+            agent_provider=provider,
+            anthropic_api_key="sk-test",
         )
         app.dependency_overrides[get_client_factory] = lambda: lambda _settings: claude
         app.dependency_overrides[get_http_client] = lambda: httpx2.Client(
@@ -119,3 +124,72 @@ def test_never_logs_the_download_token_in_githubs_redirect(serve, caplog):
 
     assert "CODELOADSECRET" not in caplog.text
     assert "ghs_" not in caplog.text
+
+
+class TestLocalModel:
+    def test_reviews_with_the_local_model_for_free(self, serve):
+        call, _ = serve
+        local = FakeClaude(
+            message(tool_use("submit_review", findings=[finding()]), model="pr-reviewer:qwen2.5-7b")
+        )
+
+        body = call(local, provider="ollama").json()
+
+        assert body["outcome"] == "submitted"
+        assert body["model"] == "pr-reviewer:qwen2.5-7b"
+        assert body["usage"]["costUsd"] == 0.0
+        [request] = local.requests
+        assert request["model"] == "pr-reviewer:qwen2.5-7b"
+        assert "thinking" not in request
+
+    def test_a_model_that_is_not_installed_fails_at_once_and_says_how_to_fix_it(self, serve):
+        call, _ = serve
+        missing = anthropic.NotFoundError(
+            "not found",
+            response=httpx2.Response(404, request=OLLAMA),
+            body={
+                "type": "error",
+                "error": {"message": "model 'pr-reviewer:qwen2.5-7b' not found"},
+            },
+        )
+
+        response = call(FakeClaude(missing), provider="ollama")
+
+        assert response.status_code == 422
+        assert "model 'pr-reviewer:qwen2.5-7b' not found" in response.json()["detail"]
+        assert "npm run agent:model" in response.json()["detail"]
+
+    def test_ollama_not_running_is_worth_retrying(self, serve):
+        call, _ = serve
+
+        response = call(FakeClaude(anthropic.APIConnectionError(request=OLLAMA)), provider="ollama")
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Ollama unavailable, retry later"
+
+
+class TestTheClient:
+    def test_points_the_sdk_at_ollama_by_default_and_sends_no_real_key(self, monkeypatch):
+        # A key in the environment — for another tool, say — must not reach Ollama or
+        # switch the agent to the paid API.
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-from-the-environment")
+        settings = Settings(_env_file=None, agent_shared_secret=SECRET)
+
+        client = model_client(settings)
+
+        assert settings.agent_provider == "ollama"
+        assert str(client.base_url).rstrip("/") == "http://localhost:11434"
+        assert client.api_key == "ollama"
+
+    def test_uses_your_key_against_the_anthropic_api_when_chosen(self):
+        settings = Settings(
+            _env_file=None,
+            agent_shared_secret=SECRET,
+            agent_provider="anthropic",
+            anthropic_api_key="sk-ant-yours",
+        )
+
+        client = model_client(settings)
+
+        assert str(client.base_url).rstrip("/") == "https://api.anthropic.com"
+        assert client.api_key == "sk-ant-yours"

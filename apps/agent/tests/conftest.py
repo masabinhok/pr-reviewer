@@ -16,8 +16,10 @@ SECRET = "test-agent-secret"
 
 @pytest.fixture
 def client() -> TestClient:
-    # Settings come from a known value, never from whatever .env holds.
-    app.dependency_overrides[get_settings] = lambda: Settings(agent_shared_secret=SECRET)
+    # Settings come from known values, never from whatever .env holds.
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        _env_file=None, agent_shared_secret=SECRET
+    )
     yield TestClient(app)
     app.dependency_overrides.clear()
 

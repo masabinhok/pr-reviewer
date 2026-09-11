@@ -1,6 +1,8 @@
+from dataclasses import replace
+
 import pytest
 
-from pr_agent.agent.graph import AgentConfig, ReviewAgent
+from pr_agent.agent.graph import LOCAL_CONFIG, AgentConfig, ReviewAgent
 from pr_agent.agent.prompt import SYSTEM_PROMPT, render_request
 from pr_agent.agent.submit import SUBMIT_REVIEW_TOOL
 from pr_agent.models import ReviewRequest
@@ -299,3 +301,90 @@ class TestCacheHealth:
         agent(client, repo, request_).run(request_)
 
         assert "prompt cache" not in caplog.text
+
+
+# The same loop against a local model through Ollama: none of Claude's features in the
+# request, and a small context window that the agent has to notice filling up.
+class TestLocalModel:
+    CLAUDE_ONLY = ("thinking", "output_config", "cache_control", "betas", "fallbacks")
+
+    def local(self, client, repo, request_, **overrides) -> ReviewAgent:
+        config = replace(LOCAL_CONFIG, **overrides)
+        return ReviewAgent(client, RepoTools(repo, request_), config)
+
+    def test_sends_none_of_claudes_features(self, repo, request_):
+        client = FakeClaude(message(tool_use("submit_review", findings=[])))
+
+        self.local(client, repo, request_).run(request_)
+
+        [request] = client.requests
+        assert request["model"] == "pr-reviewer:qwen2.5-7b"
+        assert request["max_tokens"] == 4_096
+        assert not set(self.CLAUDE_ONLY) & set(request)
+        submit = request["tools"][-1]
+        assert submit["name"] == "submit_review" and "strict" not in submit
+        # The shared definition is untouched: Claude still gets the strict tool.
+        assert SUBMIT_REVIEW_TOOL["strict"] is True
+
+    def test_does_not_expect_a_prompt_cache(self, repo, request_, caplog):
+        client = FakeClaude(
+            message(tool_use("list_changed_files")),
+            message(tool_use("submit_review", findings=[])),
+        )
+
+        self.local(client, repo, request_).run(request_)
+
+        assert "prompt cache" not in caplog.text
+
+    def test_tells_the_model_to_submit_when_its_context_is_nearly_full(self, repo, request_):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), input_tokens=7_600, output_tokens=100),
+            message(tool_use("submit_review", findings=[finding()])),
+        )
+
+        result = self.local(client, repo, request_, context_tokens=10_000).run(request_)
+
+        assert result.outcome == "submitted"
+        last_user = client.requests[1]["messages"][-1]["content"]
+        assert "context is nearly full" in last_user[-1]["text"]
+
+    def test_stops_if_the_model_keeps_exploring_after_being_told(self, repo, request_):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), input_tokens=7_600),
+            message(tool_use("get_pr_metadata"), input_tokens=8_500),
+        )
+
+        result = self.local(client, repo, request_, context_tokens=10_000).run(request_)
+
+        assert (result.outcome, result.turns) == ("budget", 2)
+
+    def test_keeps_exploring_while_there_is_room(self, repo, request_):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), input_tokens=3_000),
+            message(tool_use("submit_review", findings=[])),
+        )
+
+        self.local(client, repo, request_, context_tokens=10_000).run(request_)
+
+        assert all(
+            b["type"] == "tool_result" for b in client.requests[1]["messages"][-1]["content"]
+        )
+
+    def test_warns_when_the_prompt_may_have_been_cut(self, repo, request_, caplog):
+        client = FakeClaude(message(tool_use("submit_review", findings=[]), input_tokens=9_800))
+
+        self.local(client, repo, request_, context_tokens=10_000).run(request_)
+
+        assert "the start of the conversation may have been cut" in caplog.text
+
+    def test_claude_has_no_context_guard(self, repo, request_):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), input_tokens=900_000),
+            message(tool_use("submit_review", findings=[])),
+        )
+
+        agent(client, repo, request_).run(request_)
+
+        assert all(
+            b["type"] == "tool_result" for b in client.requests[1]["messages"][-1]["content"]
+        )

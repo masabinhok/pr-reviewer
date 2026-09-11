@@ -1,0 +1,11 @@
+# The local model the agent uses by default: qwen2.5 7B with a context window big enough
+# for a review. Build it with `npm run agent:model` (after `ollama pull qwen2.5:7b`).
+#
+# Ollama gives a model 4096 tokens of context unless told otherwise, and silently drops the
+# start of any conversation longer than that — for the agent, the system prompt and the diff.
+# 32768 fits an 8 GB GPU next to the 7B weights, because qwen2.5 keeps a small KV cache.
+# If you change num_ctx, set AGENT_CONTEXT_TOKENS to match.
+FROM qwen2.5:7b
+PARAMETER num_ctx 32768
+# Reviews should be repeatable, not creative.
+PARAMETER temperature 0.2

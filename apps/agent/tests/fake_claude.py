@@ -53,9 +53,13 @@ def message(
 
 
 class FakeClaude:
-    """Returns the scripted messages in order; fails loudly if the agent asks for more."""
+    """Returns the scripted messages in order; fails loudly if the agent asks for more.
 
-    def __init__(self, *script: BetaMessage):
+    It stands in for a local model through Ollama too — same client, same message shapes.
+    A scripted exception is raised instead of answered, as the SDK would.
+    """
+
+    def __init__(self, *script: BetaMessage | Exception):
         self.script = list(script)
         self.requests: list[dict[str, Any]] = []
         self.beta = self
@@ -66,7 +70,10 @@ class FakeClaude:
         self.requests.append({**request, "messages": list(request["messages"])})
         if not self.script:
             raise AssertionError(f"the agent made request {len(self.requests)}, beyond the script")
-        return self.script.pop(0)
+        answer = self.script.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
 
 
 def finding(**overrides: Any) -> dict[str, Any]:

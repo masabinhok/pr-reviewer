@@ -21,7 +21,8 @@
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "prove:token": "nest build && node dist/scripts/prove-installation-token.js",
-    "capture:fixtures": "nest build && node dist/scripts/capture-webhook-fixtures.js"
+    "capture:fixtures": "nest build && node dist/scripts/capture-webhook-fixtures.js",
+    "prove:diff": "nest build && node dist/scripts/prove-diff.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",

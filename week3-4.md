@@ -380,12 +380,12 @@ diff by SHA → parse → reviewer → validate → store findings and mark `COM
 transaction → complete Check Run
 
 **Todo**
-- [ ] `Reviewer` interface, `ReviewContext`, `ProposedFinding`
-- [ ] `StubReviewer` with the three rules
-- [ ] Validation against the line map, `whyItBreaks` rule, fingerprints
-- [ ] Findings and `COMPLETED` written in one transaction
-- [ ] The worker runs the full pipeline above
-- [ ] Unit tests for validation and fingerprints; pipeline test with mocked GitHub
+- [x] `Reviewer` interface, `ReviewContext`, `ProposedFinding`
+- [x] `StubReviewer` with the three rules
+- [x] Validation against the line map, `whyItBreaks` rule, fingerprints
+- [x] Findings and `COMPLETED` written in one transaction
+- [x] The worker runs the full pipeline above
+- [x] Unit tests for validation and fingerprints; pipeline test with mocked GitHub
 
 **Polish bar:** a testbed PR that adds a `console.log` → the `Review` ends `COMPLETED` with
 one `Finding` whose file, line and side match GitHub's "Files changed" view, and the Check

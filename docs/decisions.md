@@ -1,7 +1,8 @@
 # Design decisions
 
 One paragraph per non-obvious choice, written as the choice is made — not retro-fitted
-once the feature is finished. See `week1-2.md` for the milestone each of these came from.
+once the feature is finished. See `week1-2.md` and `week3-4.md` for the milestone each of
+these came from.
 
 ## Own `id` (cuid) instead of GitHub's numeric ID as primary key
 
@@ -463,3 +464,24 @@ deletes the review's existing findings first, so a retry after a failed write re
 rather than duplicates. Checked live: a push to the testbed's diff-shapes PR produced four
 findings, and `npm run prove:findings` posted each as a pending review comment — GitHub put
 all four on exactly the line of code the finding describes.
+
+## The e2e suite fakes GitHub at `fetch`, and nowhere else
+
+`test/review-flow.e2e-spec.ts` sends a real, signed `pull_request` delivery over HTTP and
+waits for rows: the guard, the webhook, idempotency, BullMQ, the worker, the token service,
+the API client, pagination, the parser, the filters, the stub reviewer and the database all
+run for real. Only the network is replaced, by `helpers/github-fake.ts`, which answers
+GitHub's URLs with responses captured from the testbed — `prove:diff` saves any real PR's
+file list and diff as fixtures — records every call, and throws on any request it doesn't
+recognise, so a test can't pass by quietly calling something unexpected. Faking one level
+higher, at `GithubApiService`, would have been simpler and would have skipped the code most
+likely to be wrong: header handling, pagination, error mapping. The fake is what lets the
+suite assert things a mock of the service couldn't, such as "the compare endpoint was
+called with the pushed commit's SHAs" and "a 60-file PR never asked for its diff".
+
+Two changes made it safe to run next to a dev server. The suite uses Redis database 1:
+the token cache writes unprefixed keys, and a test that put a fake token into the cache the
+dev server reads would be a real hazard — a separate database makes it impossible and lets
+the global setup flush freely. And the retry backoff comes from config
+(`REVIEW_RETRY_DELAY_MS`), so "fails on every attempt" takes a quarter of a second in the
+suite instead of half a minute, while production keeps 10 s, then 20 s.

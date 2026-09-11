@@ -1,0 +1,69 @@
+diff --git "a/caf\303\251.md" "b/caf\303\251.md"
+index 572eb43..bf7243d 100644
+--- "a/caf\303\251.md"
++++ "b/caf\303\251.md"
+@@ -1 +1 @@
+-café
++café au lait
+diff --git a/crlf.txt b/crlf.txt
+index c30dea8..57213eb 100644
+--- a/crlf.txt
++++ b/crlf.txt
+@@ -1,2 +1,2 @@
+ a
+-b
++B
+diff --git a/empty.txt b/empty.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/multi.txt b/multi.txt
+index 2878bb6..200373d 100644
+--- a/multi.txt
++++ b/multi.txt
+@@ -1,6 +1,6 @@
+ row 1
+ row 2
+-row 3
++row three
+ row 4
+ row 5
+ row 6
+@@ -24,7 +24,7 @@ row 23
+ row 24
+ row 25
+ row 26
+-row 27
++row twenty-seven
+ row 28
+ row 29
+ row 30
+diff --git a/nonl.txt b/nonl.txt
+index c1b0730..fad87fc 100644
+--- a/nonl.txt
++++ b/nonl.txt
+@@ -1 +1 @@
+-x
+\ No newline at end of file
++ytail
+diff --git a/single.txt b/single.txt
+index 2fa992c..5ea2ed4 100644
+--- a/single.txt
++++ b/single.txt
+@@ -1 +1 @@
+-keep
++changed
+diff --git a/spaced name.txt b/spaced name.txt
+index e5c5c55..f903b0d 100644
+--- a/spaced name.txt	
++++ b/spaced name.txt	
+@@ -1,2 +1,2 @@
+ line one
+-line two
++line 2
+diff --git a/to delete.txt b/to delete.txt
+deleted file mode 100644
+index 286c5f5..0000000
+--- a/to delete.txt	
++++ /dev/null
+@@ -1 +0,0 @@
+-gone

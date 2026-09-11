@@ -151,6 +151,15 @@ class ReviewAgent:
             response.usage.output_tokens,
         )
 
+        if turns > 1 and not response.usage.cache_read_input_tokens:
+            # From the second turn on, the whole earlier conversation should come from the
+            # cache. Zero means something in the prefix changed between turns — a volatile
+            # value in the system prompt or the tools — and every turn is paying full price.
+            logger.warning(
+                "turn %d read nothing from the prompt cache; the prefix is being invalidated",
+                turns,
+            )
+
         update: dict[str, Any] = {
             # The full content goes back — thinking and fallback blocks included — never
             # just the text, or the next turn loses what the API needs to continue.

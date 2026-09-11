@@ -277,3 +277,25 @@ def test_renders_the_diff_with_both_line_numbers_and_markers(request_):
     assert " 8    - const SESSION_TTL_MS = 60 * 60 * 1000;" in rendered
     assert "    8 + const SESSION_TTL_MS = 30 * 60 * 1000;" in rendered
     assert "\\ No newline at end of file" in rendered
+
+
+class TestCacheHealth:
+    def test_warns_when_a_later_turn_misses_the_prompt_cache(self, repo, request_, caplog):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), cache_write=5000),
+            message(tool_use("submit_review", findings=[]), cache_read=0),
+        )
+
+        agent(client, repo, request_).run(request_)
+
+        assert "turn 2 read nothing from the prompt cache" in caplog.text
+
+    def test_stays_quiet_when_later_turns_hit_the_cache(self, repo, request_, caplog):
+        client = FakeClaude(
+            message(tool_use("list_changed_files"), cache_write=5000),
+            message(tool_use("submit_review", findings=[]), cache_read=5000),
+        )
+
+        agent(client, repo, request_).run(request_)
+
+        assert "prompt cache" not in caplog.text

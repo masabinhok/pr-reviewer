@@ -36,6 +36,14 @@ export interface PullRequest {
   user: { login: string };
 }
 
+export type CheckConclusion = 'success' | 'failure' | 'neutral' | 'skipped' | 'cancelled' | 'timed_out' | 'action_required';
+
+export interface CheckRunOutput {
+  title: string;
+  /** Markdown, shown on the PR's Checks tab. GitHub caps it at 65535 characters. */
+  summary: string;
+}
+
 interface RequestOptions {
   accept?: string;
   method?: string;
@@ -75,6 +83,45 @@ export class GithubApiService {
       accept: DIFF_MEDIA,
     });
     return response.text();
+  }
+
+  /**
+   * Starts a Check Run on a commit — the spinner on the PR. Only a GitHub App can create
+   * one, and only with an installation token. `externalId` ties it back to our Review.
+   */
+  async createCheckRun(
+    installationId: InstallationId,
+    repo: string,
+    run: { name: string; headSha: string; externalId: string },
+  ): Promise<{ id: number }> {
+    return this.json<{ id: number }>(installationId, `/repos/${repo}/check-runs`, {
+      method: 'POST',
+      body: {
+        name: run.name,
+        head_sha: run.headSha,
+        external_id: run.externalId,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+      },
+    });
+  }
+
+  /** Finishes a Check Run with a conclusion and a summary. */
+  async completeCheckRun(
+    installationId: InstallationId,
+    repo: string,
+    checkRunId: bigint | number,
+    result: { conclusion: CheckConclusion; output: CheckRunOutput },
+  ): Promise<void> {
+    await this.request(installationId, `/repos/${repo}/check-runs/${checkRunId}`, {
+      method: 'PATCH',
+      body: {
+        status: 'completed',
+        conclusion: result.conclusion,
+        completed_at: new Date().toISOString(),
+        output: result.output,
+      },
+    });
   }
 
   async json<T>(installationId: InstallationId, path: string, options: RequestOptions = {}): Promise<T> {

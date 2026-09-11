@@ -485,3 +485,18 @@ dev server reads would be a real hazard — a separate database makes it impossi
 the global setup flush freely. And the retry backoff comes from config
 (`REVIEW_RETRY_DELAY_MS`), so "fails on every attempt" takes a quarter of a second in the
 suite instead of half a minute, while production keeps 10 s, then 20 s.
+
+## The agent is a separate Python service with a strict contract
+
+The reviewer is a Python service (`apps/agent`, FastAPI) rather than more TypeScript in the
+API, because the agent ecosystem the project is built to learn — LangGraph, and the
+reference implementations around it — is Python-first. The price is a network boundary, so
+the contract between the two sides is written down before either side needs it: pydantic
+models in `apps/agent/src/pr_agent/models.py` mirroring `ReviewContext` and
+`ProposedFinding` in the API. The models forbid unknown fields, so a field one side adds
+and the other doesn't know about is a 422, not a review run on half the information. The
+request's installation token is a `SecretStr`, which keeps it out of reprs, logs and
+validation errors — checked by a test that makes validation fail on a request carrying a
+token. Every call costs money, so `/reviews` requires a shared secret (`X-Agent-Secret`,
+compared in constant time) even on localhost, the service refuses to start without one,
+and it binds to 127.0.0.1 by default: nothing but the API should be able to reach it.

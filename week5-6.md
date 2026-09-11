@@ -135,10 +135,10 @@ A Python service Nest can call, before there is any agent in it.
 - Settings from the root `.env`, like the API.
 
 **Todo**
-- [ ] `apps/agent` project: FastAPI app, `/healthz`, `POST /reviews` with the contract models
-- [ ] Shared-secret auth on `/reviews`; 401 without it
-- [ ] pytest + ruff set up; tests for the contract and auth
-- [ ] `npm run agent` (root) starts it; the installation token is never logged
+- [x] `apps/agent` project: FastAPI app, `/healthz`, `POST /reviews` with the contract models
+- [x] Shared-secret auth on `/reviews`; 401 without it
+- [x] pytest + ruff set up; tests for the contract and auth
+- [x] `npm run agent` (root) starts it; the installation token is never logged
 
 **Polish bar:** `curl` the service with a request built from the testbed's diff-shapes PR →
 200 with an empty findings list; without the secret → 401.

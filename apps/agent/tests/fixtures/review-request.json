@@ -1,0 +1,326 @@
+{
+  "repo": "masabinhok/pr-reviewer-testbed",
+  "prNumber": 3,
+  "title": "Diff shapes",
+  "body": "Exercises every diff shape the pr-reviewer parser must handle (M10/M11).",
+  "baseSha": "f17b224238794ca9277140368062ed22da2bdd2d",
+  "headSha": "6ac523cfcd000061512a81ba4f9676e09e573ae3",
+  "installationToken": "ghs_placeholder_for_tests",
+  "files": [
+    {
+      "path": "src/auth.ts",
+      "oldPath": "src/auth.ts",
+      "status": "modified",
+      "binary": false,
+      "hunks": [
+        {
+          "oldStart": 5,
+          "oldLines": 14,
+          "newStart": 5,
+          "newLines": 15,
+          "section": "export interface Session {",
+          "lines": [
+            {
+              "kind": "context",
+              "oldLine": 5,
+              "newLine": 5,
+              "content": "  expiresAt: number;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 6,
+              "newLine": 6,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 7,
+              "newLine": 7,
+              "content": ""
+            },
+            {
+              "kind": "del",
+              "oldLine": 8,
+              "content": "const SESSION_TTL_MS = 60 * 60 * 1000;"
+            },
+            {
+              "kind": "add",
+              "newLine": 8,
+              "content": "const SESSION_TTL_MS = 30 * 60 * 1000;"
+            },
+            {
+              "kind": "add",
+              "newLine": 9,
+              "content": "const CLOCK_SKEW_MS = 5_000;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 9,
+              "newLine": 10,
+              "content": ""
+            },
+            {
+              "kind": "context",
+              "oldLine": 10,
+              "newLine": 11,
+              "content": "export function createSession(userId: string, now = Date.now()): Session {"
+            },
+            {
+              "kind": "context",
+              "oldLine": 11,
+              "newLine": 12,
+              "content": "  return { userId, expiresAt: now + SESSION_TTL_MS };"
+            },
+            {
+              "kind": "context",
+              "oldLine": 12,
+              "newLine": 13,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 13,
+              "newLine": 14,
+              "content": ""
+            },
+            {
+              "kind": "context",
+              "oldLine": 14,
+              "newLine": 15,
+              "content": "export function isExpired(session: Session, now = Date.now()): boolean {"
+            },
+            {
+              "kind": "del",
+              "oldLine": 15,
+              "content": "  return session.expiresAt < now;"
+            },
+            {
+              "kind": "add",
+              "newLine": 16,
+              "content": "  return session.expiresAt - CLOCK_SKEW_MS < now;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 16,
+              "newLine": 17,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 17,
+              "newLine": 18,
+              "content": ""
+            },
+            {
+              "kind": "context",
+              "oldLine": 18,
+              "newLine": 19,
+              "content": "export function sign(value: string, secret: string): string {"
+            }
+          ]
+        },
+        {
+          "oldStart": 22,
+          "oldLines": 15,
+          "newStart": 23,
+          "newLines": 15,
+          "section": "export function sign(value: string, secret: string): string {",
+          "lines": [
+            {
+              "kind": "context",
+              "oldLine": 22,
+              "newLine": 23,
+              "content": "export function verify(value: string, signature: string, secret: string): boolean {"
+            },
+            {
+              "kind": "context",
+              "oldLine": 23,
+              "newLine": 24,
+              "content": "  const expected = Buffer.from(sign(value, secret));"
+            },
+            {
+              "kind": "context",
+              "oldLine": 24,
+              "newLine": 25,
+              "content": "  const received = Buffer.from(signature);"
+            },
+            {
+              "kind": "add",
+              "newLine": 26,
+              "content": "  console.log('verifying', value);"
+            },
+            {
+              "kind": "add",
+              "newLine": 27,
+              "content": "  if (expected.length !== received.length) return false;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 25,
+              "newLine": 28,
+              "content": "  return timingSafeEqual(expected, received);"
+            },
+            {
+              "kind": "context",
+              "oldLine": 26,
+              "newLine": 29,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 27,
+              "newLine": 30,
+              "content": ""
+            },
+            {
+              "kind": "context",
+              "oldLine": 28,
+              "newLine": 31,
+              "content": "export function parseToken(token: string): { value: string; signature: string } | null {"
+            },
+            {
+              "kind": "add",
+              "newLine": 32,
+              "content": "  console.log('parsing token');"
+            },
+            {
+              "kind": "context",
+              "oldLine": 29,
+              "newLine": 33,
+              "content": "  const parts = token.split('.');"
+            },
+            {
+              "kind": "context",
+              "oldLine": 30,
+              "newLine": 34,
+              "content": "  if (parts.length !== 2) return null;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 31,
+              "newLine": 35,
+              "content": "  return { value: parts[0], signature: parts[1] };"
+            },
+            {
+              "kind": "context",
+              "oldLine": 32,
+              "newLine": 36,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 33,
+              "newLine": 37,
+              "content": ""
+            },
+            {
+              "kind": "del",
+              "oldLine": 34,
+              "content": "export function describe(session: Session): string {"
+            },
+            {
+              "kind": "del",
+              "oldLine": 35,
+              "content": "  return `session for ${session.userId}`;"
+            },
+            {
+              "kind": "del",
+              "oldLine": 36,
+              "content": "}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/helpers.ts",
+      "oldPath": "src/utils.ts",
+      "status": "renamed",
+      "binary": false,
+      "hunks": [
+        {
+          "oldStart": 7,
+          "oldLines": 5,
+          "newStart": 7,
+          "newLines": 6,
+          "section": "export function chunk<T>(items: T[], size: number): T[][] {",
+          "lines": [
+            {
+              "kind": "context",
+              "oldLine": 7,
+              "newLine": 7,
+              "content": "}"
+            },
+            {
+              "kind": "context",
+              "oldLine": 8,
+              "newLine": 8,
+              "content": ""
+            },
+            {
+              "kind": "context",
+              "oldLine": 9,
+              "newLine": 9,
+              "content": "export function unique<T>(items: T[]): T[] {"
+            },
+            {
+              "kind": "add",
+              "newLine": 10,
+              "content": "  // TODO: keep first-seen order explicitly"
+            },
+            {
+              "kind": "context",
+              "oldLine": 10,
+              "newLine": 11,
+              "content": "  return [...new Set(items)];"
+            },
+            {
+              "kind": "context",
+              "oldLine": 11,
+              "newLine": 12,
+              "content": "}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/new-feature.ts",
+      "oldPath": "src/new-feature.ts",
+      "status": "added",
+      "binary": false,
+      "hunks": [
+        {
+          "oldStart": 0,
+          "oldLines": 0,
+          "newStart": 1,
+          "newLines": 4,
+          "section": "",
+          "lines": [
+            {
+              "kind": "add",
+              "newLine": 1,
+              "content": "export function greet(name: string): string {"
+            },
+            {
+              "kind": "add",
+              "newLine": 2,
+              "content": "  debugger;"
+            },
+            {
+              "kind": "add",
+              "newLine": 3,
+              "content": "  return `hello ${name}`;"
+            },
+            {
+              "kind": "add",
+              "newLine": 4,
+              "content": "}",
+              "noNewlineAtEnd": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

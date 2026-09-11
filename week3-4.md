@@ -158,14 +158,14 @@ PR data sitting in Redis.
   the steps.
 
 **Todo**
-- [ ] BullMQ + `@nestjs/bullmq` installed; v6 smoke-tested (trap 1) and the choice recorded
-- [ ] `review-pr` queue with its own Redis connection options (trap 2)
-- [ ] `pull_request` handler: action table above, drafts skipped
-- [ ] `Review` inserted first (`PENDING`, `baseSha`, `headSha`); `P2002` → no enqueue
-- [ ] Job ID derived from the review ID; payload is `{ reviewId }` only
-- [ ] `Repo` upserted from the payload, `defaultBranch` filled
-- [ ] Worker skeleton: `PENDING → RUNNING → COMPLETED`, retries with backoff
-- [ ] Tests: action table, draft skip, duplicate commit → one job, retry on failure
+- [x] BullMQ + `@nestjs/bullmq` installed; v6 smoke-tested (trap 1) and the choice recorded
+- [x] `review-pr` queue with its own Redis connection options (trap 2)
+- [x] `pull_request` handler: action table above, drafts skipped
+- [x] `Review` inserted first (`PENDING`, `baseSha`, `headSha`); `P2002` → no enqueue
+- [x] Job ID derived from the review ID; payload is `{ reviewId }` only
+- [x] `Repo` upserted from the payload, `defaultBranch` filled
+- [x] Worker skeleton: `PENDING → RUNNING → COMPLETED`, retries with backoff
+- [x] Tests: action table, draft skip, duplicate commit → one job, retry on failure
 
 **Polish bar:** open a PR on the testbed → one job, one `Review` that ends `COMPLETED`.
 Push a commit → a second `Review` for the new SHA. Redeliver the `opened` delivery → no new

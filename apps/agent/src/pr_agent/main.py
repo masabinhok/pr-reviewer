@@ -25,6 +25,11 @@ from .repo.tools import RepoTools
 
 logger = logging.getLogger("pr_agent")
 
+# httpx2 logs every request's full URL at INFO. GitHub redirects a tarball download to
+# codeload with a short-lived `token=` in the query string, so at INFO that token would be
+# written to the log. WARNING and above carry no URLs.
+logging.getLogger("httpx2").setLevel(logging.WARNING)
+
 app = FastAPI(title="pr-reviewer agent", docs_url=None, redoc_url=None)
 
 

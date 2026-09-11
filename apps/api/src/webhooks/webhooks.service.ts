@@ -6,6 +6,8 @@ import type {
   InstallationPayload,
   InstallationRepositoriesPayload,
 } from '../installations/github-payloads.js';
+import { PullRequestsService } from '../reviews/pull-requests.service.js';
+import type { PullRequestPayload } from '../reviews/pull-request-payload.js';
 
 /** The parsed JSON body of a delivery. Only `action` is common to (most) events. */
 export type WebhookPayload = { action?: unknown } & Record<string, unknown>;
@@ -20,7 +22,7 @@ export class WebhooksService {
      * Dispatch table. Keys are `event.action` for events whose actions need different
      * handling, or a bare `event` to catch every action of it. Anything with no entry is
      * acknowledged and recorded as IGNORED — never a 500, which would make GitHub mark
-     * the endpoint unhealthy. Week 3 adds rows here; nothing else in this class changes.
+     * the endpoint unhealthy. New events are new rows here; nothing else in this class changes.
      */
     private readonly handlers: Record<string, Handler> = {
         'installation.created': (p) => this.installations.created(p as unknown as InstallationPayload),
@@ -31,16 +33,23 @@ export class WebhooksService {
             this.installations.reposAdded(p as unknown as InstallationRepositoriesPayload),
         'installation_repositories.removed': (p) =>
             this.installations.reposRemoved(p as unknown as InstallationRepositoriesPayload),
-        // Placeholder until week 3's review pipeline: accepted and recorded, no work yet.
-        'pull_request': async (_p, deliveryId) => {
-            this.logger.log(`[${deliveryId}] pull_request accepted; reviewing lands in week 3`)
-        },
+        // The actions that mean "there is new code to review". Every other pull_request
+        // action (closed, labeled, edited, …) has no key, so it lands as IGNORED.
+        'pull_request.opened': (p, id) => this.reviewPullRequest(p, id),
+        'pull_request.reopened': (p, id) => this.reviewPullRequest(p, id),
+        'pull_request.synchronize': (p, id) => this.reviewPullRequest(p, id),
+        'pull_request.ready_for_review': (p, id) => this.reviewPullRequest(p, id),
     }
 
     constructor(
         private readonly prisma: PrismaService,
         private readonly installations: InstallationsService,
+        private readonly pullRequests: PullRequestsService,
     ){}
+
+    private async reviewPullRequest(payload: WebhookPayload, deliveryId: string): Promise<void> {
+        await this.pullRequests.handle(payload as unknown as PullRequestPayload, deliveryId)
+    }
 
     async handleWebhook(deliveryId: string, event: string, payload: WebhookPayload = {}){
     const action = typeof payload.action === 'string' ? payload.action : null

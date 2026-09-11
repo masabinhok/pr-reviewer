@@ -4,6 +4,7 @@ import { WebhooksService } from './webhooks.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DeliveryStatus, Prisma } from '../generated/prisma/client.js';
 import { InstallationsService } from '../installations/installations.service.js';
+import { PullRequestsService } from '../reviews/pull-requests.service.js';
 
 /**
  * The error Postgres produces when the unique constraint on deliveryId rejects a
@@ -48,16 +49,19 @@ describe('WebhooksService', () => {
   let service: WebhooksService;
   let prisma: ReturnType<typeof prismaStub>;
   let installations: ReturnType<typeof installationsStub>;
+  let pullRequests: { handle: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     prisma = prismaStub();
     installations = installationsStub();
+    pullRequests = { handle: vi.fn().mockResolvedValue('enqueued') };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhooksService,
         { provide: PrismaService, useValue: prisma },
         { provide: InstallationsService, useValue: installations },
+        { provide: PullRequestsService, useValue: pullRequests },
       ],
     }).compile();
 
@@ -119,7 +123,7 @@ describe('WebhooksService', () => {
   });
 
   it('marks a handled delivery PROCESSED', async () => {
-    await service.handleWebhook('d-3', 'pull_request');
+    await service.handleWebhook('d-3', 'pull_request', { action: 'opened' });
 
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
       where: { deliveryId: 'd-3' },
@@ -161,6 +165,26 @@ describe('WebhooksService', () => {
 
       expect(installations[method]).toHaveBeenCalledWith(payload);
       expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    it.each(['opened', 'reopened', 'synchronize', 'ready_for_review'])(
+      'routes pull_request.%s to PullRequestsService',
+      async (action) => {
+        const payload = { action, number: 1 };
+
+        const result = await service.handleWebhook('d-9', 'pull_request', payload);
+
+        expect(pullRequests.handle).toHaveBeenCalledWith(payload, 'd-9');
+        expect(result).toEqual({ ok: true, handled: true });
+      },
+    );
+
+    // Closing, labelling, editing a PR is not new code — nothing to review.
+    it.each(['closed', 'labeled', 'edited'])('ignores pull_request.%s', async (action) => {
+      const result = await service.handleWebhook('d-10', 'pull_request', { action });
+
+      expect(result).toEqual({ ok: true, handled: false });
+      expect(pullRequests.handle).not.toHaveBeenCalled();
     });
 
     // The key is event.action, so a known event with an unknown action is unhandled —

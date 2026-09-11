@@ -8,6 +8,7 @@ import { WebhooksService } from '../src/webhooks/webhooks.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { DeliveryStatus } from '../src/generated/prisma/client.js';
 import { InstallationsService } from '../src/installations/installations.service.js';
+import { PullRequestsService } from '../src/reviews/pull-requests.service.js';
 
 /**
  * The unit tests in src/webhooks/webhooks.service.spec.ts assert what the service does
@@ -30,9 +31,14 @@ describe('WebhooksService idempotency (real database)', () => {
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      // Idempotency is decided before any handler runs, so the installation handlers
-      // never execute here — a bare stub satisfies the dependency.
-      providers: [WebhooksService, PrismaService, { provide: InstallationsService, useValue: {} }],
+      // Idempotency is decided before any handler runs; what the handlers do is tested
+      // elsewhere. These stubs only satisfy the dependencies.
+      providers: [
+        WebhooksService,
+        PrismaService,
+        { provide: InstallationsService, useValue: {} },
+        { provide: PullRequestsService, useValue: { handle: async () => 'enqueued' } },
+      ],
     }).compile();
 
     // init() runs the lifecycle hooks, which is what calls PrismaService.$connect().

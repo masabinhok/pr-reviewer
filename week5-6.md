@@ -312,12 +312,12 @@ local model; only the request changes.
 - A local review costs $0 and says so.
 
 **Todo**
-- [ ] Provider setting, per-provider model defaults
-- [ ] Claude-only features sent only to Claude; tests for both request shapes
-- [ ] Modelfile with a 32k window, `npm run agent:model`, context guard in the graph
-- [ ] Errors sorted for the local model
-- [ ] README, `.env.example`, this plan, `decisions.md`
-- [ ] Live: testbed PR #6 reviewed end to end by the local model
+- [x] Provider setting, per-provider model defaults
+- [x] Claude-only features sent only to Claude; tests for both request shapes
+- [x] Modelfile with a 32k window, `npm run agent:model`, context guard in the graph
+- [x] Errors sorted for the local model
+- [x] README, `.env.example`, this plan, `decisions.md`
+- [x] Live: testbed PR #6 reviewed end to end by the local model
 
 **Polish bar:** the planted-bugs PR reviewed by the local model through the real flow, and
 the result scored against the answer key — however it scores.

@@ -495,10 +495,10 @@ Reset the DB between tests (truncate, or `prisma migrate reset --force --skip-se
 could actually follow, how to run tests, current status.
 
 **Todo**
-- [ ] e2e suite green against a test database
-- [ ] Fixtures captured from real deliveries
-- [ ] `docs/decisions.md` with ≥6 entries
-- [ ] `README.md` a stranger could follow
+- [x] e2e suite green against a test database
+- [x] Fixtures captured from real deliveries
+- [x] `docs/decisions.md` with ≥6 entries
+- [x] `README.md` a stranger could follow
 - [ ] Optional: GitHub Actions CI running lint + unit + e2e
 
 ---

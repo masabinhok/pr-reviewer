@@ -24,7 +24,8 @@
     "capture:fixtures": "nest build && node dist/scripts/capture-webhook-fixtures.js",
     "prove:diff": "nest build && node dist/scripts/prove-diff.js",
     "prove:line-map": "nest build && node dist/scripts/prove-line-map.js",
-    "prove:findings": "nest build && node dist/scripts/prove-findings.js"
+    "prove:findings": "nest build && node dist/scripts/prove-findings.js",
+    "review:stats": "nest build && node dist/scripts/review-stats.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",

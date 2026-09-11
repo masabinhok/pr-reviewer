@@ -383,3 +383,26 @@ binary file, and a rename with no content changes.
 The probes also exposed a testing trap worth recording: a pending review can only be seen
 by its author, so checking for leftovers with a user's token (`gh api`) reports zero even
 when one is there. The script checks as the App.
+
+## Filtering runs in two stages, and the policy is data
+
+The plan said a file is `binary` when GitHub's file list has no `patch` for it. On the
+testbed PR that turned out to be three different things: a binary image, a rename with no
+content changes, and a mode-only change all arrive without a `patch`, and so do text files
+too large for GitHub to render. The file list cannot tell them apart; the parsed diff can.
+So filtering happens twice. Stage one runs on the file list, before the diff is fetched —
+path rules (lockfiles, generated, vendored), removed files, and the PR-level limits (50
+files, 2000 changed lines, counted *after* dropping skipped files, so a lockfile bump next
+to a two-line fix is still a small PR). Stage two runs on the parsed diff and drops what has
+no lines to review, naming it precisely: `binary` or `no-changes`. Stage one has to come
+first because GitHub refuses a very large diff rather than truncating it — the size check
+must happen before the fetch that would fail.
+
+The rules are data (`DEFAULT_FILTER_CONFIG`: basenames, suffixes, substrings, directory
+names) rather than code, and they match whole names and whole directory segments —
+`docs/building.md` and `src/distance.ts` are reviewed; `build/` and `dist/` directories are
+not. Month 3's per-repo `.prreviewer.yml` becomes a config object passed in, with no change
+to the code that applies it. A skipped review is `ReviewStatus.SKIPPED` with a
+`skipReason`, a state of its own rather than `COMPLETED` with no findings, because "we
+chose not to look" and "we looked and found nothing" are different answers to give an
+author.

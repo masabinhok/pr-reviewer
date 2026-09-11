@@ -8,6 +8,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
 import { AppJwtService } from '../github/app-jwt.service.js';
 import { GithubApiService } from '../github/github-api.service.js';
+import { filterDiffFiles, filterFileList } from '../filters/review-filter.js';
+import { parseDiff } from '../diff/parse-diff.js';
 
 /**
  * Milestone 10's proof, against the real API: fetch a PR, its files and its diff the way
@@ -67,6 +69,14 @@ async function main() {
     console.log(`diff              ${Buffer.byteLength(diff)} bytes, ${diff.split('\n').length} lines`);
     console.log(`matches PR diff   ${diff === byNumber ? 'yes — identical to /pulls/' + number : 'NO — differs from /pulls/' + number}`);
     console.log(`rate limit        ${resources.core.remaining}/${resources.core.limit} left, resets ${new Date(resources.core.reset * 1000).toISOString()}`);
+    // What the reviewer would be given: both filter stages, as the worker runs them.
+    const listed = filterFileList(files);
+    const parsed = filterDiffFiles(parseDiff(diff), new Set(listed.kept.map((f) => f.filename)));
+    console.log(`review            ${listed.tooLarge ? `SKIPPED — ${listed.tooLarge}` : `${parsed.kept.length} file(s): ${parsed.kept.map((f) => f.path).join(', ')}`}`);
+    for (const { path, reason } of [...listed.skipped, ...parsed.skipped]) {
+      console.log(`  skipped         ${path} (${reason})`);
+    }
+
     console.log('');
     console.log(diff.split('\n').slice(0, 20).join('\n'));
     console.log('');

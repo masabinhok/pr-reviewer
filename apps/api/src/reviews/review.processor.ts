@@ -28,7 +28,7 @@ export class ReviewProcessor extends WorkerHost {
       this.logger.warn(`review ${reviewId}: row is gone, nothing to do`);
       return;
     }
-    if (review.status === ReviewStatus.COMPLETED || review.status === ReviewStatus.FAILED) {
+    if (SETTLED.has(review.status)) {
       this.logger.log(`review ${reviewId}: already ${review.status}, skipping`);
       return;
     }
@@ -96,6 +96,9 @@ export class ReviewProcessor extends WorkerHost {
    */
   protected async run(_reviewId: string): Promise<void> {}
 }
+
+/** A review in one of these states is finished; a stray job for it does nothing. */
+const SETTLED = new Set<ReviewStatus>([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED]);
 
 function isFinalAttempt(job: Job): boolean {
   return job.attemptsMade + 1 >= (job.opts.attempts ?? 1);

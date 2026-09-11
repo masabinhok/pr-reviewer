@@ -17,6 +17,7 @@ enum ReviewStatus {
   RUNNING
   COMPLETED
   FAILED
+  SKIPPED
 }
 
 enum DeliveryStatus {
@@ -85,6 +86,7 @@ model Review {
   startedAt         DateTime     @default(now())
   completedAt       DateTime?
   error             String?
+  skipReason        String?
   promptTokens      Int?
   completionTokens  Int?
   costCents         Int?

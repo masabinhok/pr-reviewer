@@ -10,6 +10,8 @@ import { ReviewsModule } from '../src/reviews/reviews.module.js';
 import { PullRequestsService } from '../src/reviews/pull-requests.service.js';
 import { REVIEW_QUEUE, reviewJobId } from '../src/reviews/review-queue.js';
 import { ReviewStatus } from '../src/generated/prisma/client.js';
+import { ReviewProcessor } from '../src/reviews/review.processor.js';
+import { GithubRateLimitError } from '../src/github/github-api.errors.js';
 import type { PullRequestPayload } from '../src/reviews/pull-request-payload.js';
 import { fixtureJson } from './helpers/fixtures.js';
 import { truncateAll } from './helpers/db.js';
@@ -53,7 +55,7 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
     service = module.get(PullRequestsService);
     queue = module.get(getQueueToken(REVIEW_QUEUE));
 
-    for (const level of ['log', 'warn'] as const) {
+    for (const level of ['log', 'warn', 'error'] as const) {
       vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
     }
   });
@@ -116,6 +118,31 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
 
     const repo = await prisma.repo.findUniqueOrThrow({ where: { githubId: BigInt(opened.repository.id) } });
     expect(repo.defaultBranch).toBe(opened.repository.default_branch);
+  });
+
+  // The job has 3 attempts. Being rate limited 3 times and still completing proves the
+  // waits did not spend them — against real BullMQ, not a mocked job.
+  it('waits out rate limits without spending the job’s attempts', async () => {
+    const processor = module.get(ReviewProcessor) as unknown as { run: () => Promise<void> };
+    const limited = () => new GithubRateLimitError('secondary', new Date(Date.now() + 200), '/x');
+    const run = vi
+      .spyOn(processor, 'run')
+      .mockRejectedValueOnce(limited())
+      .mockRejectedValueOnce(limited())
+      .mockRejectedValueOnce(limited())
+      .mockResolvedValueOnce(undefined);
+
+    await service.handle(opened, 'd-8');
+    const review = await prisma.review.findFirstOrThrow();
+
+    const settled = await until(
+      () => prisma.review.findUniqueOrThrow({ where: { id: review.id } }),
+      (r) => r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
+      10_000,
+    );
+    expect(settled.status).toBe(ReviewStatus.COMPLETED);
+    expect(run).toHaveBeenCalledTimes(4);
+    run.mockRestore();
   });
 
   it('does not create a review for a draft', async () => {

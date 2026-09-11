@@ -3,10 +3,17 @@ import type { Job } from 'bullmq';
 import { ReviewProcessor } from './review.processor.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { ReviewStatus } from '../generated/prisma/client.js';
+import { DelayedError } from 'bullmq';
+import { GithubRateLimitError } from '../github/github-api.errors.js';
 import type { ReviewJobData } from './review-queue.js';
 
-function job(attemptsMade = 0, attempts = 3): Job<ReviewJobData> {
-  return { data: { reviewId: 'rev-1' }, attemptsMade, opts: { attempts } } as unknown as Job<ReviewJobData>;
+function job(attemptsMade = 0, attempts = 3) {
+  return {
+    data: { reviewId: 'rev-1' },
+    attemptsMade,
+    opts: { attempts },
+    moveToDelayed: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Job<ReviewJobData> & { moveToDelayed: ReturnType<typeof vi.fn> };
 }
 
 describe('ReviewProcessor', () => {
@@ -73,6 +80,18 @@ describe('ReviewProcessor', () => {
     await expect(processor.process(job(0, 3))).rejects.toThrow('GitHub 502');
 
     expect(statuses()).toEqual([ReviewStatus.RUNNING]);
+  });
+
+  // Even on the last attempt: waiting for GitHub is not a failure of the review.
+  it('reschedules a rate-limited attempt for the reset time instead of failing it', async () => {
+    const retryAt = new Date(Date.now() + 30 * 60_000);
+    run.mockRejectedValue(new GithubRateLimitError('primary', retryAt, '/repos/o/r/pulls/1/files'));
+    const finalAttempt = job(2, 3);
+
+    await expect(processor.process(finalAttempt, 'lock-token')).rejects.toBeInstanceOf(DelayedError);
+
+    expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(retryAt.getTime(), 'lock-token');
+    expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.PENDING]);
   });
 
   it('marks the review FAILED with the error on the final attempt, and still rethrows', async () => {

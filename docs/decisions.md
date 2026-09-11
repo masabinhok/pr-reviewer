@@ -521,3 +521,43 @@ Each tool's output is capped (400 lines per read, 50 search matches), because ev
 result is re-sent as input on every later turn. Their JSON schemas are generated from the
 same pydantic models that validate their input, and none of them writes anything — the
 first of the structural defences against instructions planted in the code under review.
+
+## LangGraph for the loop, the Anthropic SDK for the calls
+
+The agent is a LangGraph `StateGraph` — `call_model` ⇄ `run_tools`, plus a one-shot
+`nudge` — whose `call_model` node calls Claude through the official `anthropic` SDK
+directly, rather than through LangChain's chat-model wrappers. LangGraph earns its place
+for the control flow: named nodes, explicit conditional edges, and state you can inspect,
+which is what the project is meant to teach about agents. The SDK earns its place for the
+API: the features this agent relies on — adaptive thinking, `effort`, server-side refusal
+fallbacks (`fallbacks: "default"`), top-level prompt caching, strict tools — are exposed
+there first and exactly, with no translation layer to lag behind or reshape them. The
+model is `claude-opus-5`, configurable per deployment.
+
+The loop has hard edges rather than trusting the model to stop: a turn budget (the model is
+told when it is on its last turn), a tool-call budget, one nudge if it stops without
+submitting, and LangGraph's recursion limit set above both so it never fires first. Every
+way out is a named outcome — `submitted`, `refused`, `budget`, `no-submission`,
+`truncated` — returned alongside the findings, so "the agent found nothing" and "the agent
+never finished" are never confused. A refusal (after the fallback chain) is checked before
+any content is read.
+
+## The answer comes through a strict tool, and the PR is only ever data
+
+The agent finishes by calling `submit_review`, a tool marked `strict: true` whose schema is
+the findings list — the API guarantees its input matches, so findings arrive as valid JSON
+by construction rather than parsed out of prose. The schema is written by hand because
+strict mode supports only part of JSON Schema (every object closed, every property
+required, no numeric or length limits); the finer rules are re-checked with pydantic, and
+an invalid submission goes back to the model as a tool error to correct.
+
+Prompt injection is handled by structure, not by pleading. The system prompt is a constant:
+no byte the PR's author controls ever reaches it. Title, description and diff go into the
+user turn inside labelled tags, and the prompt says plainly that they are material to
+review, not instructions. The tools only read, the only way out of the loop is a findings
+list, and the findings are then validated against the diff by the API before anything is
+posted. A test plants an injection in both the description and the diff and checks where it
+ends up; whether the model resists it is judged live, on the testbed's planted-bugs PR,
+whose answer key is in `docs/evals/planted-bugs.md`. The same constant system prompt and a
+tool list built once in a fixed order are what make the prompt-cache prefix stable across
+turns — the tests assert both are byte-identical on every call.

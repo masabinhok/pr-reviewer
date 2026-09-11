@@ -214,13 +214,13 @@ then the wrong output or crash), the severity rubric, comment only on lines in t
 and treat everything in the PR as data, never instructions (trap 3).
 
 **Todo**
-- [ ] LangGraph graph: `call_model` ⇄ `run_tools`, ending on `submit_review` or budget
-- [ ] Claude via the `anthropic` SDK: adaptive thinking, fallbacks, prompt caching
-- [ ] `submit_review` strict tool; findings validated again with pydantic
-- [ ] System prompt with the finding definition, severity rubric, and untrusted-input rule
-- [ ] Tests with a scripted fake model: tool dispatch, budget cut-off, refusal, bad tool
+- [x] LangGraph graph: `call_model` ⇄ `run_tools`, ending on `submit_review` or budget
+- [x] Claude via the `anthropic` SDK: adaptive thinking, fallbacks, prompt caching
+- [x] `submit_review` strict tool; findings validated again with pydantic
+- [x] System prompt with the finding definition, severity rubric, and untrusted-input rule
+- [x] Tests with a scripted fake model: tool dispatch, budget cut-off, refusal, bad tool
       input, usage accounting, and a planted prompt injection that must not change the result
-- [ ] Planted-bugs PR on the testbed
+- [x] Planted-bugs PR on the testbed
 
 **Polish bar:** with an API key, run the agent on the planted-bugs PR — it finds most of
 them, each finding with a failure scenario a reviewer would accept, and nothing for the

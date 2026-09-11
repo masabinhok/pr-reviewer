@@ -9,6 +9,8 @@ dependencies = [
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
   "httpx2==2.12.0",  # the anthropic SDK's HTTP client; also used here to download tarballs
+  "anthropic==1.5.0",
+  "langgraph==1.2.11",
 ]
 
 [dependency-groups]

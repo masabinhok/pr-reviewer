@@ -19,6 +19,14 @@ class Settings(BaseSettings):
 
     agent_port: int = 8000
 
+    # Optional so the service (and its tests) can run without one; /reviews answers 503
+    # until it is set.
+    anthropic_api_key: SecretStr | None = None
+    agent_model: str = "claude-opus-5"
+    agent_effort: str = "high"
+    agent_max_turns: int = 20
+    agent_max_tool_calls: int = 40
+
 
 @lru_cache
 def get_settings() -> Settings:

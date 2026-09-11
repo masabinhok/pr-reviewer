@@ -5,20 +5,11 @@ def test_healthz(client):
     assert client.get("/healthz").json() == {"status": "ok"}
 
 
-def test_accepts_the_request_the_api_sends(client, review_request, auth):
+def test_answers_503_until_an_anthropic_api_key_is_configured(client, review_request, auth):
     response = client.post("/reviews", json=review_request, headers=auth)
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "findings": [],
-        "model": "none",
-        "usage": {
-            "inputTokens": 0,
-            "outputTokens": 0,
-            "cacheReadInputTokens": 0,
-            "cacheCreationInputTokens": 0,
-        },
-    }
+    assert response.status_code == 503
+    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
 
 
 def test_parses_the_real_request_into_python_names(review_request):

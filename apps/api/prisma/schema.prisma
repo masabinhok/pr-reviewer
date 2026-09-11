@@ -87,6 +87,9 @@ model Review {
   completedAt       DateTime?
   error             String?
   skipReason        String?
+  // The reviewer's raw answer, stored the moment it arrives: a retry reuses it instead of
+  // paying the agent again. Validated findings are the Finding rows; this is the evidence.
+  agentResult       Json?
   promptTokens      Int?
   completionTokens  Int?
   costCents         Int?

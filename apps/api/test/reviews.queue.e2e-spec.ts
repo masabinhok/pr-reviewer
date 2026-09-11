@@ -15,6 +15,8 @@ import { ReviewStatus } from '../src/generated/prisma/client.js';
 import { ReviewProcessor } from '../src/reviews/review.processor.js';
 import { GithubRateLimitError } from '../src/github/github-api.errors.js';
 import { GithubApiService } from '../src/github/github-api.service.js';
+import { REVIEWER, type ReviewContext } from '../src/reviewer/reviewer.js';
+import { StubReviewer } from '../src/reviewer/stub-reviewer.js';
 import type { PullRequestPayload } from '../src/reviews/pull-request-payload.js';
 import { fixtureJson } from './helpers/fixtures.js';
 import { truncateAll } from './helpers/db.js';
@@ -50,6 +52,9 @@ const github = {
   getPullRequest: vi.fn().mockResolvedValue({ title: 'Diff shapes', body: null }),
 };
 
+const stub = new StubReviewer();
+const reviewer = { review: vi.fn((context: ReviewContext) => stub.review(context)) };
+
 describe('Review queue (real Postgres, Redis and worker)', () => {
   let module: TestingModule;
   let prisma: PrismaService;
@@ -68,6 +73,9 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
       // are real here; GitHub is not — only whether the worker called it is checked.
       .overrideProvider(GithubApiService)
       .useValue(github)
+      // The stub, counted: how many times the pipeline asked for a review.
+      .overrideProvider(REVIEWER)
+      .useValue(reviewer)
       .compile();
     await module.init(); // starts the worker
 
@@ -87,7 +95,7 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   });
 
   beforeEach(async () => {
-    for (const fn of [github.createCheckRun, github.completeCheckRun]) fn.mockClear();
+    for (const fn of [github.createCheckRun, github.completeCheckRun, reviewer.review]) fn.mockClear();
     await queue.obliterate({ force: true });
     await truncateAll(prisma);
     await prisma.installation.create({
@@ -179,6 +187,24 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
     expect(settled.status).toBe(ReviewStatus.COMPLETED);
     expect(run).toHaveBeenCalledTimes(4);
     run.mockRestore();
+  });
+
+  // The reviewer is the step that costs money. A job that fails after it answered —
+  // here, GitHub refusing the Check Run update once — must not pay for it again on retry.
+  it('does not call the reviewer again when a job is retried after it answered', async () => {
+    github.completeCheckRun.mockRejectedValueOnce(new Error('GitHub 502 on /check-runs'));
+
+    await service.handle(opened, 'd-9');
+    const review = await prisma.review.findFirstOrThrow();
+    const settled = await until(
+      () => prisma.review.findUniqueOrThrow({ where: { id: review.id } }),
+      (r) => r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
+    );
+
+    expect(settled.status).toBe(ReviewStatus.COMPLETED);
+    expect(github.completeCheckRun).toHaveBeenCalledTimes(2); // failed once, then succeeded
+    expect(reviewer.review).toHaveBeenCalledTimes(1);
+    expect(settled.agentResult).toMatchObject({ findings: expect.any(Array) });
   });
 
   it('does not create a review for a draft', async () => {

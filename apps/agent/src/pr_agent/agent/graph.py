@@ -2,16 +2,21 @@
 
           ┌──────────────┐   tool calls   ┌───────────┐
 start ──▶ │  call_model  │ ─────────────▶ │ run_tools │ ──▶ end, once submit_review
-          │   (Claude)   │ ◀───────────── │           │     is called or the budget
+          │   (model)    │ ◀───────────── │           │     is called or the budget
           └──────┬───────┘    results     └───────────┘     is spent
                  │ stopped without submitting
                  ▼
               nudge ──▶ call_model (once), then end
 
 LangGraph owns the control flow — the nodes, the edges between them, and the state that
-flows along them. Each node is a plain function: `call_model` calls Claude through the
+flows along them. Each node is a plain function: `call_model` calls the model through the
 official `anthropic` SDK, `run_tools` runs the repository tools. Nothing here knows about
 HTTP or FastAPI; `run()` takes a request and returns a result.
+
+The model is Claude, or a local model served by Ollama — which speaks the same Messages
+API, so the same client and the same loop drive both. Claude's own features are sent only
+to Claude: Ollama accepts them and silently ignores them, which would make a request look
+like it had guarantees (a strict tool, a cache) that it doesn't.
 """
 
 import logging
@@ -33,6 +38,10 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 Outcome = Literal["submitted", "refused", "budget", "no-submission", "truncated"]
 
+# Stop exploring once the conversation fills this much of a limited context window: the
+# next tool results and the submission still have to fit in what is left.
+CONTEXT_HEADROOM = 0.75
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -41,9 +50,19 @@ class AgentConfig:
     max_turns: int = 20
     max_tool_calls: int = 40
     max_tokens: int = 16_000
+    # Adaptive thinking, effort, prompt caching, refusal fallbacks and strict tools.
+    claude: bool = True
+    # The model's context window when it is small enough to run out mid-review, else None.
+    context_tokens: int | None = None
 
 
 DEFAULT_CONFIG = AgentConfig()
+
+# A local model through Ollama: none of Claude's features, a 32k window, and a smaller
+# output cap — a submission is a few thousand tokens at most.
+LOCAL_CONFIG = AgentConfig(
+    model="pr-reviewer:qwen2.5-7b", claude=False, max_tokens=4_096, context_tokens=32_768
+)
 
 
 @dataclass
@@ -68,6 +87,8 @@ class ReviewState(TypedDict):
     tool_calls: int
     tools_used: list[str]
     nudged: bool
+    context_used: int  # tokens in the conversation as of the latest response
+    final_turn: bool  # the model has been told to submit now
 
 
 class ReviewAgent:
@@ -77,7 +98,12 @@ class ReviewAgent:
         self.config = config
         # Built once, in a fixed order, so the tool list is byte-identical on every turn —
         # it is part of the cached prefix.
-        self.tool_definitions = [*tools.definitions(), SUBMIT_REVIEW_TOOL]
+        submit = SUBMIT_REVIEW_TOOL
+        if not config.claude:
+            # Only Claude enforces `strict`; elsewhere the submission is checked by
+            # parse_submission alone, and a bad one goes back to the model to correct.
+            submit = {k: v for k, v in SUBMIT_REVIEW_TOOL.items() if k != "strict"}
+        self.tool_definitions = [*tools.definitions(), submit]
         self.graph = self._build()
 
     def run(self, request: ReviewRequest) -> AgentResult:
@@ -92,6 +118,8 @@ class ReviewAgent:
             "tool_calls": 0,
             "tools_used": [],
             "nudged": False,
+            "context_used": 0,
+            "final_turn": False,
         }
         # Every turn is up to three graph steps; leave room so LangGraph's own recursion
         # guard never fires before the agent's budget does.
@@ -123,24 +151,37 @@ class ReviewAgent:
         graph.add_edge("nudge", "call_model")
         return graph.compile()
 
+    def _request(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
+        request: dict[str, Any] = {
+            "model": self.config.model,
+            "max_tokens": self.config.max_tokens,
+            "system": SYSTEM_PROMPT,
+            "tools": self.tool_definitions,
+            "messages": messages,
+        }
+        if self.config.claude:
+            request |= {
+                "thinking": {"type": "adaptive"},
+                "output_config": {"effort": self.config.effort},
+                # Automatic caching: the whole prefix up to the last block is cached each
+                # turn, so turn N+1 reads turns 1..N from cache instead of paying again.
+                "cache_control": {"type": "ephemeral"},
+                "betas": [FALLBACK_BETA],
+                "fallbacks": "default",
+            }
+        return request
+
     def _call_model(self, state: ReviewState) -> dict[str, Any]:
-        response = self.client.beta.messages.create(
-            model=self.config.model,
-            max_tokens=self.config.max_tokens,
-            system=SYSTEM_PROMPT,
-            tools=self.tool_definitions,
-            messages=state["messages"],
-            thinking={"type": "adaptive"},
-            output_config={"effort": self.config.effort},
-            # Automatic caching: the whole prefix up to the last block is cached each turn,
-            # so turn N+1 reads turns 1..N from cache instead of paying for them again.
-            cache_control={"type": "ephemeral"},
-            betas=[FALLBACK_BETA],
-            fallbacks="default",
-        )
+        response = self.client.beta.messages.create(**self._request(state["messages"]))
         turns = state["turns"] + 1
         usage = _add_usage(state["usage"], response.usage)
         pending = [block for block in response.content if block.type == "tool_use"]
+        context_used = (
+            response.usage.input_tokens
+            + (response.usage.cache_read_input_tokens or 0)
+            + (response.usage.cache_creation_input_tokens or 0)
+            + response.usage.output_tokens
+        )
         logger.info(
             "turn %d: stop=%s tools=%s in=%d cache_read=%d out=%d",
             turns,
@@ -151,7 +192,19 @@ class ReviewAgent:
             response.usage.output_tokens,
         )
 
-        if turns > 1 and not response.usage.cache_read_input_tokens:
+        window = self.config.context_tokens
+        if window and response.usage.input_tokens >= window * 0.95:
+            # Ollama doesn't fail an over-long prompt: it drops the oldest messages, which
+            # here are the system prompt and the diff. Near-full input is the only sign.
+            logger.warning(
+                "turn %d: %d input tokens in a %d-token window; the start of the conversation "
+                "may have been cut",
+                turns,
+                response.usage.input_tokens,
+                window,
+            )
+
+        if self.config.claude and turns > 1 and not response.usage.cache_read_input_tokens:
             # From the second turn on, the whole earlier conversation should come from the
             # cache. Zero means something in the prefix changed between turns — a volatile
             # value in the system prompt or the tools — and every turn is paying full price.
@@ -168,6 +221,7 @@ class ReviewAgent:
             "turns": turns,
             "usage": usage,
             "model": response.model,
+            "context_used": context_used,
         }
         if response.stop_reason == "refusal":
             # The whole fallback chain declined. Checked before reading content, which may
@@ -232,20 +286,35 @@ class ReviewAgent:
             }
 
         content: list[dict[str, Any]] = list(results)
-        if state["turns"] >= self.config.max_turns - 1:
-            # One turn left: say so, after the tool results (they must come first).
-            content.append(
-                {"type": "text", "text": f"This is your last turn. Call {SUBMIT_REVIEW} now."}
-            )
         update: dict[str, Any] = {
             "messages": [*state["messages"], {"role": "user", "content": content}],
             "pending": [],
             "tool_calls": tool_calls,
             "tools_used": tools_used,
         }
-        if state["turns"] >= self.config.max_turns:
+        if state["final_turn"] or state["turns"] >= self.config.max_turns:
+            # Told to submit and called tools instead, or out of turns: stop here.
             update["outcome"] = "budget"
+        elif state["turns"] >= self.config.max_turns - 1:
+            # One turn left: say so, after the tool results (they must come first).
+            content.append(
+                {"type": "text", "text": f"This is your last turn. Call {SUBMIT_REVIEW} now."}
+            )
+            update["final_turn"] = True
+        elif self._context_nearly_full(state):
+            content.append(
+                {
+                    "type": "text",
+                    "text": f"Your context is nearly full. Stop exploring and call "
+                    f"{SUBMIT_REVIEW} now with what you have found.",
+                }
+            )
+            update["final_turn"] = True
         return update
+
+    def _context_nearly_full(self, state: ReviewState) -> bool:
+        window = self.config.context_tokens
+        return window is not None and state["context_used"] >= window * CONTEXT_HEADROOM
 
     def _after_tools(self, state: ReviewState) -> str:
         return END if state["outcome"] in ("submitted", "budget") else "call_model"

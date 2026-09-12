@@ -1,11 +1,19 @@
+from pr_agent.config import Settings, get_settings
+from pr_agent.main import app
 from pr_agent.models import ProposedFinding, ReviewRequest, ReviewResponse, Usage
+
+from .conftest import SECRET
 
 
 def test_healthz(client):
     assert client.get("/healthz").json() == {"status": "ok"}
 
 
-def test_answers_503_until_an_anthropic_api_key_is_configured(client, review_request, auth):
+def test_answers_503_when_claude_is_chosen_without_a_key(client, review_request, auth):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        _env_file=None, agent_shared_secret=SECRET, agent_provider="anthropic"
+    )
+
     response = client.post("/reviews", json=review_request, headers=auth)
 
     assert response.status_code == 503

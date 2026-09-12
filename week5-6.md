@@ -35,13 +35,13 @@ Weeks 5–6 are complete when all of these are true:
    nothing that isn't a real problem — judged by hand here; weeks 9–10 turn this into evals.
 4. A retried job never posts a second review and never pays for the agent twice once its
    result is stored.
-5. Each Review records the tokens it used and what it cost; prompt caching is verified to
-   hit on the agent's later turns.
+5. Each Review records the tokens it used and what it cost — $0 on the local model; with
+   Claude (your own key), prompt caching is verified to hit on the agent's later turns.
 6. The agent cannot be talked into anything by the code it reviews: its tools are read-only,
    the review is always a plain `COMMENT`, and a prompt-injection test proves an
    instruction planted in a PR does not change the outcome.
 7. `uv run pytest` (agent), `npm test` and `npm run test:e2e` (api) pass — the agent's tests
-   with a scripted fake model, no API key needed.
+   with a scripted fake model, no Ollama and no API key needed.
 8. `docs/decisions.md` has an entry per non-obvious choice; `README.md` covers running both
    services.
 
@@ -59,15 +59,20 @@ Checked on 2026-09-11.
 | `fastapi` / `uvicorn` / `pydantic` | 0.141.1 / 0.52.4 / 2.13.5 |
 | `pytest` | 9.1.1 |
 | npm workspaces | `apps/*` ignores a folder without `package.json`, so `apps/agent` can sit next to `apps/api` |
-| Anthropic credentials | **None on this machine** — no `ANTHROPIC_API_KEY`, no `ant` CLI profile |
-| Model | `claude-opus-5` — $5 / $25 per million input / output tokens |
+| Anthropic credentials | **None on this machine**, by choice — no paid API. Claude stays an option with your own key |
+| Ollama | 0.32.6, with `qwen2.5:7b`; serves the Anthropic Messages API (tool use included) at `http://localhost:11434` |
+| GPU | RTX 4060 Laptop, 8 GB — `pr-reviewer:qwen2.5-7b` at 32k context uses 6.4 GB, 100% on the GPU |
+| Model | Local: `pr-reviewer:qwen2.5-7b`, free. Claude: `claude-opus-5`, $5 / $25 per million input / output tokens |
 
 ### Traps — read before starting
 
-**1. The agent needs an Anthropic API key, and live runs cost money.** Nothing in this repo
-has one yet. Add `ANTHROPIC_API_KEY` to `.env` before the first live run (M18). Everything
-else — every test, every milestone's code — runs without it, against a scripted fake model.
-A review of a small PR should cost cents; a large one, more. M21 measures it for real.
+**1. The model is local by default; Claude is bring-your-own-key.** (Revised in M21a — the
+plan first assumed a paid Anthropic key.) The agent reviews with a local model through
+Ollama, for free. Ollama gives a model a 4096-token context unless told otherwise and
+silently drops the start of a longer conversation, so the agent uses a variant built with a
+32k window (`npm run agent:model`). With `AGENT_PROVIDER=anthropic` and your own
+`ANTHROPIC_API_KEY` it reviews with Claude instead, and each review costs cents. Every test
+runs without either, against a scripted fake model.
 
 **2. `anthropic` 1.x sends its requests through `httpx2`, not `httpx`.** HTTP-mocking
 libraries (`respx`, `pytest-httpx`) keep importing fine and silently stop seeing the SDK's
@@ -290,6 +295,37 @@ line for each high/medium finding; forcing a retry after posting doesn't post ag
 
 ---
 
+## Milestone 21a — Free by default: a local model, Claude as bring-your-own-key
+
+Added mid-way: the plan assumed a paid Anthropic key, and this project runs without one.
+Ollama serves the same Messages API as Claude, so the same SDK client and graph drive a
+local model; only the request changes.
+
+- `AGENT_PROVIDER`: `ollama` (default) or `anthropic`. Chosen explicitly — a key that
+  happens to be in the environment never switches the agent to a paid API.
+- Claude-only features (adaptive thinking, effort, prompt caching, refusal fallbacks,
+  strict tools) sent only to Claude. Ollama accepts and silently ignores them.
+- The local model built from a committed Modelfile with a 32k window; the graph tells the
+  model to submit once three quarters of the window is used, and warns when a prompt nearly
+  fills it (the sign that Ollama may have cut the start).
+- Errors: Ollama down → 503, retried; model not installed → 422 at once, with the fix.
+- A local review costs $0 and says so.
+
+**Todo**
+- [x] Provider setting, per-provider model defaults
+- [x] Claude-only features sent only to Claude; tests for both request shapes
+- [x] Modelfile with a 32k window, `npm run agent:model`, context guard in the graph
+- [x] Errors sorted for the local model
+- [x] README, `.env.example`, this plan, `decisions.md`
+- [x] Live: testbed PR #6 reviewed end to end by the local model
+
+**Polish bar:** the planted-bugs PR reviewed by the local model through the real flow, and
+the result scored against the answer key — however it scores.
+
+**Learn:** one agent, two model backends; what a small local model can and can't do.
+
+---
+
 ## Milestone 21 — Dogfood: cost, latency, caching
 
 The roadmap says dogfood from week 6. Run it on real pull requests and measure.
@@ -297,10 +333,10 @@ The roadmap says dogfood from week 6. Run it on real pull requests and measure.
 - Install the App on a real repository you choose — `pr-reviewer` itself is a good one —
   and review real PRs.
 - Record per review: tokens (input, output, cache reads), cost, wall time, turns, tool calls.
-- Verify prompt caching: `cache_read_input_tokens` above zero from the second turn on; if it
-  isn't, find what invalidates the prefix.
-- Tune: effort level, turn and tool budgets, file caps — against cost per completed review,
-  not per request.
+- With Claude (your key): verify prompt caching — `cache_read_input_tokens` above zero from
+  the second turn on; if it isn't, find what invalidates the prefix.
+- Tune: the local model (which one fits 8 GB and finds the most planted bugs), turn and tool
+  budgets, file caps — against findings per completed review, and cost where there is one.
 - A screenshot of a real review for the README.
 
 **Todo**
@@ -374,8 +410,9 @@ When weeks 5–6 are done (ask Claude to "verify week 5-6"):
 2. The planted-bugs PR: most planted bugs found; nothing posted for the planted injection.
 3. Force a retry after posting → no second review. After the agent answered → no second
    agent call.
-4. The Review row has tokens and cost; the agent log shows cache reads from turn 2.
-5. `uv run pytest`, `npm test`, `npm run test:e2e` green, with no API key set.
+4. The Review row has tokens and cost ($0 locally); with Claude, the agent log shows cache
+   reads from turn 2.
+5. `uv run pytest`, `npm test`, `npm run test:e2e` green, with no Ollama and no API key.
 6. Anti-patterns to grep for: any review `event` other than `COMMENT`, a tool that writes,
    posting findings that skipped `validateFindings`, `budget_tokens`, HTTP mocking of the
    Anthropic SDK, the installation token in a log line.

@@ -25,6 +25,20 @@ calls, find the callers of a function it changes, look up the type it relies on 
 decide. Review what this pull request changes; problems in untouched code are out of scope \
 unless the change makes them reachable.
 
+## How to work
+
+Go through the diff one file at a time, and inside a file one hunk at a time. For every \
+line the pull request adds or changes, ask what it does when it runs, and what the code \
+around it assumes. Defects that hide in ordinary-looking changes are usually one of these, \
+so check for them by name before you move on: a value shared between calls when a fresh \
+one was meant; a query, command or path built by string concatenation from a parameter; a \
+promise or future that is never awaited; an index, slice or loop bound that is off by one; \
+arithmetic that divides by a length, or parses input, without handling the empty or \
+malformed case; a condition or return value that is inverted; a comparison of secrets that \
+is not constant-time; an error swallowed or a failure reported as success; state mutated \
+while something else still reads it. Finding none of these is a valid outcome — but say \
+for each changed function what it does before you conclude it is correct.
+
 ## Anchoring each finding to a line
 
 Every finding points at one line shown in the diff:

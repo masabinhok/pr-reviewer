@@ -17,7 +17,7 @@ export interface ValidFinding {
   fingerprint: string;
 }
 
-export type DropReason = 'outside-diff' | 'no-failure-scenario';
+export type DropReason = 'outside-diff' | 'no-failure-scenario' | 'duplicate-line';
 
 export interface DroppedFinding {
   finding: ProposedFinding;
@@ -37,6 +37,11 @@ const SEVERITY: Record<ProposedFinding['severity'], Severity> = {
  *   on. That is a reviewer bug, and posting it in weeks 5–6 would fail the whole review.
  * - `no-failure-scenario` — it has no concrete "why it breaks". The roadmap's rule: a
  *   finding without a failure scenario is an opinion, and opinions are noise.
+ * - `duplicate-line` — another finding in the same review already points at that line. One
+ *   comment per line: a model that reports one problem twice under two categories (seen on
+ *   the local model, which filed the same `verify` defect as both correctness and security)
+ *   would otherwise put two identical comments on the pull request. The most severe of the
+ *   duplicates is the one kept.
  *
  * The severity gate (only high and medium get posted) is not applied here — every valid
  * finding is stored, and posting decides what to show.
@@ -60,6 +65,17 @@ export function validateFindings(
     }
 
     const path = lines.resolvePath(finding.file);
+    const at = `${path}:${finding.line}:${finding.side}`;
+    const existing = accepted.findIndex((f) => `${f.path}:${f.line}:${f.side}` === at);
+    if (existing >= 0) {
+      // Keep the more severe of the two, and drop the other — whichever arrived first.
+      if (RANK[SEVERITY[finding.severity]] <= RANK[accepted[existing].severity]) {
+        dropped.push({ finding, reason: 'duplicate-line' });
+        continue;
+      }
+      dropped.push({ finding: proposedOf(accepted[existing]), reason: 'duplicate-line' });
+      accepted.splice(existing, 1);
+    }
     accepted.push({
       path,
       line: finding.line,
@@ -74,6 +90,22 @@ export function validateFindings(
   }
 
   return { accepted, dropped };
+}
+
+const RANK: Record<Severity, number> = { [Severity.HIGH]: 3, [Severity.MEDIUM]: 2, [Severity.LOW]: 1 };
+
+/** A kept finding back in the reviewer's own shape, so a drop reads the same either way. */
+function proposedOf(finding: ValidFinding): ProposedFinding {
+  return {
+    file: finding.path,
+    line: finding.line,
+    side: finding.side,
+    severity: finding.severity.toLowerCase() as ProposedFinding['severity'],
+    category: finding.category,
+    summary: finding.summary,
+    whyItBreaks: finding.whyItBreaks,
+    suggestedFix: finding.suggestedFix ?? undefined,
+  };
 }
 
 /**

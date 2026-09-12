@@ -711,6 +711,13 @@ validated — an injection cannot make the App approve anything, request changes
 What it can do is cost findings, and no prompt wording fixes that. Weeks 9–10 turn the pair
 (diff with and without the injection) into an eval.
 
+One bug came out of it too, visible only on a real pull request: the model filed the same
+`verify` defect twice, once as correctness and once as security, and both were posted — two
+identical comments on one line. The fingerprint includes the category, by design, so it did
+not catch them. Validation now keeps at most one finding per line per review, the most severe
+of any duplicates; a second real problem on the same line is a loss worth taking against a
+model that repeats itself.
+
 Two tools came out of the work, both of which run a real review without touching GitHub or
 the database: `npm run try:review <repo> <pr> [path]` reviews a live pull request through the
 real pipeline and prints what would be posted, and `DUMP_REQUEST=x.json` on it writes the

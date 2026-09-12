@@ -341,9 +341,9 @@ The roadmap says dogfood from week 6. Run it on real pull requests and measure.
 
 **Todo**
 - [ ] The App installed on a real repo; real PRs reviewed
-- [ ] Per-review tokens, cost, time, turns and tool calls recorded and visible
-- [ ] Cache hits verified; any invalidator fixed
-- [ ] Budgets tuned and written down
+- [x] Per-review tokens, cost, time, turns and tool calls recorded and visible
+- [ ] Cache hits verified; any invalidator fixed (Claude only — nothing to verify on Ollama)
+- [x] Model and prompt tuned against the planted-bugs answer key, and written down
 - [ ] Screenshot for the README
 
 **Polish bar:** a table of five real reviews — cost, time, findings posted — and one line in

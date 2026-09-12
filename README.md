@@ -15,8 +15,8 @@ Non-obvious choices are written up in [`docs/decisions.md`](docs/decisions.md).
 
 ## Status
 
-**Weeks 1–4 are complete; weeks 5–6 (the agent) are built and tested, pending their first
-live runs.** What works today:
+**Weeks 1–4 are complete; weeks 5–6 (the agent) are built, tested and running locally.**
+What works today:
 
 - `POST /webhooks/github` verifies `X-Hub-Signature-256` over the raw request body
 - Every delivery is recorded once; redeliveries are dropped, and a redelivery of one that
@@ -41,6 +41,12 @@ live runs.** What works today:
 Not yet: dogfooding on real pull requests, and a screenshot for this page (milestone 21).
 The app can also run with the deterministic stub reviewer (`REVIEWER=stub`), which flags
 `console.log`, `debugger` and new `TODO`s and needs no model at all.
+
+How good are the reviews? On the testbed's planted-bugs PR the default local model finds 1–2
+of 7 planted defects and posts no false positives that pass the gate —
+[`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md) has the measurements, including
+what a prompt injection planted in the diff does to a small model. A stronger model is one
+setting away for anyone with an API key; weeks 9–10 turn this into evals.
 
 ## Architecture
 
@@ -205,6 +211,7 @@ them from `apps/api`; each builds first.
 | `npm run prove:diff <owner/repo> <pr> [name]` | The diff fetched by SHA matches the PR's own, and what the filters would keep. With a name, saves the file list and diff as test fixtures |
 | `npm run prove:line-map <owner/repo> <pr>` | The line map agrees with GitHub about which lines can take a comment — GitHub is asked, via pending reviews it never publishes |
 | `npm run prove:findings <owner/repo> <pr>` | Each stored finding of the PR's latest review lands on the line of code it describes |
+| `npm run try:review <owner/repo> <pr> [path]` | One real review of a real pull request, printed — no Review row, no Check Run, nothing posted. The loop for tuning a model or a prompt. `DUMP_REQUEST=x.json` instead writes the agent's request, which `uv run python scripts/replay.py` (in `apps/agent`) replays offline |
 | `npm run review:stats [n]` | Recent reviews: status, time, turns, tokens and cache hits, cost, findings posted |
 | `npm run capture:fixtures` | Copies recent real webhook deliveries into `test/fixtures` |
 

@@ -21,6 +21,8 @@ export default defineConfig({
       REVIEW_RETRY_DELAY_MS: '50',
       // Deterministic, free, offline. The agent path has its own tests.
       REVIEWER: 'stub',
+      // The flows assert that high and medium are posted and low is not.
+      POST_MIN_SEVERITY: 'medium',
     },
     // One database, shared by every file: run files one at a time so one file's
     // truncate can never land in the middle of another file's test.

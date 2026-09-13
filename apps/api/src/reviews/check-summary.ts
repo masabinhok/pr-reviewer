@@ -95,14 +95,21 @@ function reviewerNote(run: ReviewerRun | undefined): string {
   return note ? `> ${note}\n\n` : '';
 }
 
+const BARS: Record<Publication['minSeverity'], string> = {
+  HIGH: 'high severity',
+  MEDIUM: 'high and medium severity',
+  LOW: 'every severity',
+};
+
 function publicationNote(publication: Publication | undefined, total: number): string {
   if (!publication || total === 0) return '';
+  const bar = BARS[publication.minSeverity];
   if (publication.posted === 0) {
-    return 'None of these met the bar for a comment on the pull request (high or medium severity).\n\n';
+    return `None of these met the bar for a comment on the pull request (${bar}).\n\n`;
   }
   const comments = `${publication.posted} comment${publication.posted === 1 ? '' : 's'}`;
   const where = publication.url ? `[a review](${publication.url})` : 'a review';
-  return `Posted ${comments} on the pull request in ${where}; high and medium severity only.\n\n`;
+  return `Posted ${comments} on the pull request in ${where}; ${bar} only.\n\n`;
 }
 
 function reviewerFooter(run: ReviewerRun | undefined): string {

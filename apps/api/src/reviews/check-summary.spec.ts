@@ -80,6 +80,16 @@ describe('renderCheck', () => {
       expect(output.summary).toContain('| a \\|\\| b is always truthy |');
     });
 
+    it('says which severities the posted review covered', () => {
+      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.MEDIUM)] };
+
+      const high = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH });
+      const medium = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.MEDIUM });
+
+      expect(high.output.summary).toContain('None of these met the bar for a comment on the pull request (high severity).');
+      expect(medium.output.summary).toContain('Posted 1 comment on the pull request in [a review](https://x/r); high and medium severity only.');
+    });
+
     it('shows at most 50 findings and says how many more there are', () => {
       const findings = Array.from({ length: 60 }, (_, i) => finding(Severity.LOW, 'a.ts', i + 1, `finding ${i + 1}`));
 

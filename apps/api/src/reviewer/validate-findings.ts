@@ -43,7 +43,7 @@ const SEVERITY: Record<ProposedFinding['severity'], Severity> = {
  *   would otherwise put two identical comments on the pull request. The most severe of the
  *   duplicates is the one kept.
  *
- * The severity gate (only high and medium get posted) is not applied here — every valid
+ * The severity gate (POST_MIN_SEVERITY decides what gets posted) is not applied here — every valid
  * finding is stored, and posting decides what to show.
  */
 export function validateFindings(

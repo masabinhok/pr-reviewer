@@ -4,8 +4,8 @@ config({ path: '../../.env' });
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
-import { PrismaService } from '../prisma/prisma.service.js';
 import { GithubApiService } from '../github/github-api.service.js';
+import { AppJwtService } from '../github/app-jwt.service.js';
 import { filterDiffFiles, filterFileList } from '../filters/review-filter.js';
 import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
@@ -35,6 +35,19 @@ function table(rows: string[][]): string {
   return rows.map((r) => r.map((cell, i) => (cell ?? '').padEnd(widths[i])).join('  ').trimEnd()).join('\n');
 }
 
+async function installationFor(jwt: AppJwtService, fullName: string): Promise<bigint> {
+  const response = await fetch(`https://api.github.com/repos/${fullName}/installation`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${jwt.mint()}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'pr-reviewer',
+    },
+  });
+  if (!response.ok) throw new Error(`the App is not installed on ${fullName} (GitHub answered ${response.status})`);
+  return BigInt(((await response.json()) as { id: number }).id);
+}
+
 async function main() {
   const number = Number(prArg);
   if (!Number.isInteger(number) || number < 1) throw new Error('usage: npm run try:review <owner/repo> <pr-number>');
@@ -42,17 +55,13 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
 
   try {
-    const prisma = app.get(PrismaService);
     const github = app.get(GithubApiService);
     const reviewer = app.get<Reviewer>(REVIEWER);
 
-    // The installation the App has on this repository — the same lookup the worker does.
-    const installation = await prisma.repo.findFirst({
-      where: { fullName: repo },
-      include: { installation: true },
-    });
-    if (!installation) throw new Error(`${repo} is not in the database; open a PR on it first so the App records it`);
-    const installationId = installation.installation.githubId;
+    // The installation the App has on this repository, asked of GitHub rather than the
+    // database: the database only knows what webhooks told it, and misses a repository added
+    // while nothing was running — or still links one to an installation since removed.
+    const installationId = await installationFor(app.get(AppJwtService), repo);
 
     const pr = await github.getPullRequest(installationId, repo, number);
     const files = await github.listPullRequestFiles(installationId, repo, number);

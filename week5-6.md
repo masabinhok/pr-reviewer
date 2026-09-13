@@ -341,11 +341,11 @@ The roadmap says dogfood from week 6. Run it on real pull requests and measure.
 - A screenshot of a real review for the README.
 
 **Todo**
-- [ ] The App installed on a real repo; real PRs reviewed
+- [x] The App installed on a real repo; real PRs reviewed
 - [x] Per-review tokens, cost, time, turns and tool calls recorded and visible
-- [ ] Cache hits verified; any invalidator fixed (Claude only — nothing to verify on Ollama)
+- [x] Cache hits verified; any invalidator fixed — not applicable: prompt caching is Claude's, and this project runs without a Claude key
 - [x] Model and prompt tuned against the planted-bugs answer key, and written down
-- [ ] Screenshot for the README
+- [x] Screenshot for the README
 
 **Polish bar:** a table of five real reviews — cost, time, findings posted — and one line in
 `decisions.md` saying what a review costs.

@@ -380,10 +380,10 @@ The roadmap says dogfood from week 6. Run it on real pull requests and measure.
 the screenshot.
 
 **Todo**
-- [ ] Contract test and extended review-flow e2e green
-- [ ] Agent suite runs without an API key
-- [ ] `decisions.md` entries above
-- [ ] README current, with the screenshot
+- [x] Contract test and extended review-flow e2e green
+- [x] Agent suite runs without an API key
+- [x] `decisions.md` entries above
+- [x] README current, with the screenshot
 - [ ] Optional (carried from M8): GitHub Actions CI running lint + unit + e2e for both services
 
 ---

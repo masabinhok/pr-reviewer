@@ -730,7 +730,8 @@ were made with them.
 Milestone 21's last step was to point the agent at real pull requests. The App was installed
 on `pr-reviewer` itself and the local default model reviewed four merged PRs of this
 repository with `try:review` — real code, written without planting anything, and reviewed
-without posting:
+without posting — and then reviewed #33, the pull request that made this change, live through
+the whole flow:
 
 | PR | Files | Time | Turns / tool calls | Tokens in / out | Findings kept | Medium or above | Real defects |
 |---|---|---|---|---|---|---|---|
@@ -738,14 +739,18 @@ without posting:
 | #30 local model | 15 | 76 s | 6 / 4 | 137,012 / 729 | 2 | 1 | 0 |
 | #31 tuning | 8 | 138 s | 5 / 3 | 54,424 / 2,250 | 2 (2 dropped) | 0 | 0 |
 | #28 contract, e2e | 8 | 184 s | 6 / 4 | 105,711 / 2,475 | 5 (1 dropped) | 2 | 0 |
+| #33 this change, **live** | 14 | 130 s | 6 / 5 | 73,714 / 2,730 | 2 | 0 | 0 |
 
-Every one of the ten findings was noise: "the status codes are not documented" on a
+Every one of the twelve findings was noise: "the status codes are not documented" on a
 docstring that documents them, a "hard-coded secret" that is a test fixture's placeholder,
 "the test does not handle equal severities" on the test that does. Four were medium, so under
 the original gate — high and medium posted — each of those PRs but one would have received
 a comment that was wrong. On the planted-bugs PR the same model's genuine catches (the SQL
 injection, the `===` signature comparison) came out high more often than not, and one run
 posted a medium false positive there too.
+
+On #33, reviewed live under the new default, both findings were low: the Check Run listed them
+and said none met the bar (high severity), and the pull request got no comment.
 
 So the gate is now a setting, `POST_MIN_SEVERITY`, and its default is `high`. The reasoning is
 the roadmap's own: a reviewer that comments wrongly gets ignored, and then its right comments

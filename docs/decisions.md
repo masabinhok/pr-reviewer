@@ -740,6 +740,7 @@ the whole flow:
 | #31 tuning | 8 | 138 s | 5 / 3 | 54,424 / 2,250 | 2 (2 dropped) | 0 | 0 |
 | #28 contract, e2e | 8 | 184 s | 6 / 4 | 105,711 / 2,475 | 5 (1 dropped) | 2 | 0 |
 | #33 this change, **live** | 14 | 130 s | 6 / 5 | 73,714 / 2,730 | 2 | 0 | 0 |
+| #33 again, after a push, **live** | 14 | ≈200 s | 6 / 4 | — | 3, all high | 3 | 0 |
 
 Every one of the twelve findings was noise: "the status codes are not documented" on a
 docstring that documents them, a "hard-coded secret" that is a test fixture's placeholder,
@@ -750,9 +751,17 @@ injection, the `===` signature comparison) came out high more often than not, an
 posted a medium false positive there too.
 
 On #33, reviewed live under the new default, both findings were low: the Check Run listed them
-and said none met the bar (high severity), and the pull request got no comment.
+and said none met the bar (high severity), and the pull request got no comment. **Then the
+next push to #33 was reviewed, and the model rated three findings high — and all three were
+wrong**, each contradicted by the code in that same diff: that `POST_MIN_SEVERITY` isn't
+validated (it is, at boot, with a clear error), that a `low` bar is mishandled (nothing is below
+it), that the publisher reports comments it didn't post (it returns 0, and a test says so).
+They were posted. The high bar halves the noise; it does not remove it, because the local
+model's severity is not a signal to begin with.
 
-So the gate is now a setting, `POST_MIN_SEVERITY`, and its default is `high`. The reasoning is
+So the gate is now a setting, `POST_MIN_SEVERITY`, and its default is `high` — the better of
+the options tried, not a fix; what to do about a model whose confident findings are wrong is
+the open question this milestone ends on. The reasoning is
 the roadmap's own: a reviewer that comments wrongly gets ignored, and then its right comments
 are ignored too. Below the bar nothing is lost — every valid finding is still stored and listed
 in the Check Run, whose note now says which bar applied. With a model worth trusting at medium,

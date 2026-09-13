@@ -66,11 +66,56 @@ describe('validateFindings', () => {
 
   it('maps severities to the database enum', () => {
     const severities = validateFindings(
-      [proposed({ severity: 'high' }), proposed({ severity: 'medium' }), proposed({ severity: 'low' })],
+      [
+        proposed({ severity: 'high' }),
+        proposed({ severity: 'medium', file: 'src/new-feature.ts', line: 2 }),
+        proposed({ severity: 'low', file: 'src/helpers.ts', line: 10 }),
+      ],
       lines,
     ).accepted.map((f) => f.severity);
 
     expect(severities).toEqual([Severity.HIGH, Severity.MEDIUM, Severity.LOW]);
+  });
+
+  // Seen on the local model: it filed one defect twice, as correctness and as security, and
+  // both were posted — two identical comments on the same line of the pull request.
+  describe('two findings on one line', () => {
+    it('keeps the more severe one, whichever came first', () => {
+      const low = proposed({ severity: 'low', category: 'correctness' });
+      const high = proposed({ severity: 'high', category: 'security' });
+
+      const first = validateFindings([low, high], lines);
+      const second = validateFindings([high, low], lines);
+
+      expect(first.accepted.map((f) => f.category)).toEqual(['security']);
+      expect(second.accepted.map((f) => f.category)).toEqual(['security']);
+      expect(first.dropped).toEqual([{ finding: low, reason: 'duplicate-line' }]);
+      expect(second.dropped.map((d) => d.reason)).toEqual(['duplicate-line']);
+    });
+
+    it('keeps the first when they are equally severe', () => {
+      const { accepted, dropped } = validateFindings(
+        [proposed({ category: 'correctness' }), proposed({ category: 'security' })],
+        lines,
+      );
+
+      expect(accepted.map((f) => f.category)).toEqual(['correctness']);
+      expect(dropped).toEqual([{ finding: proposed({ category: 'security' }), reason: 'duplicate-line' }]);
+    });
+
+    it('leaves findings on different lines, files or sides alone', () => {
+      const { accepted } = validateFindings(
+        [
+          proposed(),
+          proposed({ line: 25 }),
+          proposed({ file: 'src/new-feature.ts', line: 2 }),
+          proposed({ side: 'LEFT', line: 24 }),
+        ],
+        lines,
+      );
+
+      expect(accepted).toHaveLength(4);
+    });
   });
 });
 

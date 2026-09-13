@@ -3,6 +3,7 @@ import { UnrecoverableError } from 'bullmq';
 import { ReviewPublisher, commentBody, reviewMarker } from './review-publisher.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { GithubApiService } from '../github/github-api.service.js';
+import type { ConfigService } from '@nestjs/config';
 import { GithubApiError } from '../github/github-api.errors.js';
 import { FindingSide, FindingStatus, Severity, type Finding } from '../generated/prisma/client.js';
 import type { ReviewTarget } from './review.processor.js';
@@ -47,6 +48,12 @@ describe('ReviewPublisher', () => {
     listReviewComments: ReturnType<typeof vi.fn>;
   };
   let publisher: ReviewPublisher;
+  const withBar = (minSeverity: Severity) =>
+    new ReviewPublisher(
+      prisma as unknown as PrismaService,
+      github as unknown as GithubApiService,
+      { getOrThrow: () => minSeverity } as unknown as ConfigService,
+    );
 
   beforeEach(() => {
     prisma = {
@@ -61,7 +68,7 @@ describe('ReviewPublisher', () => {
       listReviews: vi.fn().mockResolvedValue([]),
       listReviewComments: vi.fn().mockResolvedValue([]),
     };
-    publisher = new ReviewPublisher(prisma as unknown as PrismaService, github as unknown as GithubApiService);
+    publisher = withBar(Severity.MEDIUM);
     for (const level of ['log', 'warn'] as const) vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
   });
 
@@ -84,7 +91,31 @@ describe('ReviewPublisher', () => {
       'pr-reviewer found 2 issues (1 high, 1 medium). 1 lower-severity note is in the pr-reviewer check.\n\n' +
         reviewMarker('rev-1'),
     );
-    expect(publication).toEqual({ posted: 2, url: 'https://github.com/octo/widgets/pull/6#pullrequestreview-9001' });
+    expect(publication).toEqual({
+      posted: 2,
+      url: 'https://github.com/octo/widgets/pull/6#pullrequestreview-9001',
+      minSeverity: Severity.MEDIUM,
+    });
+  });
+
+  // The default. Dogfooding the local model on real pull requests: its medium findings
+  // were noise, its high ones were the planted bugs.
+  it('with the bar at high, posts only high findings and leaves medium in the check', async () => {
+    const high = finding(Severity.HIGH, { line: 18 });
+    const medium = finding(Severity.MEDIUM, { line: 28 });
+
+    const publication = await withBar(Severity.HIGH).publish(target, [high, medium]);
+
+    const [, , , review] = github.createReview.mock.calls[0];
+    expect(review.comments.map((c: { line: number }) => c.line)).toEqual([18]);
+    expect(review.body).toContain('1 lower-severity note is in the pr-reviewer check');
+    expect(publication).toMatchObject({ posted: 1, minSeverity: Severity.HIGH });
+  });
+
+  it('with the bar at low, posts everything', async () => {
+    await withBar(Severity.LOW).publish(target, [finding(Severity.HIGH), finding(Severity.LOW, { line: 32 })]);
+
+    expect(github.createReview.mock.calls[0][3].comments).toHaveLength(2);
   });
 
   it('stores the GitHub review ID so a retry never posts again', async () => {
@@ -121,7 +152,7 @@ describe('ReviewPublisher', () => {
     const publication = await publisher.publish(target, [finding(Severity.LOW), finding(Severity.LOW)]);
 
     expect(github.createReview).not.toHaveBeenCalled();
-    expect(publication).toEqual({ posted: 0, url: null });
+    expect(publication).toEqual({ posted: 0, url: null, minSeverity: Severity.MEDIUM });
   });
 
   it('links each posted finding to its comment, matching path, line and side', async () => {

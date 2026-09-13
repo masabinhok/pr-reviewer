@@ -1,3 +1,14 @@
+const SEVERITIES = ['high', 'medium', 'low'] as const;
+
+/** POST_MIN_SEVERITY, checked at boot: a typo must not silently post everything, or nothing. */
+function postMinSeverity(): 'HIGH' | 'MEDIUM' | 'LOW' {
+  const value = (process.env.POST_MIN_SEVERITY ?? 'high').toLowerCase();
+  if (!(SEVERITIES as readonly string[]).includes(value)) {
+    throw new Error(`POST_MIN_SEVERITY must be one of ${SEVERITIES.join(', ')}; got "${process.env.POST_MIN_SEVERITY}"`);
+  }
+  return value.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
 export default () => ({
   port: parseInt(process.env.PORT ?? '', 10) || 3333,
   database: {
@@ -13,6 +24,13 @@ export default () => ({
     // First retry after this long, doubling after. The e2e suite shortens it so a test of
     // "fails every attempt" doesn't wait half a minute.
     retryDelayMs: Number(process.env.REVIEW_RETRY_DELAY_MS ?? 10_000),
+  },
+  posting: {
+    // The least severe finding that becomes a comment on the pull request; everything below
+    // it stays in the Check Run. High by default, from dogfooding: the local model's medium
+    // findings on real pull requests were noise (see docs/decisions.md). With a stronger
+    // model, medium is worth posting.
+    minSeverity: postMinSeverity(),
   },
   agent: {
     // Which Reviewer runs: the agent when it is configured, the stub otherwise. REVIEWER

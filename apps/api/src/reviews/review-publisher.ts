@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UnrecoverableError } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GithubApiService, type ReviewCommentInput } from '../github/github-api.service.js';
@@ -6,19 +7,21 @@ import { GithubApiError } from '../github/github-api.errors.js';
 import { Severity, type Finding } from '../generated/prisma/client.js';
 import type { ReviewTarget } from './review.processor.js';
 
-/** Posted as inline comments; low-severity findings are stored and shown only in the Check Run. */
-export const POSTED_SEVERITIES: ReadonlySet<Severity> = new Set([Severity.HIGH, Severity.MEDIUM]);
+export const SEVERITY_RANK: Record<Severity, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
 export interface Publication {
   /** Comments in the posted (or adopted) review; 0 when nothing met the severity gate. */
   posted: number;
   url: string | null;
+  /** The gate that applied: the least severe finding that is posted. */
+  minSeverity: Severity;
 }
 
 /**
  * Turns stored findings into one GitHub review on the PR — once.
  *
- * - **Severity gate**: high and medium become inline comments; low stays in the Check Run.
+ * - **Severity gate**: findings at or above POST_MIN_SEVERITY (high, by default) become
+ *   inline comments; the rest are stored and shown only in the Check Run.
  * - **One review**, `event: COMMENT`, with every comment in it: one notification, not twelve.
  * - **Posted once**: `Review.githubReviewId` is stored right after posting, and a retry that
  *   finds it posts nothing. For the gap between posting and storing (a crash in between),
@@ -29,14 +32,20 @@ export interface Publication {
 export class ReviewPublisher {
   private readonly logger = new Logger(ReviewPublisher.name);
 
+  private readonly minSeverity: Severity;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly github: GithubApiService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.minSeverity = config.getOrThrow<Severity>('posting.minSeverity');
+  }
 
   async publish(target: ReviewTarget, findings: Finding[]): Promise<Publication> {
     const { installationId, repo, prNumber, reviewId } = target;
-    const postable = findings.filter((f) => POSTED_SEVERITIES.has(f.severity));
+    const bar = this.minSeverity;
+    const postable = findings.filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar]);
 
     const review = await this.prisma.review.findUniqueOrThrow({
       where: { id: reviewId },
@@ -44,10 +53,10 @@ export class ReviewPublisher {
     });
     if (review.githubReviewId !== null) {
       this.logger.log(`review ${reviewId}: already posted as GitHub review ${review.githubReviewId}`);
-      return { posted: postable.length, url: null };
+      return { posted: postable.length, url: null, minSeverity: bar };
     }
     if (postable.length === 0) {
-      return { posted: 0, url: null };
+      return { posted: 0, url: null, minSeverity: bar };
     }
 
     const marker = reviewMarker(reviewId);
@@ -76,7 +85,7 @@ export class ReviewPublisher {
     await this.recordCommentIds(target, BigInt(posted.id), postable);
 
     this.logger.log(`review ${reviewId}: posted ${postable.length} comment(s) as GitHub review ${posted.id}`);
-    return { posted: postable.length, url: posted.html_url };
+    return { posted: postable.length, url: posted.html_url, minSeverity: bar };
   }
 
   /** Links each posted finding to its comment — weeks 7–8 read reactions off these. */

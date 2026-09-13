@@ -67,7 +67,7 @@ describe('ReviewProcessor', () => {
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
     };
     order = [];
-    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null })) };
+    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null, minSeverity: 'MEDIUM' as const })) };
     github = {
       createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
       completeCheckRun: vi.fn().mockResolvedValue(undefined),
@@ -186,7 +186,7 @@ describe('ReviewProcessor', () => {
     });
 
     it('tells the Check Run what was posted', async () => {
-      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1' });
+      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1', minSeverity: 'MEDIUM' as const });
       run.mockResolvedValue({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [found, found] });
 
       await processor.process(job());

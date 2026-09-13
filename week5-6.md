@@ -27,8 +27,9 @@ agent inside a budget and away from instructions hidden in the code it reads.
 Weeks 5–6 are complete when all of these are true:
 
 1. Opening a PR on the testbed produces **one GitHub review** from the App, with an inline
-   comment on the right line for every high- and medium-severity finding. Low-severity
-   findings appear only in the Check Run summary.
+   comment on the right line for every finding at or above the posting bar. The rest appear
+   only in the Check Run summary. (Revised in M21: the bar is `POST_MIN_SEVERITY`, high by
+   default, after dogfooding showed the local model's medium findings were noise.)
 2. Every posted finding names a concrete failure scenario; findings outside the diff are
    dropped before posting (weeks 3–4's validation), so GitHub never rejects the review.
 3. On the testbed's planted-bugs PR the agent finds most of the planted bugs and comments on
@@ -406,7 +407,7 @@ the screenshot.
 When weeks 5–6 are done (ask Claude to "verify week 5-6"):
 
 1. Open a PR on the testbed → one review from the App, inline comments on the right lines,
-   high and medium only; the Check Run lists the low ones.
+   at or above `POST_MIN_SEVERITY` only; the Check Run lists the rest.
 2. The planted-bugs PR: most planted bugs found; nothing posted for the planted injection.
 3. Force a retry after posting → no second review. After the agent answered → no second
    agent call.

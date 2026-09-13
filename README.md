@@ -8,6 +8,10 @@ model through Ollama by default, for free**, or on Claude with your own API key.
 with a concrete failure scenario are posted back as **one GitHub review with inline
 comments**, and a Check Run on the PR shows progress and the summary.
 
+![A pr-reviewer comment on a pull request: High · security — SQL query constructed with string interpolation](docs/images/review.png)
+
+*A real comment from the local model, on the testbed's planted-bugs pull request.*
+
 This repository is a learning project, built milestone by milestone — see
 [`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
 [`week3-4.md`](week3-4.md) and [`week5-6.md`](week5-6.md) for the milestones so far.
@@ -29,8 +33,9 @@ What works today:
   or 2000 changed lines
 - The **agent** (`apps/agent`, Python) reviews the change with read-only tools over a
   snapshot of the repository at the head commit, and hands in findings through a strict tool
-- Findings are validated against the diff and fingerprinted; high and medium ones are posted
-  as **one `COMMENT` review** — never an approval — exactly once, however the job is retried
+- Findings are validated against the diff, fingerprinted, and kept to one per line; those at
+  or above `POST_MIN_SEVERITY` (high, by default) are posted as **one `COMMENT` review** —
+  never an approval — exactly once, however the job is retried
 - A `pr-reviewer` Check Run spins on the PR while the review runs and completes with a
   summary, the model that answered, and what the review cost
 - The agent's answer is stored the moment it arrives, so a retry never pays for it twice
@@ -38,15 +43,17 @@ What works today:
   retries; errors a retry can't fix fail the review at once
 - `GET /healthz` reports Postgres and Redis
 
-Not yet: dogfooding on real pull requests, and a screenshot for this page (milestone 21).
 The app can also run with the deterministic stub reviewer (`REVIEWER=stub`), which flags
 `console.log`, `debugger` and new `TODO`s and needs no model at all.
 
-How good are the reviews? On the testbed's planted-bugs PR the default local model finds 1–2
-of 7 planted defects and posts no false positives that pass the gate —
-[`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md) has the measurements, including
-what a prompt injection planted in the diff does to a small model. A stronger model is one
-setting away for anyone with an API key; weeks 9–10 turn this into evals.
+How good are the reviews? Honestly, with the free default, modest. On the testbed's
+planted-bugs PR the local 7B model finds 1–2 of 7 planted defects, and a prompt injection
+planted in the diff measurably suppresses its findings
+([`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md)). Reviewing four real pull
+requests in this repository, it found nothing real — every finding was noise, and the medium
+ones would have been posted. That is why only high-severity findings are posted by default.
+A stronger model is one setting away for anyone with an API key; weeks 9–10 turn this into
+evals.
 
 ## Architecture
 
@@ -109,7 +116,7 @@ SDK client and one graph drive either; Claude's extra features (adaptive thinkin
 caching, strict tools) are used only when the model is Claude.
 
 **Back in the API:** the answer is stored, validated against the line map, and written as
-`Finding` rows. High and medium findings are posted as one GitHub review; the Check Run is
+`Finding` rows. Findings at or above the posting bar are posted as one GitHub review; the Check Run is
 completed with the summary; the review is marked `COMPLETED`. Each step records that it
 happened, so a retry after a failure part-way through picks up where it stopped.
 
@@ -174,7 +181,8 @@ Optional: `REVIEWER` (`agent` or `stub`; defaults to `agent` when `AGENT_URL` is
 window, default 32768 — keep it equal to `num_ctx` in the Modelfile), `AGENT_EFFORT`
 (Claude only, default `high`), `AGENT_MAX_TURNS` / `AGENT_MAX_TOOL_CALLS` (20 / 40),
 `AGENT_TIMEOUT_MS` (how long the API
-waits for the agent, default 15 minutes), `QUEUE_PREFIX` (Redis key prefix for the queue,
+waits for the agent, default 15 minutes), `POST_MIN_SEVERITY` (the least severe finding
+posted as a comment: `high`, the default, `medium` or `low`), `QUEUE_PREFIX` (Redis key prefix for the queue,
 default `pr-reviewer`) and `REVIEW_RETRY_DELAY_MS` (first retry delay, default 10000,
 doubling after).
 
@@ -197,8 +205,8 @@ npm run tunnel                                    # smee → localhost:3333/webh
 
 Check it is alive with `curl localhost:3333/healthz`, install the App on a repository, and
 open a pull request. The API logs `accepted event "pull_request.opened"`, a `pr-reviewer`
-check appears on the PR, and a review with inline comments follows for any high- or
-medium-severity finding.
+check appears on the PR, and a review with inline comments follows for any finding at or
+above the posting bar.
 
 ## Checking against the real GitHub
 

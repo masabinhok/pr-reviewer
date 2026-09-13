@@ -724,3 +724,42 @@ real pipeline and prints what would be posted, and `DUMP_REQUEST=x.json` on it w
 exact agent request so `uv run python scripts/replay.py x.json <checkout> [strip] [runs]`
 can replay it offline, many times, with lines removed from the diff. The measurements above
 were made with them.
+
+## Dogfooding on this repository: only high-severity findings are posted by default
+
+Milestone 21's last step was to point the agent at real pull requests. The App was installed
+on `pr-reviewer` itself and the local default model reviewed four merged PRs of this
+repository with `try:review` — real code, written without planting anything, and reviewed
+without posting:
+
+| PR | Files | Time | Turns / tool calls | Tokens in / out | Findings kept | Medium or above | Real defects |
+|---|---|---|---|---|---|---|---|
+| #32 dedupe fix | 3 | 64 s | 5 / 3 | 25,350 / 1,233 | 1 | 1 | 0 |
+| #30 local model | 15 | 76 s | 6 / 4 | 137,012 / 729 | 2 | 1 | 0 |
+| #31 tuning | 8 | 138 s | 5 / 3 | 54,424 / 2,250 | 2 (2 dropped) | 0 | 0 |
+| #28 contract, e2e | 8 | 184 s | 6 / 4 | 105,711 / 2,475 | 5 (1 dropped) | 2 | 0 |
+
+Every one of the ten findings was noise: "the status codes are not documented" on a
+docstring that documents them, a "hard-coded secret" that is a test fixture's placeholder,
+"the test does not handle equal severities" on the test that does. Four were medium, so under
+the original gate — high and medium posted — each of those PRs but one would have received
+a comment that was wrong. On the planted-bugs PR the same model's genuine catches (the SQL
+injection, the `===` signature comparison) came out high more often than not, and one run
+posted a medium false positive there too.
+
+So the gate is now a setting, `POST_MIN_SEVERITY`, and its default is `high`. The reasoning is
+the roadmap's own: a reviewer that comments wrongly gets ignored, and then its right comments
+are ignored too. Below the bar nothing is lost — every valid finding is still stored and listed
+in the Check Run, whose note now says which bar applied. With a model worth trusting at medium,
+set it to `medium`; the setting is checked at boot, because a typo that silently posted
+everything, or nothing, would be the worst kind of misconfiguration.
+
+What a review costs: nothing, on the local model — about a minute for a small PR and three
+for one with fifteen files, on a laptop GPU. The largest prompt, #30's, reached 23.8k tokens
+of the 32k window, just under the point where the agent is told to submit.
+
+Two smaller things turned up. The database still linked `pr-reviewer` to an installation
+removed long ago, and knew nothing of it being added again while no server was running;
+the webhook path corrects both from each payload, but `try:review` now asks GitHub rather
+than trusting the row. And, once more, `.env` is not enough to run anything the next day:
+Postgres and Redis must be up, or a script hangs on its first query.

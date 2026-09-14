@@ -821,8 +821,9 @@ reasons showed three separate failures:
 - **The framing biased it.** Told that reviewers are often wrong and its job is to catch them,
   it caught everything.
 
-The revision fixes all three in the prompt and the schema. Most of the noise now goes: on
-#33 live, the checker refuted seven of the reviewer's eight findings, and 0 of the 20 checks of
+The revision fixes all three in the prompt and the schema. Most of the noise now goes: reviewing
+#33 again with `try:review` against the real model, the checker refuted seven of the
+reviewer's eight findings, and 0 of the 20 checks of
 known-wrong high findings would have been posted. The cost is real, and it is recorded
 rather than hidden. About a fifth of the real bugs are refuted, and are then shown only in the
 Check Run's dropped list, not on the pull request. Two caveats hold. The prompt was tuned on

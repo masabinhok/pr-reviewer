@@ -8,7 +8,12 @@
       "category": "security",
       "summary": "verify() logs the value being verified.",
       "whyItBreaks": "Every call writes the token under verification to stdout, so anyone with log access can replay it.",
-      "suggestedFix": "Remove the console.log call."
+      "suggestedFix": "Remove the console.log call.",
+      "verification": {
+        "verdict": "confirmed",
+        "reason": "Line 26 is `console.log('verifying', token);`, reached on every call.",
+        "demotedFrom": null
+      }
     },
     {
       "file": "src/new-feature.ts",
@@ -18,7 +23,12 @@
       "category": "correctness",
       "summary": "A debugger statement is left in.",
       "whyItBreaks": "With an inspector attached, greet() halts until someone resumes it.",
-      "suggestedFix": null
+      "suggestedFix": null,
+      "verification": {
+        "verdict": "confirmed",
+        "reason": "Line 2 is `debugger;`, inside greet().",
+        "demotedFrom": null
+      }
     },
     {
       "file": "src/helpers.ts",
@@ -28,7 +38,12 @@
       "category": "maintainability",
       "summary": "A new TODO is added.",
       "whyItBreaks": "The ordering the TODO describes is not implemented.",
-      "suggestedFix": null
+      "suggestedFix": null,
+      "verification": {
+        "verdict": "unsure",
+        "reason": "The code around the TODO does not show whether ordering matters.",
+        "demotedFrom": null
+      }
     }
   ],
   "model": "claude-opus-5",
@@ -41,5 +56,22 @@
   },
   "outcome": "submitted",
   "turns": 6,
-  "toolCalls": 5
+  "toolCalls": 5,
+  "dropped": [
+    {
+      "finding": {
+        "file": "src/auth.ts",
+        "line": 20,
+        "side": "RIGHT",
+        "severity": "high",
+        "category": "security",
+        "summary": "sign() does not validate its input.",
+        "whyItBreaks": "An empty payload produces a signature.",
+        "suggestedFix": null,
+        "verification": null
+      },
+      "reason": "Line 19 is `if (!payload) throw new Error('empty payload');`."
+    }
+  ],
+  "verifyCalls": 4
 }

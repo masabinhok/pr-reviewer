@@ -78,15 +78,16 @@ describe('API ↔ agent contract', () => {
 
     const result = await review(r);
 
-    expect(result.run).toMatchObject({ model: 'claude-opus-5', outcome: 'submitted', turns: 6, toolCalls: 5 });
+    expect(result.run).toMatchObject({ model: 'claude-opus-5', outcome: 'submitted', turns: 6, toolCalls: 5, verifyCalls: 4 });
+    expect(result.dropped).toEqual([expect.objectContaining({ finding: expect.objectContaining({ file: 'src/auth.ts', line: 20 }) })]);
     expect(result.run?.usage.costUsd).toBeCloseTo(0.0921);
     // Every finding in the agent's sample is on a real line of that PR, so all survive.
     const { accepted, dropped } = validateFindings(result.findings, lines);
     expect(dropped).toEqual([]);
-    expect(accepted.map((f) => [f.path, f.line, f.severity])).toEqual([
-      ['src/auth.ts', 26, 'HIGH'],
-      ['src/new-feature.ts', 2, 'MEDIUM'],
-      ['src/helpers.ts', 10, 'LOW'],
+    expect(accepted.map((f) => [f.path, f.line, f.severity, f.verdict])).toEqual([
+      ['src/auth.ts', 26, 'HIGH', 'CONFIRMED'],
+      ['src/new-feature.ts', 2, 'MEDIUM', 'CONFIRMED'],
+      ['src/helpers.ts', 10, 'LOW', 'UNSURE'],
     ]);
   });
 });

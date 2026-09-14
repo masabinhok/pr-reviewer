@@ -188,6 +188,9 @@ export class ReviewProcessor extends WorkerHost {
           whyItBreaks: f.whyItBreaks,
           suggestedFix: f.suggestedFix,
           fingerprint: f.fingerprint,
+          verdict: f.verdict,
+          verdictReason: f.verdictReason,
+          demotedFrom: f.demotedFrom,
         })),
       });
       return tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });

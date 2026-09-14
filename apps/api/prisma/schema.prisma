@@ -40,6 +40,13 @@ enum FindingStatus {
   OPEN
   RESOLVED
 }
+/// How the agent's second look went; a refuted finding is never stored.
+enum Verdict {
+  CONFIRMED
+  UNSURE
+  UNVERIFIED
+}
+
 enum FeedbackSignal {
   UP
   DOWN
@@ -119,6 +126,11 @@ model Finding {
   suggestedFix    String?
   fingerprint     String
   githubCommentId BigInt?
+  /// Null when there was no second look (the stub, or AGENT_VERIFY off).
+  verdict         Verdict?
+  verdictReason   String?
+  /// Set when an unconfirmed finding was demoted to LOW.
+  demotedFrom     Severity?
 
   feedbacks Feedback[]
 

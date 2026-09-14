@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { LineMap } from '../diff/line-map.js';
 import type { Side } from '../diff/diff.types.js';
-import { Severity } from '../generated/prisma/client.js';
+import { Severity, Verdict } from '../generated/prisma/client.js';
 import type { ProposedFinding } from './reviewer.js';
 
 /** A finding that passed validation, in the shape it is stored. */
@@ -15,6 +15,10 @@ export interface ValidFinding {
   whyItBreaks: string;
   suggestedFix: string | null;
   fingerprint: string;
+  /** The agent's second look: null when there was none (the stub, or the check turned off). */
+  verdict: Verdict | null;
+  verdictReason: string | null;
+  demotedFrom: Severity | null;
 }
 
 export type DropReason = 'outside-diff' | 'no-failure-scenario' | 'duplicate-line';
@@ -86,11 +90,20 @@ export function validateFindings(
       whyItBreaks: finding.whyItBreaks.trim(),
       suggestedFix: finding.suggestedFix?.trim() || null,
       fingerprint: fingerprint(path, target.content, finding.category),
+      verdict: finding.verification ? VERDICT[finding.verification.verdict] : null,
+      verdictReason: finding.verification?.reason ?? null,
+      demotedFrom: finding.verification?.demotedFrom ? SEVERITY[finding.verification.demotedFrom] : null,
     });
   }
 
   return { accepted, dropped };
 }
+
+const VERDICT: Record<NonNullable<ProposedFinding['verification']>['verdict'], Verdict> = {
+  confirmed: Verdict.CONFIRMED,
+  unsure: Verdict.UNSURE,
+  unverified: Verdict.UNVERIFIED,
+};
 
 const RANK: Record<Severity, number> = { [Severity.HIGH]: 3, [Severity.MEDIUM]: 2, [Severity.LOW]: 1 };
 

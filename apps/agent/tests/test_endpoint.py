@@ -8,7 +8,7 @@ import pytest
 from pr_agent.config import Settings, get_settings
 from pr_agent.main import app, get_client_factory, get_http_client, model_client
 
-from .fake_claude import FakeClaude, finding, message, tool_use
+from .fake_claude import FakeClaude, finding, message, tool_use, verdict
 from .test_snapshot import tarball
 
 SECRET = "test-agent-secret"
@@ -55,6 +55,7 @@ def test_reviews_and_answers_in_the_contract_shape(serve):
     claude = FakeClaude(
         message(tool_use("get_file", path="src/auth.ts"), cache_write=3000),
         message(tool_use("submit_review", findings=[finding()]), cache_read=3000),
+        verdict("confirmed", "console.log('x') writes on every call."),
     )
 
     response = call(claude)
@@ -74,8 +75,14 @@ def test_reviews_and_answers_in_the_contract_shape(serve):
             "summary": "console.log is left in.",
             "whyItBreaks": "Every call to verify() writes the token being verified to stdout.",
             "suggestedFix": None,
+            "verification": {
+                "verdict": "confirmed",
+                "reason": "console.log('x') writes on every call.",
+                "demotedFrom": None,
+            },
         }
     ]
+    assert (body["dropped"], body["verifyCalls"]) == ([], 1)
     assert body["usage"]["cacheReadInputTokens"] == 3000
     assert body["usage"]["costUsd"] > 0
     assert github_calls[0].endswith("/tarball/6ac523cfcd000061512a81ba4f9676e09e573ae3")
@@ -130,7 +137,10 @@ class TestLocalModel:
     def test_reviews_with_the_local_model_for_free(self, serve):
         call, _ = serve
         local = FakeClaude(
-            message(tool_use("submit_review", findings=[finding()]), model="pr-reviewer:qwen2.5-7b")
+            message(
+                tool_use("submit_review", findings=[finding()]), model="pr-reviewer:qwen2.5-7b"
+            ),
+            verdict(),
         )
 
         body = call(local, provider="ollama").json()
@@ -138,9 +148,9 @@ class TestLocalModel:
         assert body["outcome"] == "submitted"
         assert body["model"] == "pr-reviewer:qwen2.5-7b"
         assert body["usage"]["costUsd"] == 0.0
-        [request] = local.requests
-        assert request["model"] == "pr-reviewer:qwen2.5-7b"
-        assert "thinking" not in request
+        request, check = local.requests
+        assert request["model"] == check["model"] == "pr-reviewer:qwen2.5-7b"
+        assert "thinking" not in request and "thinking" not in check
 
     def test_a_model_that_is_not_installed_fails_at_once_and_says_how_to_fix_it(self, serve):
         call, _ = serve

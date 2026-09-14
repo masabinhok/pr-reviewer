@@ -138,6 +138,9 @@ describe('ReviewProcessor', () => {
       whyItBreaks: 'writes to stdout in production',
       suggestedFix: null,
       fingerprint: 'a'.repeat(64),
+      verdict: null,
+      verdictReason: null,
+      demotedFrom: null,
     };
 
     it('writes the findings the first time', async () => {
@@ -158,6 +161,9 @@ describe('ReviewProcessor', () => {
             whyItBreaks: 'writes to stdout in production',
             suggestedFix: null,
             fingerprint: 'a'.repeat(64),
+            verdict: null,
+            verdictReason: null,
+            demotedFrom: null,
           },
         ],
       });

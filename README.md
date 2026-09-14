@@ -33,6 +33,9 @@ What works today:
   or 2000 changed lines
 - The **agent** (`apps/agent`, Python) reviews the change with read-only tools over a
   snapshot of the repository at the head commit, and hands in findings through a strict tool
+- Every finding then gets a **second look**: checked on its own, in a fresh conversation,
+  against the code around its line. Refuted findings are dropped, unconfirmed ones demoted
+  to low; the Check Run lists what was dropped and why
 - Findings are validated against the diff, fingerprinted, and kept to one per line; those at
   or above `POST_MIN_SEVERITY` (high, by default) are posted as **one `COMMENT` review** —
   never an approval — exactly once, however the job is retried
@@ -51,9 +54,11 @@ planted-bugs PR the local 7B model finds 1–2 of 7 planted defects, and a promp
 planted in the diff measurably suppresses its findings
 ([`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md)). Reviewing four real pull
 requests in this repository, it found nothing real — every finding was noise, and the medium
-ones would have been posted. That is why only high-severity findings are posted by default.
-A stronger model is one setting away for anyone with an API key; weeks 9–10 turn this into
-evals.
+ones would have been posted. That is why only high-severity findings are posted by default,
+and why every finding now gets a second look: measured on 29 findings of known truth, the
+check drops 85% of the wrong ones and keeps 78% of the right ones
+([`docs/decisions.md`](docs/decisions.md)). A stronger model is one setting away for anyone
+with an API key; weeks 9–10 turn this into evals.
 
 ## Architecture
 
@@ -180,6 +185,7 @@ Optional: `REVIEWER` (`agent` or `stub`; defaults to `agent` when `AGENT_URL` is
 `OLLAMA_URL` (default `http://localhost:11434`), `AGENT_CONTEXT_TOKENS` (the local model's
 window, default 32768 — keep it equal to `num_ctx` in the Modelfile), `AGENT_EFFORT`
 (Claude only, default `high`), `AGENT_MAX_TURNS` / `AGENT_MAX_TOOL_CALLS` (20 / 40),
+`AGENT_VERIFY` / `AGENT_MAX_VERIFICATIONS` (the second look: on, 15 findings per review),
 `AGENT_TIMEOUT_MS` (how long the API
 waits for the agent, default 15 minutes), `POST_MIN_SEVERITY` (the least severe finding
 posted as a comment: `high`, the default, `medium` or `low`), `QUEUE_PREFIX` (Redis key prefix for the queue,
@@ -235,6 +241,7 @@ npm run lint           # oxlint
 
 cd ../agent
 uv run pytest          # the agent, against a scripted fake model
+uv run python scripts/verify_eval.py   # the second look, measured on findings of known truth (needs Ollama)
 uv run ruff check .
 ```
 

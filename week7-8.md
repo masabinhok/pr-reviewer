@@ -139,11 +139,11 @@ second look designed to disprove it.
   `auth.ts:23`). A script runs only the verify node over them, several times.
 
 **Todo**
-- [ ] `verify` node, `verdict` tool, fresh conversation per finding, budget
-- [ ] Refuted dropped, unsure demoted; contract updated on both sides
-- [ ] Check Run lists what was dropped on a second look
-- [ ] The evaluation set, and a script that measures the pass on it
-- [ ] Tests with the fake model: each verdict, budget, failure keeps and demotes
+- [x] `verify` node, `verdict` tool, fresh conversation per finding, budget
+- [x] Refuted dropped, unsure demoted; contract updated on both sides
+- [x] Check Run lists what was dropped on a second look
+- [x] The evaluation set, and a script that measures the pass on it
+- [x] Tests with the fake model: each verdict, budget, failure keeps and demotes
 
 **Polish bar:** on the evaluation set, run five times: most known-wrong findings refuted or
 demoted, the two known-right ones confirmed in most runs — and the numbers written down,

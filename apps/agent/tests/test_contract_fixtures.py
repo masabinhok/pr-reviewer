@@ -9,7 +9,14 @@ import json
 import os
 from pathlib import Path
 
-from pr_agent.models import ProposedFinding, ReviewRequest, ReviewResponse, Usage
+from pr_agent.models import (
+    DroppedFinding,
+    ProposedFinding,
+    ReviewRequest,
+    ReviewResponse,
+    Usage,
+    Verification,
+)
 
 CONTRACTS = Path(__file__).resolve().parents[3] / "contracts"
 RESPONSE = CONTRACTS / "review-response.json"
@@ -29,6 +36,10 @@ def sample_response() -> ReviewResponse:
                 why_it_breaks="Every call writes the token under verification to stdout, "
                 "so anyone with log access can replay it.",
                 suggested_fix="Remove the console.log call.",
+                verification=Verification(
+                    verdict="confirmed",
+                    reason="Line 26 is `console.log('verifying', token);`, reached on every call.",
+                ),
             ),
             ProposedFinding(
                 file="src/new-feature.ts",
@@ -39,6 +50,9 @@ def sample_response() -> ReviewResponse:
                 summary="A debugger statement is left in.",
                 why_it_breaks="With an inspector attached, greet() halts until someone resumes it.",
                 suggested_fix=None,
+                verification=Verification(
+                    verdict="confirmed", reason="Line 2 is `debugger;`, inside greet()."
+                ),
             ),
             ProposedFinding(
                 file="src/helpers.ts",
@@ -49,6 +63,10 @@ def sample_response() -> ReviewResponse:
                 summary="A new TODO is added.",
                 why_it_breaks="The ordering the TODO describes is not implemented.",
                 suggested_fix=None,
+                verification=Verification(
+                    verdict="unsure",
+                    reason="The code around the TODO does not show whether ordering matters.",
+                ),
             ),
         ],
         model="claude-opus-5",
@@ -62,6 +80,22 @@ def sample_response() -> ReviewResponse:
         outcome="submitted",
         turns=6,
         tool_calls=5,
+        dropped=[
+            DroppedFinding(
+                finding=ProposedFinding(
+                    file="src/auth.ts",
+                    line=20,
+                    side="RIGHT",
+                    severity="high",
+                    category="security",
+                    summary="sign() does not validate its input.",
+                    why_it_breaks="An empty payload produces a signature.",
+                    suggested_fix=None,
+                ),
+                reason="Line 19 is `if (!payload) throw new Error('empty payload');`.",
+            )
+        ],
+        verify_calls=4,
     )
 
 

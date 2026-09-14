@@ -33,6 +33,9 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     suggestedFix: 'Use a parameterised query.',
     fingerprint: 'f'.repeat(64),
     githubCommentId: null,
+    verdict: null,
+    verdictReason: null,
+    demotedFrom: null,
     ...overrides,
   };
 }

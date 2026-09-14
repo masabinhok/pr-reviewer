@@ -14,6 +14,9 @@ const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 
   whyItBreaks: 'writes to stdout in production',
   suggestedFix: null,
   fingerprint: 'f'.repeat(64),
+  verdict: null,
+  verdictReason: null,
+  demotedFrom: null,
 });
 
 describe('renderCheck', () => {
@@ -80,6 +83,28 @@ describe('renderCheck', () => {
       expect(output.summary).toContain('| a \\|\\| b is always truthy |');
     });
 
+    it('lists what the second look dropped, with the checker’s reasons, folded away', () => {
+      const dropped = [
+        {
+          finding: { file: 'src/auth.ts', line: 20, side: 'RIGHT' as const, severity: 'high' as const, category: 'security', summary: 'sign() is unchecked | maybe', whyItBreaks: 'x' },
+          reason: 'Line 19 throws on an empty payload.',
+        },
+      ];
+
+      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], dropped }, HEAD);
+
+      expect(output.summary).toContain('<details><summary>1 finding dropped on a second look</summary>');
+      expect(output.summary).toContain('| `src/auth.ts:20` | sign() is unchecked \\| maybe | Line 19 throws on an empty payload. |');
+    });
+
+    it('marks a finding the second look could not confirm, with its severity before', () => {
+      const demoted = { ...finding(Severity.LOW), demotedFrom: Severity.HIGH };
+
+      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [demoted] }, HEAD);
+
+      expect(output.summary).toContain('| low (was high, not confirmed) | `src/auth.ts:26` |');
+    });
+
     it('says which severities the posted review covered', () => {
       const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.MEDIUM)] };
 
@@ -125,6 +150,15 @@ describe('renderCheck', () => {
       expect(output.summary).toContain(
         '<sub>Reviewed by `claude-opus-5` in 4 turns, 3 tool calls · 13,200 in / 800 out tokens · $0.05</sub>',
       );
+    });
+
+    it('counts the second look’s checks in the footer', () => {
+      const { output } = renderCheck(
+        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: { ...run(), verifyCalls: 2 } },
+        HEAD,
+      );
+
+      expect(output.summary).toContain('in 4 turns, 3 tool calls, 2 checks ·');
     });
 
     it.each([

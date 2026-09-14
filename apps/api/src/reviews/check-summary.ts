@@ -1,6 +1,6 @@
 import type { CheckConclusion, CheckRunOutput } from '../github/github-api.service.js';
 import type { FindingSummary, ReviewOutcome } from './review-outcome.js';
-import type { ReviewerRun } from '../reviewer/reviewer.js';
+import type { DroppedFinding, ReviewerRun } from '../reviewer/reviewer.js';
 import type { Publication } from './review-publisher.js';
 import { Severity } from '../generated/prisma/client.js';
 
@@ -61,7 +61,7 @@ export function renderCheck(
     };
   }
 
-  const { reviewed, findings, skipped, reviewer } = result;
+  const { reviewed, findings, skipped, reviewer, dropped = [] } = result;
   const files = `${reviewed.length} file${reviewed.length === 1 ? '' : 's'}`;
   const count = `${findings.length} finding${findings.length === 1 ? '' : 's'}`;
 
@@ -74,6 +74,7 @@ export function renderCheck(
           reviewerNote(reviewer) +
           publicationNote(publication, findings.length) +
           findingsSection(findings) +
+          droppedSection(dropped) +
           skippedSection(skipped) +
           reviewerFooter(reviewer),
       ),
@@ -117,7 +118,8 @@ function reviewerFooter(run: ReviewerRun | undefined): string {
   const { usage } = run;
   const tokens = `${(usage.inputTokens + usage.cacheReadInputTokens + usage.cacheCreationInputTokens).toLocaleString('en-US')} in / ${usage.outputTokens.toLocaleString('en-US')} out`;
   const cost = usage.costUsd === null ? '' : ` · $${usage.costUsd.toFixed(2)}`;
-  const turns = `${run.turns} turn${run.turns === 1 ? '' : 's'}, ${run.toolCalls} tool call${run.toolCalls === 1 ? '' : 's'}`;
+  const checks = run.verifyCalls ? `, ${run.verifyCalls} check${run.verifyCalls === 1 ? '' : 's'}` : '';
+  const turns = `${run.turns} turn${run.turns === 1 ? '' : 's'}, ${run.toolCalls} tool call${run.toolCalls === 1 ? '' : 's'}${checks}`;
   return `\n\n<sub>Reviewed by \`${run.model}\` in ${turns} · ${tokens} tokens${cost}</sub>`;
 }
 
@@ -128,10 +130,26 @@ function findingsSection(findings: FindingSummary[]): string {
   const sorted = [...findings].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
   const rows = sorted
     .slice(0, MAX_FINDING_ROWS)
-    .map((f) => `| ${f.severity.toLowerCase()} | ${code(`${f.path}:${f.line}`)} | ${cell(f.summary)} |`);
+    .map((f) => `| ${severityCell(f)} | ${code(`${f.path}:${f.line}`)} | ${cell(f.summary)} |`);
   const more = sorted.length > MAX_FINDING_ROWS ? `\n\n…and ${sorted.length - MAX_FINDING_ROWS} more.` : '';
 
   return `**Findings:** ${tally}\n\n| Severity | Where | Finding |\n|---|---|---|\n${rows.join('\n')}${more}`;
+}
+
+/** A finding the second look couldn't confirm was demoted; say what it was before. */
+function severityCell(f: FindingSummary): string {
+  const severity = f.severity.toLowerCase();
+  return f.demotedFrom ? `${severity} (was ${f.demotedFrom.toLowerCase()}, not confirmed)` : severity;
+}
+
+function droppedSection(dropped: DroppedFinding[]): string {
+  if (dropped.length === 0) return '';
+  const rows = dropped
+    .slice(0, MAX_FINDING_ROWS)
+    .map(({ finding, reason }) => `| ${code(`${finding.file}:${finding.line}`)} | ${cell(finding.summary)} | ${cell(reason)} |`)
+    .join('\n');
+  const label = `${dropped.length} finding${dropped.length === 1 ? '' : 's'} dropped on a second look`;
+  return `\n\n<details><summary>${label}</summary>\n\nThe reviewer proposed these; a separate check of each against the code refuted them.\n\n| Where | Finding | Why it was dropped |\n|---|---|---|\n${rows}\n\n</details>`;
 }
 
 function skippedSection(skipped: { path: string; reason: string }[]): string {

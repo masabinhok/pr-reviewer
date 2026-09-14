@@ -84,6 +84,8 @@ def agent_config(settings: Settings) -> AgentConfig:
         max_turns=settings.agent_max_turns,
         max_tool_calls=settings.agent_max_tool_calls,
         context_tokens=settings.context_tokens,
+        verify=settings.agent_verify,
+        max_verifications=settings.agent_max_verifications,
     )
 
 
@@ -156,12 +158,15 @@ def review(
     cost = 0.0 if settings.agent_provider == "ollama" else cost_usd(result.model, result.usage)
     usage = result.usage.model_copy(update={"cost_usd": cost})
     logger.info(
-        "review %s: %s after %d turn(s), %d tool call(s), %d finding(s), $%.4f",
+        "review %s: %s after %d turn(s), %d tool call(s), %d finding(s) kept, %d dropped on a "
+        "second look (%d check(s)), $%.4f",
         where,
         result.outcome,
         result.turns,
         result.tool_calls,
         len(result.findings),
+        len(result.dropped),
+        result.verify_calls,
         usage.cost_usd or 0,
     )
     return ReviewResponse(
@@ -171,4 +176,6 @@ def review(
         outcome=result.outcome,
         turns=result.turns,
         tool_calls=result.tool_calls,
+        dropped=result.dropped,
+        verify_calls=result.verify_calls,
     )

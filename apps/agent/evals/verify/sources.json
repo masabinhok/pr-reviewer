@@ -1,0 +1,524 @@
+[
+  {
+    "id": "pr33-configuration-validation",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Posted on #33 as high. postMinSeverity() validates and throws a named error.",
+    "finding": {
+      "file": "apps/api/src/config/configuration.ts",
+      "line": 3,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "The default value for POST_MIN_SEVERITY is set to high, but the function does not validate that it is one of the allowed values (high, medium, or low).",
+      "why_it_breaks": "If a typo in the environment variable sets an invalid value, the application will fail at boot without any error message.",
+      "suggested_fix": "Add validation to ensure that POST_MIN_SEVERITY is one of the allowed values."
+    }
+  },
+  {
+    "id": "pr33-publication-note-low-bar",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Posted on #33 as high. At a low bar nothing is below it; BARS says 'every severity'.",
+    "finding": {
+      "file": "apps/api/src/reviews/check-summary.ts",
+      "line": 95,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "The publicationNote function does not correctly handle cases where the minimum severity is set to low.",
+      "why_it_breaks": "If a PR has findings below the posting bar, they will be incorrectly marked as stored in the Check Run.",
+      "suggested_fix": "Ensure that the summary correctly reflects which findings are posted and which are stored."
+    }
+  },
+  {
+    "id": "pr33-publisher-nothing-posted",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Posted on #33 as high. publish() returns posted: 0, and a test says so.",
+    "finding": {
+      "file": "apps/api/src/reviews/review-publisher.ts",
+      "line": 14,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "The ReviewPublisher class does not correctly handle the case where no findings are posted due to the severity gate.",
+      "why_it_breaks": "If a PR has only low-severity findings, the Check Run will incorrectly indicate that some findings were posted.",
+      "suggested_fix": "Ensure that the publication object correctly reflects whether any findings were posted."
+    }
+  },
+  {
+    "id": "pr33-validation-is-a-crash",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Describes the intended, documented behaviour as a defect.",
+    "finding": {
+      "file": "apps/api/src/config/configuration.ts",
+      "line": 18,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "postMinSeverity() enforces a valid severity value for POST_MIN_SEVERITY.",
+      "why_it_breaks": "If an invalid value is set, the app will crash during startup.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-note-ignores-severities",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "The note names the bar through BARS.",
+    "finding": {
+      "file": "apps/api/src/reviews/check-summary.ts",
+      "line": 104,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "publicationNote() does not distinguish between high and medium severity findings in its summary.",
+      "why_it_breaks": "This could lead to confusion when reviewing the Check Run, as the summary might not accurately reflect which severities were posted.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-publisher-static-set",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "The static set is exactly what this diff removed.",
+    "finding": {
+      "file": "apps/api/src/reviews/review-publisher.ts",
+      "line": 13,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "ReviewPublisher uses a static set of severities for posting findings.",
+      "why_it_breaks": "The use of a static set might lead to incorrect findings being posted, as the dynamic check based on POST_MIN_SEVERITY is more flexible.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-tests-assume-medium",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "The same diff adds tests at the high and low bars.",
+    "finding": {
+      "file": "apps/api/src/reviews/review-publisher.spec.ts",
+      "line": 35,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "Tests assume high and medium severity findings are always posted.",
+      "why_it_breaks": "The tests might fail to catch issues related to different posting bar settings.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-validation-stores-all",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "By design, and documented on that function.",
+    "finding": {
+      "file": "apps/api/src/reviewer/validate-findings.ts",
+      "line": 43,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "validateFindings() stores all valid findings without applying the severity gate.",
+      "why_it_breaks": "This could lead to unnecessary data storage and potential confusion when reviewing the Check Run.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-try-review-installation",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Asking GitHub is the fix for an out-of-sync database.",
+    "finding": {
+      "file": "apps/api/src/scripts/try-review.ts",
+      "line": 18,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "installationFor() fetches installation details directly from GitHub.",
+      "why_it_breaks": "If the database is out of sync, the app might not correctly identify the installation.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-env-default-too-strict",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "An opinion about a setting, not a defect.",
+    "finding": {
+      "file": ".env.example",
+      "line": 19,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "The default `POST_MIN_SEVERITY` is set to 'high', which may be too strict for some cases.",
+      "why_it_breaks": "Setting the minimum severity too high could result in important findings being missed.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr33-readme-severity-unstated",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 33,
+    "head": "3e9d7ff",
+    "note": "Documentation, not a defect; the image alt text states the severity.",
+    "finding": {
+      "file": "README.md",
+      "line": 12,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "The README mentions a real comment from the local model, but does not specify which severity level it was.",
+      "why_it_breaks": "Without specifying the severity, it is unclear whether this example aligns with the current default settings.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr32-equal-severity-untested",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 32,
+    "head": "f4b2639",
+    "note": "The tie case is the next test in that file.",
+    "finding": {
+      "file": "apps/api/src/reviewer/validate-findings.spec.ts",
+      "line": 96,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "The test does not handle the case where two findings are of equal severity and should be treated as duplicates, leading to potential false positives.",
+      "why_it_breaks": "If two findings have the same severity and category but different sources or files, only one should be kept. The current logic may result in duplicate comments being posted.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr30-status-codes-undocumented",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 30,
+    "head": "103cb53",
+    "note": "The line is the docstring documenting them.",
+    "finding": {
+      "file": "apps/agent/src/pr_agent/main.py",
+      "line": 8,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "The response status codes are not clearly documented or explained.",
+      "why_it_breaks": "If a caller does not understand the status codes, they may retry an invalid request unnecessarily.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr30-replace-config",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 30,
+    "head": "103cb53",
+    "note": "dataclasses.replace returns a copy; no failure scenario.",
+    "finding": {
+      "file": "apps/agent/src/pr_agent/main.py",
+      "line": 15,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "The `replace` function is used to modify the agent configuration.",
+      "why_it_breaks": "This could potentially lead to unintended behavior if not handled carefully.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr31-prompt-unenforced",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 31,
+    "head": "c5fcb54",
+    "note": "The API validates every anchor against the line map.",
+    "finding": {
+      "file": "apps/agent/src/pr_agent/agent/prompt.py",
+      "line": 30,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "The instructions for anchoring findings are not explicitly enforced by the code.",
+      "why_it_breaks": "If reviewers do not follow these instructions, they may report findings that are not anchored to specific lines in the diff, leading to ambiguity and potential misinterpretation of the review.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr28-hardcoded-agent-url",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 28,
+    "head": "95182eb",
+    "note": "A test fixture's placeholder URL.",
+    "finding": {
+      "file": "apps/api/src/reviewer/agent-contract.spec.ts",
+      "line": 21,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "Hard-coded agent URL in fetchMock stub.",
+      "why_it_breaks": "If the agent's URL changes, this test will break without updating the code.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr28-mock-always-200",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 28,
+    "head": "95182eb",
+    "note": "The response is the shared contract file, which is the point.",
+    "finding": {
+      "file": "apps/api/src/reviewer/agent-contract.spec.ts",
+      "line": 31,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "fetchMock always returns a 200 status and specific JSON content.",
+      "why_it_breaks": "If the agent's response changes, this test will not catch it unless updated.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr28-hardcoded-secret",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 28,
+    "head": "95182eb",
+    "note": "A test-only placeholder secret.",
+    "finding": {
+      "file": "apps/api/test/agent-flow.e2e-spec.ts",
+      "line": 23,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "security",
+      "summary": "Hard-coded AGENT_SECRET in test suite.",
+      "why_it_breaks": "If the secret is compromised, it could be used to trigger the test without authorization.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr28-fake-github-stubs",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 28,
+    "head": "95182eb",
+    "note": "Faking GitHub is the test's design.",
+    "finding": {
+      "file": "apps/api/test/agent-flow.e2e-spec.ts",
+      "line": 109,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "fakeGithub stubs specific responses.",
+      "why_it_breaks": "If the real GitHub's response changes, this test will not catch it unless updated.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr28-502-no-retry",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer",
+    "pr": 28,
+    "head": "95182eb",
+    "note": "The test exists to check the retry.",
+    "finding": {
+      "file": "apps/api/test/agent-flow.e2e-spec.ts",
+      "line": 163,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "agentReply returns a 502 status without retry mechanism.",
+      "why_it_breaks": "If the agent's response is temporarily unavailable, this test will fail to catch it.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-session-relies-on-isexpired",
+    "expected": "wrong",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "Posted on the testbed. Line 17 is findUserByName; isExpired is correct.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 17,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "security",
+      "summary": "`hasActiveSession` function relies on `isExpired` from `auth.ts`.",
+      "why_it_breaks": "If the `isExpired` function is not correctly implemented, this could lead to incorrect session validation.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-shared-default-tags",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 13,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "addTag pushes onto the shared DEFAULT_TAGS array when no tags are passed.",
+      "why_it_breaks": "addTag(alice, 'admin') mutates DEFAULT_TAGS, so a later addTag(bob, 'x') returns tags ['admin', 'x']: every user tagged without an explicit list shares one growing array.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-sql-injection-model",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md. In the local model's own words, as posted.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 18,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "security",
+      "summary": "SQL query constructed with string interpolation.",
+      "why_it_breaks": "This is vulnerable to SQL injection attacks if the `name` parameter is not properly sanitized.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-missing-await",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 22,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "saveUser does not await db.insert.",
+      "why_it_breaks": "saveUser returns { ok: true } before the insert finishes; if the insert rejects, the caller has already been told it succeeded and the rejection goes unhandled.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-last-page-off-by-one",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 28,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "lastPage reads one past the end of the pages array.",
+      "why_it_breaks": "pages[pages.length] is always undefined, so lastPage([1, 2, 3], 2) returns undefined instead of [3].",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-average-of-nothing",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 32,
+      "side": "RIGHT",
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "averageAge divides by the length of a possibly empty list.",
+      "why_it_breaks": "averageAge([]) computes 0 / 0 and returns NaN, which poisons any sum or comparison it reaches.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-inverted-session",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/users.ts",
+      "line": 38,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "correctness",
+      "summary": "hasActiveSession returns isExpired(session), the opposite of what its name says.",
+      "why_it_breaks": "A session that expired an hour ago is reported active, and a fresh one inactive.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-non-constant-time-compare",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md.",
+    "finding": {
+      "file": "src/auth.ts",
+      "line": 23,
+      "side": "RIGHT",
+      "severity": "high",
+      "category": "security",
+      "summary": "verify compares the signature with === instead of a constant-time comparison.",
+      "why_it_breaks": "=== stops at the first differing character, so response time leaks how much of a guessed signature is right; an attacker can recover a valid signature one character at a time.",
+      "suggested_fix": null
+    }
+  },
+  {
+    "id": "pr6-non-constant-time-compare-model",
+    "expected": "right",
+    "repo": "masabinhok/pr-reviewer-testbed",
+    "pr": 6,
+    "head": "76a1ffd",
+    "note": "A planted bug from docs/evals/planted-bugs.md. In the local model's own, vaguer words.",
+    "finding": {
+      "file": "src/auth.ts",
+      "line": 23,
+      "side": "RIGHT",
+      "severity": "low",
+      "category": "correctness",
+      "summary": "Verification function now uses simple string comparison instead of `timingSafeEqual`.",
+      "why_it_breaks": "String comparison can fail due to timing differences, leading to potential security issues.",
+      "suggested_fix": "Use `timingSafeEqual` for signature verification to prevent timing attacks."
+    }
+  }
+]

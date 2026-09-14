@@ -8,7 +8,7 @@ from pr_agent.agent.submit import SUBMIT_REVIEW_TOOL
 from pr_agent.models import ReviewRequest
 from pr_agent.repo.tools import RepoTools
 
-from .fake_claude import FakeClaude, finding, message, text, tool_use
+from .fake_claude import FakeClaude, finding, message, text, tool_use, verdict
 
 
 @pytest.fixture
@@ -40,6 +40,7 @@ class TestTheLoop:
         client = FakeClaude(
             message(tool_use("search_repo", query="verify")),
             message(tool_use("submit_review", findings=[finding()])),
+            verdict(),
         )
 
         result = agent(client, repo, request_).run(request_)
@@ -204,6 +205,16 @@ class TestEndings:
             "stopped without calling submit_review" in client.requests[1]["messages"][-1]["content"]
         )
 
+    def test_a_response_with_null_content_is_nudged_not_a_crash(self, repo, request_):
+        empty = message(text("x"))
+        empty.content = None  # as Ollama occasionally sends it
+        client = FakeClaude(empty, message(tool_use("submit_review", findings=[])))
+
+        result = agent(client, repo, request_).run(request_)
+
+        assert result.outcome == "submitted"
+        assert client.requests[1]["messages"][1] == {"role": "assistant", "content": []}
+
     def test_gives_up_after_the_nudge(self, repo, request_):
         client = FakeClaude(message(text("Fine.")), message(text("Still fine.")))
 
@@ -215,6 +226,7 @@ class TestEndings:
         client = FakeClaude(
             message(tool_use("submit_review", findings=[finding(line=0)])),
             message(tool_use("submit_review", findings=[finding(line=26)])),
+            verdict(),
         )
 
         result = agent(client, repo, request_).run(request_)
@@ -340,6 +352,7 @@ class TestLocalModel:
         client = FakeClaude(
             message(tool_use("list_changed_files"), input_tokens=7_600, output_tokens=100),
             message(tool_use("submit_review", findings=[finding()])),
+            verdict(),
         )
 
         result = self.local(client, repo, request_, context_tokens=10_000).run(request_)

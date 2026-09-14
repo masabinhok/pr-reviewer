@@ -33,6 +33,7 @@ from .submit import SUBMIT_REVIEW, SUBMIT_REVIEW_TOOL, parse_submission
 from .verify import (
     VERDICT_TOOL,
     VERIFY_SYSTEM_PROMPT,
+    VerifyContext,
     context_for,
     parse_verdict,
     render_verification,
@@ -120,14 +121,9 @@ class ReviewAgent:
         self.config = config
         # Built once, in a fixed order, so the tool list is byte-identical on every turn —
         # it is part of the cached prefix.
-        submit, verdict = SUBMIT_REVIEW_TOOL, VERDICT_TOOL
-        if not config.claude:
-            # Only Claude enforces `strict`; elsewhere the submission is checked by
-            # parse_submission alone, and a bad one goes back to the model to correct.
-            submit = {k: v for k, v in SUBMIT_REVIEW_TOOL.items() if k != "strict"}
-            verdict = {k: v for k, v in VERDICT_TOOL.items() if k != "strict"}
-        self.tool_definitions = [*tools.definitions(), submit]
-        self.verdict_tool = verdict
+        # Only Claude enforces `strict`; elsewhere the submission is checked by
+        # parse_submission alone, and a bad one goes back to the model to correct.
+        self.tool_definitions = [*tools.definitions(), for_model(SUBMIT_REVIEW_TOOL, config)]
         self.graph = self._build()
 
     def run(self, request: ReviewRequest) -> AgentResult:
@@ -183,32 +179,10 @@ class ReviewAgent:
         graph.add_edge("verify", END)
         return graph.compile()
 
-    def _request(
-        self,
-        messages: list[dict[str, Any]],
-        *,
-        system: str = SYSTEM_PROMPT,
-        tools: list[dict[str, Any]] | None = None,
-        max_tokens: int | None = None,
-    ) -> dict[str, Any]:
-        request: dict[str, Any] = {
-            "model": self.config.model,
-            "max_tokens": max_tokens or self.config.max_tokens,
-            "system": system,
-            "tools": self.tool_definitions if tools is None else tools,
-            "messages": messages,
-        }
-        if self.config.claude:
-            request |= {
-                "thinking": {"type": "adaptive"},
-                "output_config": {"effort": self.config.effort},
-                # Automatic caching: the whole prefix up to the last block is cached each
-                # turn, so turn N+1 reads turns 1..N from cache instead of paying again.
-                "cache_control": {"type": "ephemeral"},
-                "betas": [FALLBACK_BETA],
-                "fallbacks": "default",
-            }
-        return request
+    def _request(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
+        return build_request(
+            self.config, messages, system=SYSTEM_PROMPT, tools=self.tool_definitions
+        )
 
     def _call_model(self, state: ReviewState) -> dict[str, Any]:
         response = self.client.beta.messages.create(**self._request(state["messages"]))
@@ -380,18 +354,11 @@ class ReviewAgent:
                 )
                 continue
 
-            context = context_for(finding, self.tools)
-            response = self.client.beta.messages.create(
-                **self._request(
-                    [{"role": "user", "content": render_verification(finding, context)}],
-                    system=VERIFY_SYSTEM_PROMPT,
-                    tools=[self.verdict_tool],
-                    max_tokens=self.config.verify_max_tokens,
-                )
+            answer, response = check_finding(
+                self.client, self.config, finding, context_for(finding, self.tools)
             )
             calls += 1
             usage = _add_usage(usage, response.usage)
-            answer = parse_verdict(response)
 
             if answer is None:
                 logger.info("verify %s: no verdict (stop=%s)", where, response.stop_reason)
@@ -404,6 +371,61 @@ class ReviewAgent:
                 kept.append(verified(finding, *answer))
 
         return {"findings": kept, "dropped": dropped, "usage": usage, "verify_calls": calls}
+
+
+def for_model(tool: dict[str, Any], config: AgentConfig) -> dict[str, Any]:
+    """A tool definition as this model takes it: `strict` is Claude's alone."""
+    return tool if config.claude else {k: v for k, v in tool.items() if k != "strict"}
+
+
+def build_request(
+    config: AgentConfig,
+    messages: list[dict[str, Any]],
+    *,
+    system: str,
+    tools: list[dict[str, Any]],
+    max_tokens: int | None = None,
+) -> dict[str, Any]:
+    """The Messages API request for this model — Claude's own features only for Claude."""
+    request: dict[str, Any] = {
+        "model": config.model,
+        "max_tokens": max_tokens or config.max_tokens,
+        "system": system,
+        "tools": tools,
+        "messages": messages,
+    }
+    if config.claude:
+        request |= {
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": config.effort},
+            # Automatic caching: the whole prefix up to the last block is cached each
+            # turn, so turn N+1 reads turns 1..N from cache instead of paying again.
+            "cache_control": {"type": "ephemeral"},
+            "betas": [FALLBACK_BETA],
+            "fallbacks": "default",
+        }
+    return request
+
+
+def check_finding(
+    client: Any, config: AgentConfig, finding: ProposedFinding, context: VerifyContext
+) -> tuple[tuple[str, str] | None, Any]:
+    """One verdict on one finding, in a conversation of its own.
+
+    Returns ((verdict, reason) or None when there is no usable verdict, the raw response).
+    The verify node uses it for every finding; scripts/verify_eval.py uses it to measure the
+    checker on findings whose truth is known — so both run exactly the same call.
+    """
+    response = client.beta.messages.create(
+        **build_request(
+            config,
+            [{"role": "user", "content": render_verification(finding, context)}],
+            system=VERIFY_SYSTEM_PROMPT,
+            tools=[for_model(VERDICT_TOOL, config)],
+            max_tokens=config.verify_max_tokens,
+        )
+    )
+    return parse_verdict(response), response
 
 
 def _result(tool_use_id: str, content: str, *, is_error: bool = False) -> dict[str, Any]:

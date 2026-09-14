@@ -60,10 +60,10 @@ Learn: BullMQ retries/backoff, GitHub REST pagination and rate limits.
 FastAPI service running a LangGraph agent. Nest calls it with the PR context.
 
 Tools:
-- `get_file(path, ref)` because a diff alone lacks context
-- `search_repo(query)` grep-style, to find callers and definitions
-- `get_pr_metadata()` title, description, linked issue
-- `list_changed_files()`
+- [x] `get_file(path, ref)` because a diff alone lacks context
+- [x] `search_repo(query)` grep-style, to find callers and definitions
+- [x] `get_pr_metadata()` title, description, linked issue
+- [x] `list_changed_files()`
 
 Output must be structured JSON, not prose. Force it with a schema:
 
@@ -81,10 +81,10 @@ Output must be structured JSON, not prose. Force it with a schema:
 ```
 
 Rules:
-- Findings without a concrete failure scenario get dropped
-- Severity gate: only post high and medium
-- Post one `POST /pulls/{n}/reviews` with a `comments[]` array. A single review, not 12 separate comments.
-- Validate every line against your hunk map first. Comments outside the diff get rejected by GitHub.
+- [x] Findings without a concrete failure scenario get dropped
+- [x] Severity gate: only post high and medium (now `POST_MIN_SEVERITY`, high by default, after dogfooding showed the local model's medium findings were noise; see `docs/decisions.md`)
+- [x] Post one `POST /pulls/{n}/reviews` with a `comments[]` array. A single review, not 12 separate comments.
+- [x] Validate every line against your hunk map first. Comments outside the diff get rejected by GitHub.
 
 Learn: LangGraph state and tool loops, structured output, GitHub review API.
 

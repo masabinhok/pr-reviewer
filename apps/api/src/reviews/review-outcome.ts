@@ -1,9 +1,9 @@
 import type { SkippedFile } from '../filters/review-filter.js';
 import type { ValidFinding } from '../reviewer/validate-findings.js';
-import type { ReviewerRun } from '../reviewer/reviewer.js';
+import type { DroppedFinding, ReviewerRun } from '../reviewer/reviewer.js';
 
 /** The part of a finding the Check Run summary shows. */
-export type FindingSummary = Pick<ValidFinding, 'path' | 'line' | 'severity' | 'summary'>;
+export type FindingSummary = Pick<ValidFinding, 'path' | 'line' | 'severity' | 'summary'> & Partial<Pick<ValidFinding, 'demotedFrom'>>;
 
 /**
  * What the pipeline hands back to the worker when it finishes without throwing. A thrown
@@ -18,5 +18,7 @@ export type ReviewOutcome =
       findings: ValidFinding[];
       /** How an LLM reviewer's run went; absent for the stub. */
       reviewer?: ReviewerRun;
+      /** Findings the agent's second look refuted. */
+      dropped?: DroppedFinding[];
     }
   | { kind: 'skipped'; reason: string; skipped: SkippedFile[] };

@@ -36,8 +36,20 @@ describe('validateFindings', () => {
         whyItBreaks: 'Every call writes to stdout in production.',
         suggestedFix: 'Remove it.',
         fingerprint: fingerprint('src/auth.ts', "  console.log('verifying', value);", 'debugging'),
+        verdict: null,
+        verdictReason: null,
+        demotedFrom: null,
       },
     ]);
+  });
+
+  it('carries the agent’s second look into the stored shape', () => {
+    const { accepted } = validateFindings(
+      [proposed({ verification: { verdict: 'unsure', reason: 'Line 25 may guard it.', demotedFrom: 'high' } })],
+      lines,
+    );
+
+    expect(accepted[0]).toMatchObject({ verdict: 'UNSURE', verdictReason: 'Line 25 may guard it.', demotedFrom: 'HIGH' });
   });
 
   it.each<[string, Partial<ProposedFinding>]>([

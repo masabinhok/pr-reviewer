@@ -75,6 +75,7 @@ export class ReviewPipeline {
       skipped: [...listed.skipped, ...parsed.skipped],
       findings: accepted,
       reviewer: answer.run,
+      dropped: answer.dropped ?? [],
     };
   }
 }

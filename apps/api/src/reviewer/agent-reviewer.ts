@@ -2,16 +2,29 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UnrecoverableError } from 'bullmq';
 import { InstallationTokenService } from '../github/installation-token.service.js';
-import type { ProposedFinding, ReviewContext, Reviewer, ReviewerResult, ReviewerRun } from './reviewer.js';
+import type { FindingVerification, ProposedFinding, ReviewContext, Reviewer, ReviewerResult, ReviewerRun } from './reviewer.js';
 
 /** What the agent answers — apps/agent/src/pr_agent/models.py, `ReviewResponse`. */
 interface AgentResponse {
-  findings: (Omit<ProposedFinding, 'suggestedFix'> & { suggestedFix: string | null })[];
+  findings: AgentFinding[];
   model: string;
   outcome: string;
   turns: number;
   toolCalls: number;
   usage: ReviewerRun['usage'];
+  // Absent from an agent older than the second look; the API and agent deploy separately.
+  dropped?: { finding: AgentFinding; reason: string }[];
+  verifyCalls?: number;
+}
+
+type AgentFinding = Omit<ProposedFinding, 'suggestedFix' | 'verification'> & {
+  suggestedFix: string | null;
+  verification: FindingVerification | null;
+};
+
+/** Python's nulls become TypeScript's absent optionals. */
+function toProposed({ suggestedFix, verification, ...f }: AgentFinding): ProposedFinding {
+  return { ...f, suggestedFix: suggestedFix ?? undefined, verification: verification ?? undefined };
 }
 
 /**
@@ -81,19 +94,22 @@ export class AgentReviewer implements Reviewer {
     }
 
     const answer = (await response.json()) as AgentResponse;
+    const dropped = answer.dropped ?? [];
     this.logger.log(
       `${where}: agent ${answer.outcome} after ${answer.turns} turn(s), ${answer.toolCalls} tool call(s), ` +
-        `${answer.findings.length} finding(s)` +
+        `${answer.findings.length} finding(s), ${dropped.length} dropped on a second look` +
         (answer.usage.costUsd === null ? '' : `, $${answer.usage.costUsd.toFixed(4)}`),
     );
 
     return {
-      findings: answer.findings.map(({ suggestedFix, ...f }) => ({ ...f, suggestedFix: suggestedFix ?? undefined })),
+      findings: answer.findings.map(toProposed),
+      dropped: dropped.map((d) => ({ finding: toProposed(d.finding), reason: d.reason })),
       run: {
         model: answer.model,
         outcome: answer.outcome,
         turns: answer.turns,
         toolCalls: answer.toolCalls,
+        verifyCalls: answer.verifyCalls,
         usage: answer.usage,
       },
     };

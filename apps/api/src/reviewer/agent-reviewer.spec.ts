@@ -124,6 +124,35 @@ describe('AgentReviewer', () => {
     });
   });
 
+  it('returns what the second look decided: verdicts on kept findings, and what it dropped', async () => {
+    const verification = { verdict: 'unsure', reason: 'Line 25 may guard it.', demotedFrom: 'high' };
+    const refuted = { ...agentAnswer.findings[0], line: 20, summary: 'sign() is unchecked.', verification: null };
+    fetchMock.mockResolvedValue(
+      json({
+        ...agentAnswer,
+        findings: [{ ...agentAnswer.findings[0], verification }],
+        dropped: [{ finding: refuted, reason: 'Line 19 throws on an empty payload.' }],
+        verifyCalls: 2,
+      }),
+    );
+
+    const result = await reviewer.review(context);
+
+    expect(result.findings[0].verification).toEqual(verification);
+    expect(result.dropped).toEqual([
+      { finding: expect.objectContaining({ line: 20, suggestedFix: undefined, verification: undefined }), reason: 'Line 19 throws on an empty payload.' },
+    ]);
+    expect(result.run?.verifyCalls).toBe(2);
+  });
+
+  // The API and the agent deploy separately: an agent from before the second look still works.
+  it('reads an answer without the second look as one that dropped nothing', async () => {
+    const result = await reviewer.review(context);
+
+    expect(result.dropped).toEqual([]);
+    expect(result.findings[0].verification).toBeUndefined();
+  });
+
   describe('errors, sorted by whether a retry could help', () => {
     it.each([503, 502, 500])('retries when the agent answers %s', async (status) => {
       fetchMock.mockResolvedValue(json({ detail: 'Anthropic API unavailable, retry later' }, status));

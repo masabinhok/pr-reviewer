@@ -141,6 +141,21 @@ describe('Review flow with the agent (e2e)', () => {
     expect(review!.findings.map((f) => f.severity).sort()).toEqual(['HIGH', 'LOW', 'MEDIUM']);
   });
 
+  it('stores the second look’s verdicts and shows what it dropped', async () => {
+    await deliver().expect(200);
+    const review = await settledReview();
+
+    const byLine = Object.fromEntries(review!.findings.map((f) => [`${f.filePath}:${f.line}`, [f.verdict, f.verdictReason]]));
+    expect(byLine['src/auth.ts:26'][0]).toBe('CONFIRMED');
+    expect(byLine['src/helpers.ts:10']).toEqual(['UNSURE', 'The code around the TODO does not show whether ordering matters.']);
+    // The refuted finding is not a Finding and is not posted, but the Check Run says why.
+    expect(review!.findings.some((f) => f.line === 20)).toBe(false);
+    const [check] = github.completedCheckRuns();
+    expect(check.output.summary).toContain('1 finding dropped on a second look');
+    expect(check.output.summary).toContain("Line 19 is `if (!payload) throw new Error('empty payload');`.");
+    expect(check.output.summary).toContain('6 turns, 5 tool calls, 4 checks');
+  });
+
   it('stores what the review cost and credits the model in the Check Run', async () => {
     await deliver().expect(200);
     const review = await settledReview();
@@ -148,7 +163,7 @@ describe('Review flow with the agent (e2e)', () => {
     expect(review).toMatchObject({ promptTokens: 2400 + 41000 + 9000, completionTokens: 1800, costCents: 9 });
     expect(review?.agentResult).toMatchObject({ run: { model: 'claude-opus-5', turns: 6 } });
     const [check] = github.completedCheckRuns();
-    expect(check.output.summary).toContain('Reviewed by `claude-opus-5` in 6 turns, 5 tool calls');
+    expect(check.output.summary).toContain('Reviewed by `claude-opus-5` in 6 turns, 5 tool calls, 4 checks');
   });
 
   // The retry after a failure late in settling reuses the stored answer and the posted

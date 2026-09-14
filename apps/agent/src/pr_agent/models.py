@@ -61,8 +61,8 @@ class ReviewRequest(Wire):
     files: list[DiffFile]
 
 
-class ProposedFinding(Wire):
-    """The roadmap's agent output schema. The API validates each one against its line map."""
+class SubmittedFinding(Wire):
+    """A finding as the model hands it in through submit_review: the roadmap's schema."""
 
     file: str
     line: int = Field(gt=0)
@@ -72,6 +72,35 @@ class ProposedFinding(Wire):
     summary: str
     why_it_breaks: str
     suggested_fix: str | None = None
+
+
+# How the second look went. `refuted` findings never reach here — they are dropped.
+Verdict = Literal["confirmed", "unsure", "unverified"]
+
+
+class Verification(Wire):
+    verdict: Verdict
+    # The checker's one sentence, quoting the code it relied on; or why there is no verdict.
+    reason: str
+    # Set when the finding was demoted to low because it could not be confirmed.
+    demoted_from: Severity | None = None
+
+
+class ProposedFinding(SubmittedFinding):
+    """A finding as the agent returns it. The API validates each one against its line map.
+
+    `verification` is filled in by the agent after the model submits — never by the model,
+    which is why submit_review parses SubmittedFinding, where the field does not exist.
+    """
+
+    verification: Verification | None = None
+
+
+class DroppedFinding(Wire):
+    """A finding the second look refuted, and the checker's reason."""
+
+    finding: ProposedFinding
+    reason: str
 
 
 class Usage(Wire):
@@ -93,3 +122,6 @@ class ReviewResponse(Wire):
     outcome: str = "none"
     turns: int = 0
     tool_calls: int = 0
+    # Findings the verification pass refuted, and how many verdicts it asked for.
+    dropped: list[DroppedFinding] = []
+    verify_calls: int = 0

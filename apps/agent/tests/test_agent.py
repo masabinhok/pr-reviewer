@@ -8,7 +8,7 @@ from pr_agent.agent.submit import SUBMIT_REVIEW_TOOL
 from pr_agent.models import ReviewRequest
 from pr_agent.repo.tools import RepoTools
 
-from .fake_claude import FakeClaude, finding, message, text, tool_use
+from .fake_claude import FakeClaude, finding, message, text, tool_use, verdict
 
 
 @pytest.fixture
@@ -40,6 +40,7 @@ class TestTheLoop:
         client = FakeClaude(
             message(tool_use("search_repo", query="verify")),
             message(tool_use("submit_review", findings=[finding()])),
+            verdict(),
         )
 
         result = agent(client, repo, request_).run(request_)
@@ -215,6 +216,7 @@ class TestEndings:
         client = FakeClaude(
             message(tool_use("submit_review", findings=[finding(line=0)])),
             message(tool_use("submit_review", findings=[finding(line=26)])),
+            verdict(),
         )
 
         result = agent(client, repo, request_).run(request_)
@@ -340,6 +342,7 @@ class TestLocalModel:
         client = FakeClaude(
             message(tool_use("list_changed_files"), input_tokens=7_600, output_tokens=100),
             message(tool_use("submit_review", findings=[finding()])),
+            verdict(),
         )
 
         result = self.local(client, repo, request_, context_tokens=10_000).run(request_)

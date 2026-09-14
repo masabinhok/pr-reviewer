@@ -4,9 +4,10 @@
 start ──▶ │  call_model  │ ─────────────▶ │ run_tools │ ──▶ end, once submit_review
           │   (model)    │ ◀───────────── │           │     is called or the budget
           └──────┬───────┘    results     └───────────┘     is spent
-                 │ stopped without submitting
-                 ▼
-              nudge ──▶ call_model (once), then end
+                 │ stopped without submitting             │ submitted
+                 ▼                                         ▼
+              nudge ──▶ call_model (once), then end      verify ──▶ end
+                                                   (a fresh check of each finding)
 
 LangGraph owns the control flow — the nodes, the edges between them, and the state that
 flows along them. Each node is a plain function: `call_model` calls the model through the
@@ -25,10 +26,18 @@ from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from ..models import ProposedFinding, ReviewRequest, Usage
+from ..models import DroppedFinding, ProposedFinding, ReviewRequest, Usage
 from ..repo.tools import RepoTools
 from .prompt import SYSTEM_PROMPT, render_request
 from .submit import SUBMIT_REVIEW, SUBMIT_REVIEW_TOOL, parse_submission
+from .verify import (
+    VERDICT_TOOL,
+    VERIFY_SYSTEM_PROMPT,
+    context_for,
+    parse_verdict,
+    render_verification,
+    verified,
+)
 
 logger = logging.getLogger("pr_agent.agent")
 
@@ -54,6 +63,11 @@ class AgentConfig:
     claude: bool = True
     # The model's context window when it is small enough to run out mid-review, else None.
     context_tokens: int | None = None
+    # The second look (verify.py): whether it runs, how many findings it checks per review,
+    # and the output cap for one verdict — room for Claude's thinking, little for a local model.
+    verify: bool = True
+    max_verifications: int = 15
+    verify_max_tokens: int = 8_000
 
 
 DEFAULT_CONFIG = AgentConfig()
@@ -61,7 +75,11 @@ DEFAULT_CONFIG = AgentConfig()
 # A local model through Ollama: none of Claude's features, a 32k window, and a smaller
 # output cap — a submission is a few thousand tokens at most.
 LOCAL_CONFIG = AgentConfig(
-    model="pr-reviewer:qwen2.5-7b", claude=False, max_tokens=4_096, context_tokens=32_768
+    model="pr-reviewer:qwen2.5-7b",
+    claude=False,
+    max_tokens=4_096,
+    context_tokens=32_768,
+    verify_max_tokens=1_024,
 )
 
 
@@ -74,6 +92,8 @@ class AgentResult:
     turns: int
     tool_calls: int
     tools_used: list[str] = field(default_factory=list)
+    dropped: list[DroppedFinding] = field(default_factory=list)
+    verify_calls: int = 0
 
 
 class ReviewState(TypedDict):
@@ -89,6 +109,8 @@ class ReviewState(TypedDict):
     nudged: bool
     context_used: int  # tokens in the conversation as of the latest response
     final_turn: bool  # the model has been told to submit now
+    dropped: list[DroppedFinding]  # refuted by the second look
+    verify_calls: int
 
 
 class ReviewAgent:
@@ -98,12 +120,14 @@ class ReviewAgent:
         self.config = config
         # Built once, in a fixed order, so the tool list is byte-identical on every turn —
         # it is part of the cached prefix.
-        submit = SUBMIT_REVIEW_TOOL
+        submit, verdict = SUBMIT_REVIEW_TOOL, VERDICT_TOOL
         if not config.claude:
             # Only Claude enforces `strict`; elsewhere the submission is checked by
             # parse_submission alone, and a bad one goes back to the model to correct.
             submit = {k: v for k, v in SUBMIT_REVIEW_TOOL.items() if k != "strict"}
+            verdict = {k: v for k, v in VERDICT_TOOL.items() if k != "strict"}
         self.tool_definitions = [*tools.definitions(), submit]
+        self.verdict_tool = verdict
         self.graph = self._build()
 
     def run(self, request: ReviewRequest) -> AgentResult:
@@ -120,6 +144,8 @@ class ReviewAgent:
             "nudged": False,
             "context_used": 0,
             "final_turn": False,
+            "dropped": [],
+            "verify_calls": 0,
         }
         # Every turn is up to three graph steps; leave room so LangGraph's own recursion
         # guard never fires before the agent's budget does.
@@ -132,6 +158,8 @@ class ReviewAgent:
             turns=final["turns"],
             tool_calls=final["tool_calls"],
             tools_used=final["tools_used"],
+            dropped=final["dropped"],
+            verify_calls=final["verify_calls"],
         )
 
     # ---- graph ----
@@ -141,22 +169,33 @@ class ReviewAgent:
         graph.add_node("call_model", self._call_model)
         graph.add_node("run_tools", self._run_tools)
         graph.add_node("nudge", self._nudge)
+        graph.add_node("verify", self._verify)
         graph.add_edge(START, "call_model")
         graph.add_conditional_edges(
             "call_model", self._after_model, {"run_tools": "run_tools", "nudge": "nudge", END: END}
         )
         graph.add_conditional_edges(
-            "run_tools", self._after_tools, {"call_model": "call_model", END: END}
+            "run_tools",
+            self._after_tools,
+            {"call_model": "call_model", "verify": "verify", END: END},
         )
         graph.add_edge("nudge", "call_model")
+        graph.add_edge("verify", END)
         return graph.compile()
 
-    def _request(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    def _request(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        system: str = SYSTEM_PROMPT,
+        tools: list[dict[str, Any]] | None = None,
+        max_tokens: int | None = None,
+    ) -> dict[str, Any]:
         request: dict[str, Any] = {
             "model": self.config.model,
-            "max_tokens": self.config.max_tokens,
-            "system": SYSTEM_PROMPT,
-            "tools": self.tool_definitions,
+            "max_tokens": max_tokens or self.config.max_tokens,
+            "system": system,
+            "tools": self.tool_definitions if tools is None else tools,
             "messages": messages,
         }
         if self.config.claude:
@@ -317,7 +356,54 @@ class ReviewAgent:
         return window is not None and state["context_used"] >= window * CONTEXT_HEADROOM
 
     def _after_tools(self, state: ReviewState) -> str:
-        return END if state["outcome"] in ("submitted", "budget") else "call_model"
+        if state["outcome"] == "submitted":
+            return "verify" if self.config.verify and state["findings"] else END
+        return END if state["outcome"] == "budget" else "call_model"
+
+    def _verify(self, state: ReviewState) -> dict[str, Any]:
+        """The second look: each finding checked on its own, in a fresh conversation.
+
+        API errors are not caught here, as they are not for the review itself: a transient
+        one fails the job and it is retried; the checker saying nothing useful is not an
+        error, and leaves the finding unverified and demoted.
+        """
+        kept: list[ProposedFinding] = []
+        dropped = list(state["dropped"])
+        usage = state["usage"]
+        calls = state["verify_calls"]
+
+        for finding in state["findings"] or []:
+            where = f"{finding.file}:{finding.line}"
+            if calls >= self.config.max_verifications:
+                kept.append(
+                    verified(finding, "unverified", "Not checked: the verification budget ran out.")
+                )
+                continue
+
+            context = context_for(finding, self.tools)
+            response = self.client.beta.messages.create(
+                **self._request(
+                    [{"role": "user", "content": render_verification(finding, context)}],
+                    system=VERIFY_SYSTEM_PROMPT,
+                    tools=[self.verdict_tool],
+                    max_tokens=self.config.verify_max_tokens,
+                )
+            )
+            calls += 1
+            usage = _add_usage(usage, response.usage)
+            answer = parse_verdict(response)
+
+            if answer is None:
+                logger.info("verify %s: no verdict (stop=%s)", where, response.stop_reason)
+                kept.append(verified(finding, "unverified", "The checker gave no verdict."))
+            elif answer[0] == "refuted":
+                logger.info("verify %s: refuted — %s", where, answer[1])
+                dropped.append(DroppedFinding(finding=finding, reason=answer[1]))
+            else:
+                logger.info("verify %s: %s — %s", where, answer[0], answer[1])
+                kept.append(verified(finding, *answer))
+
+        return {"findings": kept, "dropped": dropped, "usage": usage, "verify_calls": calls}
 
 
 def _result(tool_use_id: str, content: str, *, is_error: bool = False) -> dict[str, Any]:

@@ -76,6 +76,13 @@ class FakeClaude:
         return answer
 
 
+def verdict(
+    value: str = "confirmed", reason: str = "The line shown fails as described."
+) -> BetaMessage:
+    """The checker's answer in the verification pass."""
+    return message(tool_use("verdict", verdict=value, reason=reason))
+
+
 def finding(**overrides: Any) -> dict[str, Any]:
     """A submit_review finding in the tool's snake_case schema."""
     return {

@@ -81,4 +81,5 @@ def test_findings_serialise_in_the_api_s_field_names():
         "summary": "console.log left in",
         "whyItBreaks": "writes to stdout in production",
         "suggestedFix": None,
+        "verification": None,
     }

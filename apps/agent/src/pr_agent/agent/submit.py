@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
-from ..models import ProposedFinding
+from ..models import ProposedFinding, SubmittedFinding
 
 SUBMIT_REVIEW = "submit_review"
 
@@ -70,14 +70,19 @@ SUBMIT_REVIEW_TOOL: dict[str, Any] = {
     },
 }
 
-_findings = TypeAdapter(list[ProposedFinding])
+_findings = TypeAdapter(list[SubmittedFinding])
 
 
 def parse_submission(tool_input: dict[str, Any]) -> list[ProposedFinding]:
-    """The findings from a submit_review call, validated. Raises ValueError if unusable."""
+    """The findings from a submit_review call, validated. Raises ValueError if unusable.
+
+    Parsed as SubmittedFinding, which has no `verification`: a model that tries to label its
+    own findings as verified gets a validation error back, not a free pass.
+    """
     try:
-        return _findings.validate_python(tool_input.get("findings"), by_name=True)
+        submitted = _findings.validate_python(tool_input.get("findings"), by_name=True)
     except ValidationError as error:
         raise ValueError(
             f"submit_review input is invalid: {error.errors(include_url=False)}"
         ) from error
+    return [ProposedFinding(**f.model_dump()) for f in submitted]

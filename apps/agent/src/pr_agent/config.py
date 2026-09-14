@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     agent_effort: str = "high"  # Claude only
     agent_max_turns: int = 20
     agent_max_tool_calls: int = 40
+    # The second look at each finding before it is returned (agent/verify.py). On by default:
+    # dogfooding showed the reviewer's confident findings are often wrong.
+    agent_verify: bool = True
+    agent_max_verifications: int = 15
     # How much conversation the model can hold. Unset for Claude, whose window is far larger
     # than a review needs; set for a local model, which runs out mid-review.
     agent_context_tokens: int | None = None

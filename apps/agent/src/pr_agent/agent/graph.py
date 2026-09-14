@@ -188,7 +188,9 @@ class ReviewAgent:
         response = self.client.beta.messages.create(**self._request(state["messages"]))
         turns = state["turns"] + 1
         usage = _add_usage(state["usage"], response.usage)
-        pending = [block for block in response.content if block.type == "tool_use"]
+        # Ollama can answer with null content; treat it as saying nothing.
+        content = response.content or []
+        pending = [block for block in content if block.type == "tool_use"]
         context_used = (
             response.usage.input_tokens
             + (response.usage.cache_read_input_tokens or 0)
@@ -229,7 +231,7 @@ class ReviewAgent:
         update: dict[str, Any] = {
             # The full content goes back — thinking and fallback blocks included — never
             # just the text, or the next turn loses what the API needs to continue.
-            "messages": [*state["messages"], {"role": "assistant", "content": response.content}],
+            "messages": [*state["messages"], {"role": "assistant", "content": content}],
             "pending": pending,
             "turns": turns,
             "usage": usage,

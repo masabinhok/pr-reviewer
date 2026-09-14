@@ -205,6 +205,16 @@ class TestEndings:
             "stopped without calling submit_review" in client.requests[1]["messages"][-1]["content"]
         )
 
+    def test_a_response_with_null_content_is_nudged_not_a_crash(self, repo, request_):
+        empty = message(text("x"))
+        empty.content = None  # as Ollama occasionally sends it
+        client = FakeClaude(empty, message(tool_use("submit_review", findings=[])))
+
+        result = agent(client, repo, request_).run(request_)
+
+        assert result.outcome == "submitted"
+        assert client.requests[1]["messages"][1] == {"role": "assistant", "content": []}
+
     def test_gives_up_after_the_nudge(self, repo, request_):
         client = FakeClaude(message(text("Fine.")), message(text("Still fine.")))
 

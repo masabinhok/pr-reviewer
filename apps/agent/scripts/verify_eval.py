@@ -9,7 +9,7 @@ What good looks like: wrong findings refuted (dropped) or at least not confirmed
 not posted at the default bar); right findings confirmed. The number that matters most is
 wrong findings *confirmed* — those would still be posted.
 
-Usage: uv run python scripts/verify_eval.py [--runs 5] [--only ID-SUBSTRING]
+Usage: uv run python scripts/verify_eval.py [--runs 5] [--only ID-SUBSTRING] [--reasons]
 """
 
 import argparse
@@ -34,6 +34,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=5)
     parser.add_argument("--only", default="")
+    parser.add_argument("--reasons", action="store_true", help="print every verdict's reason")
     args = parser.parse_args()
 
     config = replace(LOCAL_CONFIG, model=os.environ.get("AGENT_MODEL", LOCAL_CONFIG.model))
@@ -51,6 +52,10 @@ def main() -> None:
         for _ in range(args.runs):
             answer, _response = check_finding(client, config, finding, context)
             tally[answer[0] if answer else "none"] += 1
+            if args.reasons:
+                print(
+                    f"    {case['id']}: {answer[0] + ' — ' + answer[1] if answer else 'no verdict'}"
+                )
         tallies[case["id"]] = tally
         cells = "  ".join(f"{o} {tally[o]}" for o in OUTCOMES)
         print(f"{case['expected']:5}  {case['finding']['severity']:6}  {case['id']:38}  {cells}")

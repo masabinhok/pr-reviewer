@@ -6,6 +6,9 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
 import { GithubApiService } from '../github/github-api.service.js';
 import { AppJwtService } from '../github/app-jwt.service.js';
+import { ConfigService } from '@nestjs/config';
+import { SEVERITY_RANK } from '../reviews/review-publisher.js';
+import type { Severity } from '../generated/prisma/client.js';
 import { filterDiffFiles, filterFileList } from '../filters/review-filter.js';
 import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
@@ -123,21 +126,30 @@ async function main() {
       console.log(`the reviewer answered in ${seconds}s (no run details: this is the stub)`);
     }
 
-    console.log(`\n${accepted.length} finding(s) kept, ${dropped.length} dropped\n`);
+    const bar = app.get(ConfigService).getOrThrow<Severity>('posting.minSeverity');
+    const secondLook = answer.dropped ?? [];
+    console.log(
+      `\n${accepted.length} finding(s) kept, ${secondLook.length} dropped on a second look, ` +
+        `${dropped.length} dropped by validation · posting bar: ${bar.toLowerCase()}\n`,
+    );
     if (accepted.length > 0) {
       console.log(
         table([
-          ['severity', 'where', 'posted?', 'summary'],
+          ['severity', 'verdict', 'where', 'posted?', 'summary'],
           ...accepted.map((f) => [
-            f.severity,
+            f.demotedFrom ? `${f.severity} (was ${f.demotedFrom})` : f.severity,
+            f.verdict?.toLowerCase() ?? '—',
             `${f.path}:${f.line} ${f.side}`,
-            f.severity === 'HIGH' || f.severity === 'MEDIUM' ? 'yes' : 'no',
+            SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar] ? 'yes' : 'no',
             f.summary,
           ]),
         ]),
       );
       console.log();
       for (const f of accepted) console.log(`${f.path}:${f.line} — ${f.whyItBreaks}`);
+    }
+    for (const { finding, reason } of secondLook) {
+      console.log(`refuted ${finding.file}:${finding.line} ${finding.severity}: ${finding.summary}\n  because ${reason}`);
     }
     for (const { finding, reason } of dropped) {
       console.log(`dropped ${finding.file}:${finding.line} ${finding.side} (${reason}): ${finding.summary}`);

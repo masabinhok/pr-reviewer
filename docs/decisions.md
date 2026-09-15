@@ -835,3 +835,45 @@ Weeks 9–10 grow this set into evals with cases the prompt has never seen.
 A long evaluation run also turned up a response from Ollama whose content was null rather
 than an empty list. It crashed the checker and would have crashed the review loop; both now
 treat it as the model saying nothing.
+
+## A push doesn't repeat a comment that is already on the pull request
+
+Every `synchronize` event reviews the new head commit from scratch, so without dedupe each
+push re-posts every comment. Milestone 24 stores a new finding as a **repeat** of an earlier
+one (`Finding.repeatOfId`) when an earlier review of the same PR posted a comment near the
+same code and that finding is still open. The publisher skips repeats, and the Check Run says
+how many there were ("Nothing new to post. 1 was already commented on in an earlier review").
+A **resolved** finding that comes back is not a repeat: it has reappeared, and is posted.
+
+**What "the same" means.** The fingerprint from weeks 3–4 (file, code, category) couldn't be
+used, because the local model files one defect under different categories on different runs.
+The first version matched on the file, the side and the exact code of the finding's line,
+without line number or category. The live check on the testbed broke it: two pushes posted
+the same `===` finding twice, because the model pointed at line 23 in one review and at line
+24, the closing brace, in the next. The model's choice of line wobbles. So a finding's
+`anchors` are now the hashes of every line of real code within two lines of it. Two findings
+are the same comment when their anchors share one. That makes an edit to the flagged line
+still the same comment, while a finding on code rewritten around it is new. Lines with no
+identifier (`}`, `});`) contribute nothing, since they are everywhere in a file.
+
+The rerun of the live check, three pushes in a row to the planted-bugs PR:
+
+| Push | Finding | Result |
+|---|---|---|
+| 3 | `===` defect placed on line 20, inside `sign()` | posted |
+| 4 | the same defect on line 23, in `verify()` | posted — windows three lines apart don't meet |
+| 5 | the same defect on line 23 | **not posted** — a repeat of push 4's comment |
+
+Push 5 is the design working. Push 4 is a miss, kept rather than hidden. A wider window would
+have caught it, but the model had put the finding in a different function, and a window wide
+enough for that starts merging genuinely separate findings: the planted bugs sit four lines
+apart. Other things this knowingly does not catch: a renamed file breaks the match, and a
+comment someone deleted on GitHub still counts as posted.
+
+**A race it had to close.** The worker runs two jobs at once, so two quick pushes make two
+reviews that could each check "already posted?" before either posted, and both post.
+Storing findings and posting them now hold a per-PR lock in Redis. The lock has an expiry,
+so a worker that dies only delays the PR, and it carries a token, so a review whose lock
+expired can't release the next holder's. A review that finds the lock taken waits two
+seconds without spending an attempt. The release script is tested against real Redis, where
+a mock could not show it works.

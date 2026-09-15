@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { QueueModule } from '../queue/queue.module.js';
+import { RedisModule } from '../redis/redis.module.js';
+import { PullRequestLock } from './pull-request-lock.js';
 import { GithubModule } from '../github/github.module.js';
 import { PullRequestsService } from './pull-requests.service.js';
 import { ReviewProcessor } from './review.processor.js';
@@ -13,13 +15,14 @@ import { ConfigService } from '@nestjs/config';
 import { InstallationTokenService } from '../github/installation-token.service.js';
 
 @Module({
-  imports: [QueueModule, GithubModule],
+  imports: [QueueModule, GithubModule, RedisModule],
   providers: [
     PullRequestsService,
     ReviewProcessor,
     ReviewPipeline,
     ReviewerResultStore,
     ReviewPublisher,
+    PullRequestLock,
     // The agent when it is configured, the stub otherwise (see agent.reviewer in the config).
     // A factory, not two providers: AgentReviewer refuses to construct without its settings,
     // which is right when it is selected and wrong when it is not.

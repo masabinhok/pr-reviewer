@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { fingerprint, validateFindings } from './validate-findings.js';
+import { anchor, anchors, fingerprint, validateFindings } from './validate-findings.js';
 import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
 import { Severity } from '../generated/prisma/client.js';
@@ -39,6 +39,7 @@ describe('validateFindings', () => {
         verdict: null,
         verdictReason: null,
         demotedFrom: null,
+        anchors: anchors(lines, 'src/auth.ts', 26, 'RIGHT'),
       },
     ]);
   });
@@ -128,6 +129,55 @@ describe('validateFindings', () => {
 
       expect(accepted).toHaveLength(4);
     });
+  });
+});
+
+describe('anchor', () => {
+  const code = "  console.log('verifying', value);";
+
+  it('is the same wherever the line moved to and whatever the category', () => {
+    // No line number or category goes in: code moves between pushes, and the model renames categories.
+    expect(anchor('src/auth.ts', 'RIGHT', code)).toBe(anchor('src/auth.ts', 'RIGHT', `\t${code.trim()}   `));
+  });
+
+  it('differs by file, by side and by the code itself', () => {
+    const base = anchor('src/auth.ts', 'RIGHT', code);
+
+    expect(anchor('src/other.ts', 'RIGHT', code)).not.toBe(base);
+    expect(anchor('src/auth.ts', 'LEFT', code)).not.toBe(base);
+    expect(anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', token);")).not.toBe(base);
+  });
+
+  it.each(['}', '  });', '', '*/', ') {', '[];'])('is null for a line with no identifier on it: %j', (line) => {
+    expect(anchor('src/auth.ts', 'RIGHT', line)).toBeNull();
+  });
+
+  it('keeps short but real code', () => {
+    expect(anchor('src/auth.ts', 'RIGHT', '  return pages[pages.length];')).not.toBeNull();
+  });
+});
+
+describe('anchors', () => {
+  const window = (line: number) => anchors(lines, 'src/auth.ts', line, 'RIGHT');
+
+  // Seen live: the model put one defect on line 23 in one review and on line 24 in the next.
+  it('overlaps for findings a line or two apart, so a wobble in the chosen line is still one comment', () => {
+    const shared = window(26).filter((a) => window(27).includes(a));
+
+    expect(shared.length).toBeGreaterThan(0);
+  });
+
+  it('includes the finding’s own line when it has real code', () => {
+    expect(window(26)).toContain(anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', value);"));
+  });
+
+  it('has no hashes from outside the diff or from lines with no identifier', () => {
+    expect(anchors(lines, 'src/elsewhere.ts', 26, 'RIGHT')).toEqual([]);
+    expect(window(26).every((a) => typeof a === 'string' && a.length === 64)).toBe(true);
+  });
+
+  it('does not overlap for findings far apart in the file', () => {
+    expect(window(26).filter((a) => window(10).includes(a))).toEqual([]);
   });
 });
 

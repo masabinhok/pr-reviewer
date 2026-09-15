@@ -17,6 +17,7 @@ const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 
   verdict: null,
   verdictReason: null,
   demotedFrom: null,
+  anchors: [],
 });
 
 describe('renderCheck', () => {
@@ -108,11 +109,23 @@ describe('renderCheck', () => {
     it('says which severities the posted review covered', () => {
       const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.MEDIUM)] };
 
-      const high = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH });
-      const medium = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.MEDIUM });
+      const high = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH, repeated: 0 });
+      const medium = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.MEDIUM, repeated: 0 });
 
       expect(high.output.summary).toContain('None of these met the bar for a comment on the pull request (high severity).');
       expect(medium.output.summary).toContain('Posted 1 comment on the pull request in [a review](https://x/r); high and medium severity only.');
+    });
+
+    it('says what was not posted again because an earlier review already commented on it', () => {
+      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.HIGH), finding(Severity.HIGH, 'b.ts')] };
+
+      const some = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.HIGH, repeated: 1 });
+      const none = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH, repeated: 2 });
+
+      expect(some.output.summary).toContain(
+        'Posted 1 comment on the pull request in [a review](https://x/r); high severity only. 1 was already commented on in an earlier review, so it was not posted again.',
+      );
+      expect(none.output.summary).toContain('Nothing new to post. 2 were already commented on in an earlier review, so they were not posted again.');
     });
 
     it('shows at most 50 findings and says how many more there are', () => {

@@ -195,6 +195,74 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     expect(heads).toEqual([next.pull_request.head.sha, sync.pull_request.head.sha].sort());
   });
 
+  // M24: a push reviews the new head from scratch; what was already commented on stays put.
+  describe('a second push to the same pull request', () => {
+    const SECOND = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const secondPush = () => {
+      const next = JSON.parse(SYNC);
+      next.pull_request.head.sha = SECOND;
+      return JSON.stringify(next);
+    };
+    const pushTwice = async () => {
+      await deliver('pull_request', SYNC).expect(200);
+      await settledReview(sync.pull_request.head.sha);
+      await deliver('pull_request', secondPush()).expect(200);
+      return settledReview(SECOND);
+    };
+
+    it('does not post a comment already on the pull request, and says so in the Check Run', async () => {
+      const second = await pushTwice();
+
+      expect(second?.status).toBe(ReviewStatus.COMPLETED);
+      expect(github.reviews).toHaveLength(1); // the first push's review, and no other
+      const first = await prisma.review.findFirst({ where: { headSha: sync.pull_request.head.sha }, include: { findings: true } });
+      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
+      const repeat = second!.findings.find((f) => f.filePath === commented.filePath && f.line === commented.line)!;
+      expect(repeat.repeatOfId).toBe(commented.id);
+      expect(repeat.githubCommentId).toBeNull();
+
+      const checks = github.completedCheckRuns();
+      expect(checks.at(-1)!.output.summary).toContain('Nothing new to post. 1 was already commented on in an earlier review');
+    });
+
+    // The window: a finding on or beside code already commented on is that comment, even
+    // when the flagged line itself was edited — the neighbours still place it.
+    it('treats an edit to the commented line as the same comment', async () => {
+      const original = diffs('pr3-synchronize.diff');
+      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
+        head === SECOND ? original.replace('+  debugger;', '+  debugger; // left in on purpose') : original;
+
+      await pushTwice();
+
+      expect(github.reviews).toHaveLength(1);
+    });
+
+    it('posts a finding on code that was rewritten around it', async () => {
+      const original = diffs('pr3-synchronize.diff');
+      const rewritten = original
+        .replace('+export function greet(name: string): string {', '+export function farewell(person: string): string {')
+        .replace('+  debugger;', '+  debugger; // again')
+        .replace('+  return `hello ${name}`;', '+  return `goodbye ${person}`;');
+      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) => (head === SECOND ? rewritten : original);
+
+      await pushTwice();
+
+      expect(github.reviews).toHaveLength(2);
+      expect(github.reviews[1].comments.map((c) => [c.path, c.line])).toEqual([['src/new-feature.ts', 2]]);
+    });
+
+    it('posts again a finding that had been resolved and came back', async () => {
+      await deliver('pull_request', SYNC).expect(200);
+      const first = await settledReview(sync.pull_request.head.sha);
+      await prisma.finding.updateMany({ where: { reviewId: first!.id }, data: { status: 'RESOLVED' } });
+
+      await deliver('pull_request', secondPush()).expect(200);
+      await settledReview(SECOND);
+
+      expect(github.reviews).toHaveLength(2);
+    });
+  });
+
   it('skips a PR over the size limit, with a skipped Check Run and no diff fetched', async () => {
     const opened = JSON.parse(OPENED_LARGE) as { pull_request: { head: { sha: string } } };
 

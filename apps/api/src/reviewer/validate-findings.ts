@@ -19,6 +19,8 @@ export interface ValidFinding {
   verdict: Verdict | null;
   verdictReason: string | null;
   demotedFrom: Severity | null;
+  /** See `anchors()`: what dedupe across pushes compares. */
+  anchors: string[];
 }
 
 export type DropReason = 'outside-diff' | 'no-failure-scenario' | 'duplicate-line';
@@ -93,6 +95,7 @@ export function validateFindings(
       verdict: finding.verification ? VERDICT[finding.verification.verdict] : null,
       verdictReason: finding.verification?.reason ?? null,
       demotedFrom: finding.verification?.demotedFrom ? SEVERITY[finding.verification.demotedFrom] : null,
+      anchors: anchors(lines, path, finding.line, finding.side),
     });
   }
 
@@ -119,6 +122,49 @@ function proposedOf(finding: ValidFinding): ProposedFinding {
     whyItBreaks: finding.whyItBreaks,
     suggestedFix: finding.suggestedFix ?? undefined,
   };
+}
+
+/**
+ * What makes two findings on different pushes of a PR the same one, for dedupe: the file, the
+ * side, and the code on the line, whitespace collapsed.
+ *
+ * - No line number: a push that adds lines above an unchanged problem moves it without making
+ *   it new.
+ * - No category: the local model filed one defect as correctness on one run and security on
+ *   the next (docs/decisions.md). `fingerprint` keeps the category, for grouping; this is the
+ *   narrower question "have we already commented on this code?".
+ * - The side stays: the same text deleted and added is two different situations.
+ *
+ * A line with no identifier at least three characters long — `}`, `});`, a blank — gives
+ * null: such lines repeat all over a file, and matching on them would silence a new finding
+ * because of an unrelated old one.
+ */
+export function anchor(path: string, side: Side, content: string): string | null {
+  const code = content.trim().replace(/\s+/g, ' ');
+  if (!/[A-Za-z0-9_]{3,}/.test(code)) return null;
+  return createHash('sha256').update(`${path}\n${side}\n${code}`).digest('hex');
+}
+
+/** How many lines either side of a finding still count as where it points. */
+export const ANCHOR_RADIUS = 2;
+
+/**
+ * A finding's anchors: `anchor()` of each line of the diff within ANCHOR_RADIUS of it, on its
+ * side — lines outside the diff and lines with no identifier contribute nothing.
+ *
+ * A window and not the one line, because the model's choice of line wobbles between runs:
+ * on the testbed it put the same `===` defect on line 23 in one review and on line 24, the
+ * closing brace, in the next — and a single-line anchor posted it twice. Two findings whose
+ * windows share a line of real code are close enough to be one comment.
+ */
+export function anchors(lines: LineMap, path: string, line: number, side: Side): string[] {
+  const found: string[] = [];
+  for (let n = line - ANCHOR_RADIUS; n <= line + ANCHOR_RADIUS; n++) {
+    const diffLine = lines.lineAt(path, n, side);
+    const hash = diffLine && anchor(path, side, diffLine.content);
+    if (hash && !found.includes(hash)) found.push(hash);
+  }
+  return found;
 }
 
 /**

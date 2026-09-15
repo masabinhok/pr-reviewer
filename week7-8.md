@@ -165,7 +165,8 @@ re-posts every comment.
   ("3 already commented on").
 - What is a match (trap 4): same file and the same normalised code on the anchored line,
   whatever the category. Decide whether the line number matters (it shouldn't — code moves)
-  and write it down.
+  and write it down. (Decided: a window of real code within two lines of the finding, after a
+  live check showed the model's chosen line wobbles — see docs/decisions.md.)
 - A renamed file breaks the match; accept that and say so.
 - A resolved finding (M25) that appears again is **not** a match — it came back, and is posted.
 

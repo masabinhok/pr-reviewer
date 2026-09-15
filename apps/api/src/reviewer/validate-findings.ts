@@ -19,6 +19,8 @@ export interface ValidFinding {
   verdict: Verdict | null;
   verdictReason: string | null;
   demotedFrom: Severity | null;
+  /** See `anchor()`: what dedupe across pushes compares. */
+  anchor: string | null;
 }
 
 export type DropReason = 'outside-diff' | 'no-failure-scenario' | 'duplicate-line';
@@ -93,6 +95,7 @@ export function validateFindings(
       verdict: finding.verification ? VERDICT[finding.verification.verdict] : null,
       verdictReason: finding.verification?.reason ?? null,
       demotedFrom: finding.verification?.demotedFrom ? SEVERITY[finding.verification.demotedFrom] : null,
+      anchor: anchor(path, finding.side, target.content),
     });
   }
 
@@ -119,6 +122,27 @@ function proposedOf(finding: ValidFinding): ProposedFinding {
     whyItBreaks: finding.whyItBreaks,
     suggestedFix: finding.suggestedFix ?? undefined,
   };
+}
+
+/**
+ * What makes two findings on different pushes of a PR the same one, for dedupe: the file, the
+ * side, and the code on the line, whitespace collapsed.
+ *
+ * - No line number: a push that adds lines above an unchanged problem moves it without making
+ *   it new.
+ * - No category: the local model filed one defect as correctness on one run and security on
+ *   the next (docs/decisions.md). `fingerprint` keeps the category, for grouping; this is the
+ *   narrower question "have we already commented on this code?".
+ * - The side stays: the same text deleted and added is two different situations.
+ *
+ * A line with no identifier at least three characters long — `}`, `});`, a blank — gives
+ * null: such lines repeat all over a file, and matching on them would silence a new finding
+ * because of an unrelated old one.
+ */
+export function anchor(path: string, side: Side, content: string): string | null {
+  const code = content.trim().replace(/\s+/g, ' ');
+  if (!/[A-Za-z0-9_]{3,}/.test(code)) return null;
+  return createHash('sha256').update(`${path}\n${side}\n${code}`).digest('hex');
 }
 
 /**

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { fingerprint, validateFindings } from './validate-findings.js';
+import { anchor, fingerprint, validateFindings } from './validate-findings.js';
 import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
 import { Severity } from '../generated/prisma/client.js';
@@ -39,6 +39,7 @@ describe('validateFindings', () => {
         verdict: null,
         verdictReason: null,
         demotedFrom: null,
+        anchor: anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', value);"),
       },
     ]);
   });
@@ -128,6 +129,31 @@ describe('validateFindings', () => {
 
       expect(accepted).toHaveLength(4);
     });
+  });
+});
+
+describe('anchor', () => {
+  const code = "  console.log('verifying', value);";
+
+  it('is the same wherever the line moved to and whatever the category', () => {
+    // No line number or category goes in: code moves between pushes, and the model renames categories.
+    expect(anchor('src/auth.ts', 'RIGHT', code)).toBe(anchor('src/auth.ts', 'RIGHT', `\t${code.trim()}   `));
+  });
+
+  it('differs by file, by side and by the code itself', () => {
+    const base = anchor('src/auth.ts', 'RIGHT', code);
+
+    expect(anchor('src/other.ts', 'RIGHT', code)).not.toBe(base);
+    expect(anchor('src/auth.ts', 'LEFT', code)).not.toBe(base);
+    expect(anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', token);")).not.toBe(base);
+  });
+
+  it.each(['}', '  });', '', '*/', ') {', '[];'])('is null for a line with no identifier on it: %j', (line) => {
+    expect(anchor('src/auth.ts', 'RIGHT', line)).toBeNull();
+  });
+
+  it('keeps short but real code', () => {
+    expect(anchor('src/auth.ts', 'RIGHT', '  return pages[pages.length];')).not.toBeNull();
   });
 });
 

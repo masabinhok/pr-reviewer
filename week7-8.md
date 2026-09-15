@@ -171,9 +171,9 @@ re-posts every comment.
 - A resolved finding (M25) that appears again is **not** a match — it came back, and is posted.
 
 **Todo**
-- [ ] `Finding.repeatOfId` migration; the match rule, documented
-- [ ] Publisher skips repeats; Check Run counts them
-- [ ] Tests: repeat skipped, moved line still a repeat, changed code not a repeat, resolved-then-back posted
+- [x] `Finding.repeatOfId` migration; the match rule, documented
+- [x] Publisher skips repeats; Check Run counts them
+- [x] Tests: repeat skipped, moved line still a repeat, changed code not a repeat, resolved-then-back posted
 
 **Polish bar:** push an empty commit to a testbed PR that already has comments: a new review
 runs, the Check Run completes, and no comment is posted twice.

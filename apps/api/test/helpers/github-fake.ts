@@ -119,6 +119,8 @@ export function fakeGithub(options: FakeGithubOptions) {
   return {
     fetch: handle,
     calls,
+    /** The pull requests the fake serves; change one mid-test to change what GitHub returns. */
+    pulls: options.pulls,
     /** Reviews posted to the fake, with their comments. */
     reviews,
     /** The body of every Check Run completion, in order. */

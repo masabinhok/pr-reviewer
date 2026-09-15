@@ -15,6 +15,8 @@ export interface Publication {
   url: string | null;
   /** The gate that applied: the least severe finding that is posted. */
   minSeverity: Severity;
+  /** Findings that met the bar but were already commented on in an earlier review. */
+  repeated: number;
 }
 
 /**
@@ -45,7 +47,10 @@ export class ReviewPublisher {
   async publish(target: ReviewTarget, findings: Finding[]): Promise<Publication> {
     const { installationId, repo, prNumber, reviewId } = target;
     const bar = this.minSeverity;
-    const postable = findings.filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar]);
+    const meetsBar = findings.filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar]);
+    // A repeat is on the PR already, as a comment from an earlier review.
+    const postable = meetsBar.filter((f) => f.repeatOfId === null);
+    const repeated = meetsBar.length - postable.length;
 
     const review = await this.prisma.review.findUniqueOrThrow({
       where: { id: reviewId },
@@ -53,10 +58,10 @@ export class ReviewPublisher {
     });
     if (review.githubReviewId !== null) {
       this.logger.log(`review ${reviewId}: already posted as GitHub review ${review.githubReviewId}`);
-      return { posted: postable.length, url: null, minSeverity: bar };
+      return { posted: postable.length, url: null, minSeverity: bar, repeated };
     }
     if (postable.length === 0) {
-      return { posted: 0, url: null, minSeverity: bar };
+      return { posted: 0, url: null, minSeverity: bar, repeated };
     }
 
     const marker = reviewMarker(reviewId);
@@ -70,7 +75,7 @@ export class ReviewPublisher {
       try {
         posted = await this.github.createReview(installationId, repo, prNumber, {
           commitId: target.headSha,
-          body: reviewBody(postable, findings.length - postable.length, marker),
+          body: reviewBody(postable, findings.length - meetsBar.length, marker),
           comments: postable.map(toComment),
         });
       } catch (e) {
@@ -85,7 +90,7 @@ export class ReviewPublisher {
     await this.recordCommentIds(target, BigInt(posted.id), postable);
 
     this.logger.log(`review ${reviewId}: posted ${postable.length} comment(s) as GitHub review ${posted.id}`);
-    return { posted: postable.length, url: posted.html_url, minSeverity: bar };
+    return { posted: postable.length, url: posted.html_url, minSeverity: bar, repeated };
   }
 
   /** Links each posted finding to its comment — weeks 7–8 read reactions off these. */

@@ -36,6 +36,8 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     verdict: null,
     verdictReason: null,
     demotedFrom: null,
+    anchor: null,
+    repeatOfId: null,
     ...overrides,
   };
 }
@@ -98,6 +100,34 @@ describe('ReviewPublisher', () => {
       posted: 2,
       url: 'https://github.com/octo/widgets/pull/6#pullrequestreview-9001',
       minSeverity: Severity.MEDIUM,
+      repeated: 0,
+    });
+  });
+
+  describe('findings an earlier review already commented on', () => {
+    it('are not posted again, and are counted', async () => {
+      const again = finding(Severity.HIGH, { line: 18, repeatOfId: 'first-comment' });
+      const fresh = finding(Severity.HIGH, { line: 22, category: 'correctness' });
+
+      const publication = await withBar(Severity.HIGH).publish(target, [again, fresh]);
+
+      const [, , , review] = github.createReview.mock.calls[0];
+      expect(review.comments.map((c: { line: number }) => c.line)).toEqual([22]);
+      expect(review.body).toBe(`pr-reviewer found 1 issue (1 high).\n\n${reviewMarker('rev-1')}`);
+      expect(publication).toMatchObject({ posted: 1, repeated: 1 });
+    });
+
+    it('post no review at all when every finding is a repeat', async () => {
+      const publication = await withBar(Severity.HIGH).publish(target, [finding(Severity.HIGH, { repeatOfId: 'first-comment' })]);
+
+      expect(github.createReview).not.toHaveBeenCalled();
+      expect(publication).toMatchObject({ posted: 0, repeated: 1, url: null });
+    });
+
+    it('are not counted as repeats when they are below the bar anyway', async () => {
+      const publication = await withBar(Severity.HIGH).publish(target, [finding(Severity.LOW, { repeatOfId: 'first-comment' })]);
+
+      expect(publication.repeated).toBe(0);
     });
   });
 
@@ -155,7 +185,7 @@ describe('ReviewPublisher', () => {
     const publication = await publisher.publish(target, [finding(Severity.LOW), finding(Severity.LOW)]);
 
     expect(github.createReview).not.toHaveBeenCalled();
-    expect(publication).toEqual({ posted: 0, url: null, minSeverity: Severity.MEDIUM });
+    expect(publication).toEqual({ posted: 0, url: null, minSeverity: Severity.MEDIUM, repeated: 0 });
   });
 
   it('links each posted finding to its comment, matching path, line and side', async () => {

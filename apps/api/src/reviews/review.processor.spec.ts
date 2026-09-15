@@ -9,6 +9,7 @@ import type { ReviewJobData } from './review-queue.js';
 import type { ReviewOutcome } from './review-outcome.js';
 import type { ReviewPipeline } from './review-pipeline.js';
 import type { ReviewPublisher } from './review-publisher.js';
+import type { PullRequestLock } from './pull-request-lock.js';
 import { Severity } from '../generated/prisma/client.js';
 import type { ValidFinding } from '../reviewer/validate-findings.js';
 
@@ -44,6 +45,8 @@ describe('ReviewProcessor', () => {
   };
   let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
   let publisher: { publish: ReturnType<typeof vi.fn> };
+  let lock: { acquire: ReturnType<typeof vi.fn> };
+  let release: ReturnType<typeof vi.fn>;
   let order: string[];
   let processor: ReviewProcessor;
   let run: ReturnType<typeof vi.spyOn>;
@@ -67,7 +70,9 @@ describe('ReviewProcessor', () => {
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
     };
     order = [];
-    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null, minSeverity: 'MEDIUM' as const })) };
+    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null, minSeverity: 'MEDIUM' as const, repeated: 0 })) };
+    release = vi.fn(async () => void order.push('release'));
+    lock = { acquire: vi.fn(async () => (order.push('lock'), release)) };
     github = {
       createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
       completeCheckRun: vi.fn().mockResolvedValue(undefined),
@@ -77,6 +82,7 @@ describe('ReviewProcessor', () => {
       github as unknown as GithubApiService,
       {} as ReviewPipeline, // `run` is spied below, so the pipeline itself is never called
       publisher as unknown as ReviewPublisher,
+      lock as unknown as PullRequestLock,
     );
     // `run` is the pipeline; here only what it returns or throws matters.
     run = vi
@@ -125,7 +131,7 @@ describe('ReviewProcessor', () => {
 
       await processor.process(job());
 
-      expect(order).toEqual(['publish', 'check', 'row']);
+      expect(order).toEqual(['lock', 'publish', 'release', 'check', 'row']);
     });
 
     const found: ValidFinding = {
@@ -141,6 +147,7 @@ describe('ReviewProcessor', () => {
       verdict: null,
       verdictReason: null,
       demotedFrom: null,
+      anchor: null,
     };
 
     it('writes the findings the first time', async () => {
@@ -164,8 +171,91 @@ describe('ReviewProcessor', () => {
             verdict: null,
             verdictReason: null,
             demotedFrom: null,
+            anchor: null,
+            repeatOfId: null,
           },
         ],
+      });
+    });
+
+    describe('a finding already commented on in an earlier review of the PR', () => {
+      const anchored = { ...found, anchor: 'anchor-console-log' };
+      const fresh = { ...found, line: 30, anchor: 'anchor-something-new' };
+
+      it('is written as a repeat of the first comment on that code', async () => {
+        prisma.finding.findMany
+          .mockResolvedValueOnce([]) // this review has no rows yet
+          .mockResolvedValueOnce([{ id: 'first-comment', anchor: 'anchor-console-log' }]);
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [anchored, fresh] });
+
+        await processor.process(job());
+
+        const [{ data }] = prisma.finding.createMany.mock.calls[0];
+        expect(data.map((d: { line: number; repeatOfId: string | null }) => [d.line, d.repeatOfId])).toEqual([
+          [26, 'first-comment'],
+          [30, null],
+        ]);
+      });
+
+      // Only comments that are on the PR and still open count; the same PR, not another.
+      it('looks only at posted, open findings from other reviews of this PR', async () => {
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [anchored, fresh] });
+
+        await processor.process(job());
+
+        const [, [query]] = prisma.finding.findMany.mock.calls;
+        expect(query.where).toEqual({
+          anchor: { in: ['anchor-console-log', 'anchor-something-new'] },
+          githubCommentId: { not: null },
+          status: 'OPEN',
+          reviewId: { not: 'rev-1' },
+          review: { prNumber: 3, repo: { fullName: 'octo/widgets' } },
+        });
+        expect(query.orderBy).toEqual({ review: { startedAt: 'asc' } });
+      });
+
+      it('does not look at all when no finding has an anchor', async () => {
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+
+        await processor.process(job());
+
+        expect(prisma.finding.findMany.mock.calls.some(([q]) => q.where?.anchor)).toBe(false);
+      });
+    });
+
+    describe('the pull request settle lock', () => {
+      it('is held from storing the findings to posting them, then released', async () => {
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        github.completeCheckRun.mockImplementation(async () => void order.push('check'));
+
+        await processor.process(job());
+
+        expect(lock.acquire).toHaveBeenCalledWith('octo/widgets', 3);
+        expect(order).toEqual(['lock', 'publish', 'release', 'check']);
+      });
+
+      it('is released when posting fails', async () => {
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        publisher.publish.mockRejectedValue(new Error('GitHub 502'));
+
+        await expect(processor.process(job())).rejects.toThrow('GitHub 502');
+
+        expect(release).toHaveBeenCalledTimes(1);
+      });
+
+      // Waiting for another review of the PR is not a failed attempt.
+      it('when another review holds it, waits and retries without storing, posting or failing', async () => {
+        lock.acquire.mockResolvedValue(null);
+        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        const finalAttempt = job(2, 3);
+
+        await expect(processor.process(finalAttempt, 'job-token')).rejects.toBeInstanceOf(DelayedError);
+
+        expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(expect.any(Number), 'job-token');
+        expect(prisma.finding.createMany).not.toHaveBeenCalled();
+        expect(publisher.publish).not.toHaveBeenCalled();
+        expect(statuses()).not.toContain(ReviewStatus.FAILED);
+        expect(github.completeCheckRun).not.toHaveBeenCalled();
       });
     });
 
@@ -188,11 +278,11 @@ describe('ReviewProcessor', () => {
 
       await processor.process(job());
 
-      expect(order).toEqual(['publish', 'check', 'row']);
+      expect(order).toEqual(['lock', 'publish', 'release', 'check', 'row']);
     });
 
     it('tells the Check Run what was posted', async () => {
-      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1', minSeverity: 'MEDIUM' as const });
+      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1', minSeverity: 'MEDIUM' as const, repeated: 0 });
       run.mockResolvedValue({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [found, found] });
 
       await processor.process(job());

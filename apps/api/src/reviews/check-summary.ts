@@ -105,12 +105,18 @@ const BARS: Record<Publication['minSeverity'], string> = {
 function publicationNote(publication: Publication | undefined, total: number): string {
   if (!publication || total === 0) return '';
   const bar = BARS[publication.minSeverity];
+  const { repeated } = publication;
+  const already = repeated
+    ? ` ${repeated} ${repeated === 1 ? 'was' : 'were'} already commented on in an earlier review, so ${repeated === 1 ? 'it was' : 'they were'} not posted again.`
+    : '';
   if (publication.posted === 0) {
-    return `None of these met the bar for a comment on the pull request (${bar}).\n\n`;
+    return repeated
+      ? `Nothing new to post.${already}\n\n`
+      : `None of these met the bar for a comment on the pull request (${bar}).\n\n`;
   }
   const comments = `${publication.posted} comment${publication.posted === 1 ? '' : 's'}`;
   const where = publication.url ? `[a review](${publication.url})` : 'a review';
-  return `Posted ${comments} on the pull request in ${where}; ${bar} only.\n\n`;
+  return `Posted ${comments} on the pull request in ${where}; ${bar} only.${already}\n\n`;
 }
 
 function reviewerFooter(run: ReviewerRun | undefined): string {

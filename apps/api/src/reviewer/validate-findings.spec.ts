@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { anchor, fingerprint, validateFindings } from './validate-findings.js';
+import { anchor, anchors, fingerprint, validateFindings } from './validate-findings.js';
 import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
 import { Severity } from '../generated/prisma/client.js';
@@ -39,7 +39,7 @@ describe('validateFindings', () => {
         verdict: null,
         verdictReason: null,
         demotedFrom: null,
-        anchor: anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', value);"),
+        anchors: anchors(lines, 'src/auth.ts', 26, 'RIGHT'),
       },
     ]);
   });
@@ -154,6 +154,30 @@ describe('anchor', () => {
 
   it('keeps short but real code', () => {
     expect(anchor('src/auth.ts', 'RIGHT', '  return pages[pages.length];')).not.toBeNull();
+  });
+});
+
+describe('anchors', () => {
+  const window = (line: number) => anchors(lines, 'src/auth.ts', line, 'RIGHT');
+
+  // Seen live: the model put one defect on line 23 in one review and on line 24 in the next.
+  it('overlaps for findings a line or two apart, so a wobble in the chosen line is still one comment', () => {
+    const shared = window(26).filter((a) => window(27).includes(a));
+
+    expect(shared.length).toBeGreaterThan(0);
+  });
+
+  it('includes the finding’s own line when it has real code', () => {
+    expect(window(26)).toContain(anchor('src/auth.ts', 'RIGHT', "  console.log('verifying', value);"));
+  });
+
+  it('has no hashes from outside the diff or from lines with no identifier', () => {
+    expect(anchors(lines, 'src/elsewhere.ts', 26, 'RIGHT')).toEqual([]);
+    expect(window(26).every((a) => typeof a === 'string' && a.length === 64)).toBe(true);
+  });
+
+  it('does not overlap for findings far apart in the file', () => {
+    expect(window(26).filter((a) => window(10).includes(a))).toEqual([]);
   });
 });
 

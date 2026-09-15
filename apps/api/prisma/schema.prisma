@@ -131,11 +131,10 @@ model Finding {
   verdictReason   String?
   /// Set when an unconfirmed finding was demoted to LOW.
   demotedFrom     Severity?
-  /// Where the finding points, as file + side + the normalised code on its line — no line
-  /// number, no category. Null for a line with no identifier on it (a lone `}`), which is
-  /// too common to identify anything. Two findings with the same anchor are the same problem
-  /// for dedupe across pushes.
-  anchor          String?
+  /// Where the finding points: one hash per line of real code within two lines of it (file +
+  /// side + normalised code; no line number, no category). Two findings whose anchors share a
+  /// hash are the same comment for dedupe across pushes — see `anchors()`.
+  anchors         String[]
   /// This finding repeats one already commented on in an earlier review of the same PR, and
   /// was not posted again.
   repeatOf        Finding?  @relation("Repeats", fields: [repeatOfId], references: [id])
@@ -145,7 +144,7 @@ model Finding {
   feedbacks Feedback[]
 
   @@index([fingerprint])
-  @@index([anchor])
+  @@index([anchors], type: Gin)
 }
 
 model Feedback {

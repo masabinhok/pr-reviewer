@@ -36,7 +36,7 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     verdict: null,
     verdictReason: null,
     demotedFrom: null,
-    anchor: null,
+    anchors: [],
     repeatOfId: null,
     ...overrides,
   };

@@ -147,7 +147,7 @@ describe('ReviewProcessor', () => {
       verdict: null,
       verdictReason: null,
       demotedFrom: null,
-      anchor: null,
+      anchors: [],
     };
 
     it('writes the findings the first time', async () => {
@@ -171,7 +171,7 @@ describe('ReviewProcessor', () => {
             verdict: null,
             verdictReason: null,
             demotedFrom: null,
-            anchor: null,
+            anchors: [],
             repeatOfId: null,
           },
         ],
@@ -179,13 +179,15 @@ describe('ReviewProcessor', () => {
     });
 
     describe('a finding already commented on in an earlier review of the PR', () => {
-      const anchored = { ...found, anchor: 'anchor-console-log' };
-      const fresh = { ...found, line: 30, anchor: 'anchor-something-new' };
+      // Windows: the line's own code and its neighbours'.
+      const anchored = { ...found, anchors: ['verify-decl', 'console-log', 'closing-call'] };
+      const fresh = { ...found, line: 30, anchors: ['something-new'] };
 
       it('is written as a repeat of the first comment on that code', async () => {
         prisma.finding.findMany
           .mockResolvedValueOnce([]) // this review has no rows yet
-          .mockResolvedValueOnce([{ id: 'first-comment', anchor: 'anchor-console-log' }]);
+          // The earlier comment sat a line lower: its window overlaps on `console-log`.
+          .mockResolvedValueOnce([{ id: 'first-comment', anchors: ['console-log', 'closing-call', 'return'] }]);
         run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [anchored, fresh] });
 
         await processor.process(job());
@@ -205,7 +207,7 @@ describe('ReviewProcessor', () => {
 
         const [, [query]] = prisma.finding.findMany.mock.calls;
         expect(query.where).toEqual({
-          anchor: { in: ['anchor-console-log', 'anchor-something-new'] },
+          anchors: { hasSome: ['verify-decl', 'console-log', 'closing-call', 'something-new'] },
           githubCommentId: { not: null },
           status: 'OPEN',
           reviewId: { not: 'rev-1' },
@@ -219,7 +221,7 @@ describe('ReviewProcessor', () => {
 
         await processor.process(job());
 
-        expect(prisma.finding.findMany.mock.calls.some(([q]) => q.where?.anchor)).toBe(false);
+        expect(prisma.finding.findMany.mock.calls.some(([q]) => q.where?.anchors)).toBe(false);
       });
     });
 

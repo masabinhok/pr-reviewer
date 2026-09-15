@@ -225,10 +225,25 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
       expect(checks.at(-1)!.output.summary).toContain('Nothing new to post. 1 was already commented on in an earlier review');
     });
 
-    it('posts again when the code on that line changed', async () => {
+    // The window: a finding on or beside code already commented on is that comment, even
+    // when the flagged line itself was edited — the neighbours still place it.
+    it('treats an edit to the commented line as the same comment', async () => {
       const original = diffs('pr3-synchronize.diff');
       github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
         head === SECOND ? original.replace('+  debugger;', '+  debugger; // left in on purpose') : original;
+
+      await pushTwice();
+
+      expect(github.reviews).toHaveLength(1);
+    });
+
+    it('posts a finding on code that was rewritten around it', async () => {
+      const original = diffs('pr3-synchronize.diff');
+      const rewritten = original
+        .replace('+export function greet(name: string): string {', '+export function farewell(person: string): string {')
+        .replace('+  debugger;', '+  debugger; // again')
+        .replace('+  return `hello ${name}`;', '+  return `goodbye ${person}`;');
+      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) => (head === SECOND ? rewritten : original);
 
       await pushTwice();
 

@@ -17,7 +17,7 @@ const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 
   verdict: null,
   verdictReason: null,
   demotedFrom: null,
-  anchor: null,
+  anchors: [],
 });
 
 describe('renderCheck', () => {

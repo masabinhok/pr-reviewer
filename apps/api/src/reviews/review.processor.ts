@@ -196,9 +196,10 @@ export class ReviewProcessor extends WorkerHost {
   /**
    * The review's Finding rows: written the first time, returned as they are after that.
    *
-   * Each new finding whose anchor matches an open finding that an earlier review of this PR
-   * posted is written as a repeat of that one (`repeatOfId`), and the publisher skips it. A
-   * resolved finding that comes back is not a match: it is new again, and is posted.
+   * Each new finding whose anchors share a line of code with an open finding that an earlier
+   * review of this PR posted is written as a repeat of that one (`repeatOfId`), and the
+   * publisher skips it. A resolved finding that comes back is not a match: it is new again,
+   * and is posted.
    */
   private storeFindings(target: ReviewTarget, findings: ValidFinding[]): Promise<Finding[]> {
     const { reviewId } = target;
@@ -206,23 +207,22 @@ export class ReviewProcessor extends WorkerHost {
       const existing = await tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });
       if (existing.length > 0) return existing;
 
-      const anchors = [...new Set(findings.map((f) => f.anchor).filter((a): a is string => a !== null))];
+      const anchors = [...new Set(findings.flatMap((f) => f.anchors))];
       const commented = anchors.length
         ? await tx.finding.findMany({
             where: {
-              anchor: { in: anchors },
+              anchors: { hasSome: anchors },
               githubCommentId: { not: null },
               status: FindingStatus.OPEN,
               reviewId: { not: reviewId },
               review: { prNumber: target.prNumber, repo: { fullName: target.repo } },
             },
             orderBy: { review: { startedAt: 'asc' } },
-            select: { id: true, anchor: true },
+            select: { id: true, anchors: true },
           })
         : [];
-      // The first comment on that code is the one a repeat points at.
-      const original = new Map<string, string>();
-      for (const c of commented) if (c.anchor && !original.has(c.anchor)) original.set(c.anchor, c.id);
+      // The first comment near that code is the one a repeat points at.
+      const repeatOf = (f: ValidFinding) => commented.find((c) => c.anchors.some((a) => f.anchors.includes(a)))?.id ?? null;
 
       await tx.finding.createMany({
         data: findings.map((f) => ({
@@ -239,8 +239,8 @@ export class ReviewProcessor extends WorkerHost {
           verdict: f.verdict,
           verdictReason: f.verdictReason,
           demotedFrom: f.demotedFrom,
-          anchor: f.anchor,
-          repeatOfId: (f.anchor && original.get(f.anchor)) || null,
+          anchors: f.anchors,
+          repeatOfId: repeatOf(f),
         })),
       });
       return tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });

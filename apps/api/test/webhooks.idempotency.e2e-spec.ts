@@ -9,6 +9,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { DeliveryStatus } from '../src/generated/prisma/client.js';
 import { InstallationsService } from '../src/installations/installations.service.js';
 import { PullRequestsService } from '../src/reviews/pull-requests.service.js';
+import { StaleFindings } from '../src/reviews/stale-findings.service.js';
 
 /**
  * The unit tests in src/webhooks/webhooks.service.spec.ts assert what the service does
@@ -40,6 +41,7 @@ describe('WebhooksService idempotency (real database)', () => {
         PrismaService,
         { provide: InstallationsService, useValue: {} },
         { provide: PullRequestsService, useValue: pullRequests },
+        { provide: StaleFindings, useValue: { setResolvedByPerson: async () => 0 } },
       ],
     }).compile();
 

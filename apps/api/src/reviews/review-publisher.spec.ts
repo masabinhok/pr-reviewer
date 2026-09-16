@@ -38,6 +38,8 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     demotedFrom: null,
     anchors: [],
     repeatOfId: null,
+    resolvedAt: null,
+    resolvedBy: null,
     ...overrides,
   };
 }

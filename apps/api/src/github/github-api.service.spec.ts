@@ -72,6 +72,62 @@ describe('GithubApiService', () => {
     expect(call(0).init.headers.Accept).toBe('application/vnd.github.diff');
   });
 
+  describe('review threads', () => {
+    const thread = (over: Record<string, unknown> = {}) => ({
+      id: 'PRRT_1',
+      isResolved: false,
+      isOutdated: true,
+      comments: { nodes: [{ id: 'PRRC_1', databaseId: 991, isMinimized: false }] },
+      ...over,
+    });
+
+    it('reads them through GraphQL, with the comment each one starts', async () => {
+      fetchMock.mockResolvedValue(
+        json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [thread(), thread({ id: 'PRRT_2', isOutdated: false })] } } } } }),
+      );
+
+      const threads = await service.listReviewThreads(INSTALLATION, REPO, 6);
+
+      expect(threads).toEqual([
+        { id: 'PRRT_1', isOutdated: true, isResolved: false, commentId: 991n, commentNodeId: 'PRRC_1', isMinimized: false },
+        { id: 'PRRT_2', isOutdated: false, isResolved: false, commentId: 991n, commentNodeId: 'PRRC_1', isMinimized: false },
+      ]);
+      const { url, init } = call(0);
+      expect(url).toBe('https://api.github.com/graphql');
+      expect(JSON.parse(String(init.body)).variables).toEqual({ owner: 'octo', name: 'widgets', number: 6 });
+    });
+
+    it('skips a thread whose comments it cannot see', async () => {
+      fetchMock.mockResolvedValue(json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [thread({ comments: { nodes: [] } })] } } } } }));
+
+      expect(await service.listReviewThreads(INSTALLATION, REPO, 6)).toEqual([]);
+    });
+
+    it('is empty for a pull request GraphQL will not show', async () => {
+      fetchMock.mockResolvedValue(json({ data: { repository: null } }));
+
+      expect(await service.listReviewThreads(INSTALLATION, REPO, 6)).toEqual([]);
+    });
+
+    it('collapses a comment as outdated', async () => {
+      fetchMock.mockResolvedValue(json({ data: { minimizeComment: { minimizedComment: { isMinimized: true } } } }));
+
+      await service.minimizeComment(INSTALLATION, 'PRRC_1');
+
+      const body = JSON.parse(String(call(0).init.body));
+      expect(body.query).toContain('minimizeComment');
+      expect(body.query).toContain('OUTDATED');
+      expect(body.variables).toEqual({ id: 'PRRC_1' });
+    });
+
+    // GraphQL answers 200 with an errors array; a failure must not read as success.
+    it('turns a GraphQL error into a failure', async () => {
+      fetchMock.mockResolvedValue(json({ data: { minimizeComment: null }, errors: [{ message: 'Resource not accessible by integration' }] }));
+
+      await expect(service.minimizeComment(INSTALLATION, 'PRRC_1')).rejects.toThrow('Resource not accessible by integration');
+    });
+  });
+
   describe('pagination', () => {
     const page = (from: number, count: number) =>
       Array.from({ length: count }, (_, i) => ({ filename: `f${from + i}.ts` }));

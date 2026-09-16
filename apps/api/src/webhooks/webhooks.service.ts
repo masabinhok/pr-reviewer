@@ -8,6 +8,8 @@ import type {
 } from '../installations/github-payloads.js';
 import { PullRequestsService } from '../reviews/pull-requests.service.js';
 import type { PullRequestPayload } from '../reviews/pull-request-payload.js';
+import type { ReviewThreadPayload } from '../reviews/review-thread-payload.js';
+import { StaleFindings } from '../reviews/stale-findings.service.js';
 
 /** The parsed JSON body of a delivery. Only `action` is common to (most) events. */
 export type WebhookPayload = { action?: unknown } & Record<string, unknown>;
@@ -39,13 +41,27 @@ export class WebhooksService {
         'pull_request.reopened': (p, id) => this.reviewPullRequest(p, id),
         'pull_request.synchronize': (p, id) => this.reviewPullRequest(p, id),
         'pull_request.ready_for_review': (p, id) => this.reviewPullRequest(p, id),
+        // Someone resolved or reopened one of the App's comment threads by hand. Their
+        // decision about a finding outranks the App's.
+        'pull_request_review_thread.resolved': (p) => this.threadResolution(p, true),
+        'pull_request_review_thread.unresolved': (p) => this.threadResolution(p, false),
     }
 
     constructor(
         private readonly prisma: PrismaService,
         private readonly installations: InstallationsService,
         private readonly pullRequests: PullRequestsService,
+        private readonly stale: StaleFindings,
     ){}
+
+    private async threadResolution(payload: WebhookPayload, resolved: boolean): Promise<void> {
+        const { thread } = payload as unknown as ReviewThreadPayload
+        const ids = (thread?.comments ?? []).map((c) => BigInt(c.id))
+        const count = await this.stale.setResolvedByPerson(ids, resolved)
+        if (count > 0) {
+            this.logger.log(`${count} finding(s) ${resolved ? 'resolved' : 'reopened'} — a person ${resolved ? 'resolved' : 'reopened'} the thread`)
+        }
+    }
 
     private async reviewPullRequest(payload: WebhookPayload, deliveryId: string): Promise<void> {
         await this.pullRequests.handle(payload as unknown as PullRequestPayload, deliveryId)

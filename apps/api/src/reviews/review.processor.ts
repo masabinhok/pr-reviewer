@@ -13,6 +13,7 @@ import { ReviewPublisher, type Publication } from './review-publisher.js';
 import type { ValidFinding } from '../reviewer/validate-findings.js';
 import type { Finding } from '../generated/prisma/client.js';
 import { PullRequestLock } from './pull-request-lock.js';
+import { StaleFindings } from './stale-findings.service.js';
 
 /** How long a review waits before trying again when another review of its PR is settling. */
 const BUSY_RETRY_MS = 2_000;
@@ -49,6 +50,7 @@ export class ReviewProcessor extends WorkerHost {
     private readonly pipeline: ReviewPipeline,
     private readonly publisher: ReviewPublisher,
     private readonly lock: PullRequestLock,
+    private readonly stale: StaleFindings,
   ) {
     super();
   }
@@ -149,12 +151,13 @@ export class ReviewProcessor extends WorkerHost {
    *    recorded on them) instead of rewriting them. A finding already commented on in an
    *    earlier review of the PR is written as a repeat of it, and is not posted again;
    * 2. the review is posted on the PR once (ReviewPublisher);
-   * 3. the Check Run is completed — *before* the row settles, because a row that says
+   * 3. comments from earlier reviews whose code is gone are resolved (StaleFindings);
+   * 4. the Check Run is completed — *before* the row settles, because a row that says
    *    COMPLETED makes a retry skip the review, and the spinner would never stop;
-   * 4. the row is marked COMPLETED, last.
+   * 5. the row is marked COMPLETED, last.
    *
-   * Steps 1 and 2 hold the PR's settle lock (PullRequestLock), so two reviews of one PR never
-   * decide what is a repeat at the same moment.
+   * Steps 1 to 3 hold the PR's settle lock (PullRequestLock), so two reviews of one PR never
+   * decide what is a repeat, or what is stale, at the same moment.
    */
   private async settle(target: ReviewTarget, checkRunId: bigint, outcome: ReviewOutcome): Promise<void> {
     if (outcome.kind === 'skipped') {
@@ -171,9 +174,11 @@ export class ReviewProcessor extends WorkerHost {
     if (!release) throw new PullRequestBusyError(`${target.repo}#${target.prNumber} is being settled by another review`);
     let publication: Publication;
     let findings: Finding[];
+    let resolved = 0;
     try {
       findings = await this.storeFindings(target, outcome.findings);
       publication = await this.publisher.publish(target, findings);
+      resolved = await this.stale.resolve(target, findings);
     } finally {
       await release();
     }
@@ -182,7 +187,7 @@ export class ReviewProcessor extends WorkerHost {
       target.installationId,
       target.repo,
       checkRunId,
-      renderCheck(outcome, target.headSha, publication),
+      renderCheck(outcome, target.headSha, publication, resolved),
     );
     await this.prisma.review.update({
       where: { id: target.reviewId },

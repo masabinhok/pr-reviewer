@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { DeliveryStatus, Prisma } from '../generated/prisma/client.js';
 import { InstallationsService } from '../installations/installations.service.js';
 import { PullRequestsService } from '../reviews/pull-requests.service.js';
+import { StaleFindings } from '../reviews/stale-findings.service.js';
 
 /**
  * The error Postgres produces when the unique constraint on deliveryId rejects a
@@ -52,11 +53,13 @@ describe('WebhooksService', () => {
   let prisma: ReturnType<typeof prismaStub>;
   let installations: ReturnType<typeof installationsStub>;
   let pullRequests: { handle: ReturnType<typeof vi.fn> };
+  let stale: { setResolvedByPerson: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     prisma = prismaStub();
     installations = installationsStub();
     pullRequests = { handle: vi.fn().mockResolvedValue('enqueued') };
+    stale = { setResolvedByPerson: vi.fn().mockResolvedValue(1) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,6 +67,7 @@ describe('WebhooksService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: InstallationsService, useValue: installations },
         { provide: PullRequestsService, useValue: pullRequests },
+        { provide: StaleFindings, useValue: stale },
       ],
     }).compile();
 
@@ -194,6 +198,18 @@ describe('WebhooksService', () => {
       const result = await service.handleWebhook('d-6', event, payload);
 
       expect(installations[method]).toHaveBeenCalledWith(payload);
+      expect(result).toEqual({ ok: true, handled: true });
+    });
+
+    it.each([
+      ['resolved', true],
+      ['unresolved', false],
+    ] as const)('routes pull_request_review_thread.%s to StaleFindings', async (action, resolved) => {
+      const payload = { action, thread: { comments: [{ id: 991 }, { id: 992 }] } };
+
+      const result = await service.handleWebhook(`d-thread-${action}`, 'pull_request_review_thread', payload);
+
+      expect(stale.setResolvedByPerson).toHaveBeenCalledWith([991n, 992n], resolved);
       expect(result).toEqual({ ok: true, handled: true });
     });
 

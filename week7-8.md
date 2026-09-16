@@ -185,7 +185,9 @@ runs, the Check Run completes, and no comment is posted twice.
 ## Milestone 25 — Resolve stale findings
 
 - **First, verify** the installation token can call `resolveReviewThread` (trap 2), on a
-  testbed thread, and unresolve it again.
+  testbed thread, and unresolve it again. (Verified: it **cannot** — GitHub answers FORBIDDEN
+  unless the App may also write repository contents, which a reviewer should not have. The
+  App collapses the comment as outdated instead; see `docs/decisions.md`.)
 - On each new review of a PR: an open, posted finding from an earlier review is resolved
   when the code it anchored to has changed — GitHub's `isOutdated` on its thread, or its
   anchored line's text is no longer in the new diff at that file — **and** the new review
@@ -198,11 +200,11 @@ runs, the Check Run completes, and no comment is posted twice.
   failure is logged and retried with the job, never fails the review.
 
 **Todo**
-- [ ] The mutation verified with the installation token
-- [ ] `resolvedAt`, `resolvedBy` migration; the stale rule, documented
-- [ ] Resolve in the database and on GitHub; idempotent
-- [ ] `pull_request_review_thread` webhook: resolved / unresolved by a person
-- [ ] Tests: code changed and not re-found → resolved; not re-found but unchanged → open; re-found → open; person resolves
+- [x] The mutation verified with the installation token — refused, and collapsing used instead
+- [x] `resolvedAt`, `resolvedBy` migration; the stale rule, documented
+- [x] Resolve in the database and on GitHub; idempotent
+- [x] `pull_request_review_thread` webhook: resolved / unresolved by a person
+- [x] Tests: code changed and not re-found → resolved; not re-found but unchanged → open; re-found → open; person resolves
 
 **Polish bar:** on the testbed, fix the line a comment points at and push: that thread shows
 as resolved by the App; resolve another by hand and the database agrees.

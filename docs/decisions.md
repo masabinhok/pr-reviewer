@@ -877,3 +877,34 @@ so a worker that dies only delays the PR, and it carries a token, so a review wh
 expired can't release the next holder's. A review that finds the lock taken waits two
 seconds without spending an attempt. The release script is tested against real Redis, where
 a mock could not show it works.
+
+## A comment is retired when its code is gone — collapsed, not resolved
+
+A review comment whose problem was fixed should stop asking for attention. Milestone 25
+retires one when **both** are true: GitHub says the thread is outdated — its own answer to
+"has the commented code changed?", read through GraphQL — **and** the new review did not find
+the problem again (M24's repeat link). Either alone is wrong. The local model's findings vary
+run to run, so "it didn't say it this time" is no evidence of a fix; and code that changed may
+still be broken, which is exactly when the review finds it again. Retired means `RESOLVED` in
+the database, with when and by whom, and the Check Run says how many comments the review
+retired.
+
+**GitHub will not let this App resolve a thread.** `resolveReviewThread` answers `FORBIDDEN —
+Resource not accessible by integration` for an installation token, verified against the real
+API on the testbed. The documented cause is that the mutation needs **Contents: read and
+write**: a reviewer would have to be able to *write the repository's code* in order to tick a
+checkbox on its own comment. That is a bad trade for a bot whose whole safety story is that it
+only reads, so the App keeps `Contents: read` and does what it can with the permissions it
+should have: `minimizeComment` collapses the comment as outdated, which works, and which the
+same probe confirmed. Collapsing is best-effort — the row is the record, and a comment left
+expanded is untidy, not wrong.
+
+The other direction matters more than the App's opinion: a person resolving the thread on
+GitHub (`pull_request_review_thread.resolved`) resolves the findings behind it, and reopening
+it puts them back. Their decision outranks ours. That event needs its own checkbox in the
+App's settings, which is a step someone has to do by hand — nothing in the code can grant it.
+
+Checked live on the testbed, end to end: fixing the flagged line and pushing left the old
+comment collapsed as outdated, the row `RESOLVED` by `APP`, and the Check Run saying so;
+resolving another thread by hand marked its finding `RESOLVED` by `PERSON`, and reopening it
+returned the row to `OPEN`.

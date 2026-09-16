@@ -31,6 +31,7 @@ export function renderCheck(
   result: CheckResult,
   headSha: string,
   publication?: Publication,
+  resolved = 0,
 ): { conclusion: CheckConclusion; output: CheckRunOutput } {
   const at = `\`${headSha.slice(0, 7)}\``;
 
@@ -73,6 +74,7 @@ export function renderCheck(
         `Reviewed ${files} at ${at}.\n\n` +
           reviewerNote(reviewer) +
           publicationNote(publication, findings.length) +
+          resolvedNote(resolved) +
           findingsSection(findings) +
           droppedSection(dropped) +
           skippedSection(skipped) +
@@ -117,6 +119,13 @@ function publicationNote(publication: Publication | undefined, total: number): s
   const comments = `${publication.posted} comment${publication.posted === 1 ? '' : 's'}`;
   const where = publication.url ? `[a review](${publication.url})` : 'a review';
   return `Posted ${comments} on the pull request in ${where}; ${bar} only.${already}\n\n`;
+}
+
+/** Comments from earlier reviews that this one retired, because their code is gone. */
+function resolvedNote(resolved: number): string {
+  if (resolved === 0) return '';
+  const comments = `${resolved} earlier comment${resolved === 1 ? '' : 's'}`;
+  return `Resolved ${comments}: the code ${resolved === 1 ? 'it pointed' : 'they pointed'} at has changed and this review did not find the problem again.\n\n`;
 }
 
 function reviewerFooter(run: ReviewerRun | undefined): string {

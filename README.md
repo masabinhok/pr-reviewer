@@ -38,6 +38,8 @@ What works today:
   to low; the Check Run lists what was dropped and why
 - A push to a PR never re-posts a comment already on it: a finding near code an earlier
   review commented on is stored as a repeat, and the Check Run counts it
+- A comment whose code is gone, and whose problem the review no longer finds, is resolved and
+  collapsed as outdated; a person resolving the thread on GitHub resolves it too
 - Findings are validated against the diff, fingerprinted, and kept to one per line; those at
   or above `POST_MIN_SEVERITY` (high, by default) are posted as **one `COMMENT` review** —
   never an approval — exactly once, however the job is retried

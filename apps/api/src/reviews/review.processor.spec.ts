@@ -10,6 +10,7 @@ import type { ReviewOutcome } from './review-outcome.js';
 import type { ReviewPipeline } from './review-pipeline.js';
 import type { ReviewPublisher } from './review-publisher.js';
 import type { PullRequestLock } from './pull-request-lock.js';
+import type { StaleFindings } from './stale-findings.service.js';
 import { Severity } from '../generated/prisma/client.js';
 import type { ValidFinding } from '../reviewer/validate-findings.js';
 
@@ -46,6 +47,7 @@ describe('ReviewProcessor', () => {
   let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
   let publisher: { publish: ReturnType<typeof vi.fn> };
   let lock: { acquire: ReturnType<typeof vi.fn> };
+  let stale: { resolve: ReturnType<typeof vi.fn> };
   let release: ReturnType<typeof vi.fn>;
   let order: string[];
   let processor: ReviewProcessor;
@@ -73,6 +75,7 @@ describe('ReviewProcessor', () => {
     publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null, minSeverity: 'MEDIUM' as const, repeated: 0 })) };
     release = vi.fn(async () => void order.push('release'));
     lock = { acquire: vi.fn(async () => (order.push('lock'), release)) };
+    stale = { resolve: vi.fn(async () => (order.push('resolve'), 0)) };
     github = {
       createCheckRun: vi.fn().mockResolvedValue({ id: 777 }),
       completeCheckRun: vi.fn().mockResolvedValue(undefined),
@@ -83,6 +86,7 @@ describe('ReviewProcessor', () => {
       {} as ReviewPipeline, // `run` is spied below, so the pipeline itself is never called
       publisher as unknown as ReviewPublisher,
       lock as unknown as PullRequestLock,
+      stale as unknown as StaleFindings,
     );
     // `run` is the pipeline; here only what it returns or throws matters.
     run = vi
@@ -131,7 +135,7 @@ describe('ReviewProcessor', () => {
 
       await processor.process(job());
 
-      expect(order).toEqual(['lock', 'publish', 'release', 'check', 'row']);
+      expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check', 'row']);
     });
 
     const found: ValidFinding = {
@@ -233,7 +237,7 @@ describe('ReviewProcessor', () => {
         await processor.process(job());
 
         expect(lock.acquire).toHaveBeenCalledWith('octo/widgets', 3);
-        expect(order).toEqual(['lock', 'publish', 'release', 'check']);
+        expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check']);
       });
 
       it('is released when posting fails', async () => {
@@ -280,7 +284,7 @@ describe('ReviewProcessor', () => {
 
       await processor.process(job());
 
-      expect(order).toEqual(['lock', 'publish', 'release', 'check', 'row']);
+      expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check', 'row']);
     });
 
     it('tells the Check Run what was posted', async () => {

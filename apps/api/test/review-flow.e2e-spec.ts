@@ -46,6 +46,8 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
   let app: INestApplication;
   let prisma: PrismaService;
   let github: ReturnType<typeof fakeGithub>;
+  /** Comment IDs the fake GitHub reports as outdated — its answer to "has this code changed?". */
+  let outdated: Set<number>;
 
   function deliver(event: string, body: string, deliveryId = randomUUID()) {
     return request(app.getHttpServer())
@@ -81,7 +83,9 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
   });
 
   beforeEach(async () => {
+    outdated = new Set<number>();
     github = fakeGithub({
+      outdated: (id) => outdated.has(id),
       pulls: {
         [`${REPO}#3`]: { files: JSON.parse(diffs('pr3-synchronize.files.json')), diff: diffs('pr3-synchronize.diff'), title: 'Diff shapes' },
         [`${REPO}#5`]: { files: JSON.parse(diffs('pr5-too-large.files.json')), diff: diffs('pr5-too-large.diff') },
@@ -251,6 +255,41 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
       expect(github.reviews[1].comments.map((c) => [c.path, c.line])).toEqual([['src/new-feature.ts', 2]]);
     });
 
+    // M25: the comment's code is gone and this review didn't find the problem again.
+    it('resolves and collapses a comment whose code has gone', async () => {
+      const original = diffs('pr3-synchronize.diff');
+      // The second push replaces the flagged line, so nothing is found there again.
+      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
+        head === SECOND ? original.replace('+  debugger;', '+  const ready = true;') : original;
+      await deliver('pull_request', SYNC).expect(200);
+      const first = await settledReview(sync.pull_request.head.sha);
+      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
+      outdated.add(Number(commented.githubCommentId));
+
+      await deliver('pull_request', secondPush()).expect(200);
+      await settledReview(SECOND);
+
+      const after = await prisma.finding.findUnique({ where: { id: commented.id } });
+      expect(after).toMatchObject({ status: 'RESOLVED', resolvedBy: 'APP' });
+      expect(after!.resolvedAt).not.toBeNull();
+      expect(github.minimized.has(Number(commented.githubCommentId))).toBe(true);
+      expect(github.completedCheckRuns().at(-1)!.output.summary).toContain('Resolved 1 earlier comment');
+    });
+
+    // Outdated code is not a fix while the review still finds the problem.
+    it('leaves a comment open when the review finds the problem again', async () => {
+      await deliver('pull_request', SYNC).expect(200);
+      const first = await settledReview(sync.pull_request.head.sha);
+      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
+      outdated.add(Number(commented.githubCommentId));
+
+      await deliver('pull_request', secondPush()).expect(200);
+      await settledReview(SECOND);
+
+      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'OPEN', resolvedBy: null });
+      expect(github.minimized.size).toBe(0);
+    });
+
     it('posts again a finding that had been resolved and came back', async () => {
       await deliver('pull_request', SYNC).expect(200);
       const first = await settledReview(sync.pull_request.head.sha);
@@ -260,6 +299,24 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
       await settledReview(SECOND);
 
       expect(github.reviews).toHaveLength(2);
+    });
+  });
+
+  // A person's decision about a comment outranks the App's.
+  describe('someone resolves the thread on GitHub', () => {
+    const threadEvent = (action: string, commentId: bigint) =>
+      JSON.stringify({ action, thread: { comments: [{ id: Number(commentId) }] }, installation: { id: sync.installation.id } });
+
+    it('resolves the finding behind it, and reopens it when the thread is reopened', async () => {
+      await deliver('pull_request', SYNC).expect(200);
+      const review = await settledReview(sync.pull_request.head.sha);
+      const commented = review!.findings.find((f) => f.githubCommentId !== null)!;
+
+      await deliver('pull_request_review_thread', threadEvent('resolved', commented.githubCommentId!)).expect(200);
+      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'RESOLVED', resolvedBy: 'PERSON' });
+
+      await deliver('pull_request_review_thread', threadEvent('unresolved', commented.githubCommentId!)).expect(200);
+      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'OPEN', resolvedBy: null, resolvedAt: null });
     });
   });
 

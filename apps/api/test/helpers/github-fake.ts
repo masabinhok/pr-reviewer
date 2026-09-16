@@ -19,6 +19,8 @@ export interface FakeGithubOptions {
   pulls: Record<string, FakePullRequest>;
   /** Make compare fail this way, to exercise the failure path. */
   failCompare?: { status: number; message: string };
+  /** Which posted comments GitHub calls outdated — its answer to "has this code changed?". */
+  outdated?: (commentId: number) => boolean;
 }
 
 export interface RecordedCall {
@@ -42,6 +44,8 @@ export function fakeGithub(options: FakeGithubOptions) {
   let nextReviewId = 7000;
   let nextCommentId = 90000;
   const reviews: PostedReview[] = [];
+  /** Comments collapsed through the GraphQL minimizeComment mutation, by comment ID. */
+  const minimized = new Set<number>();
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -113,6 +117,30 @@ export function fakeGithub(options: FakeGithubOptions) {
       return json({ id: Number(m[2]) });
     }
 
+    // GraphQL: the review threads of a PR, and collapsing a comment. One thread per posted
+    // comment, as GitHub makes one; `isOutdated` is the fake's own answer, set by the test.
+    if (method === 'POST' && path === '/graphql') {
+      const { query, variables } = body as { query: string; variables: Record<string, unknown> };
+      if (query.includes('reviewThreads')) {
+        const nodes = reviews
+          .filter((r) => r.prNumber === Number(variables.number))
+          .flatMap((r) =>
+            r.comments.map((c) => ({
+              id: `PRRT_${c.id}`,
+              isResolved: false,
+              isOutdated: options.outdated?.(c.id) ?? false,
+              comments: { nodes: [{ id: `PRRC_${c.id}`, databaseId: c.id, isMinimized: minimized.has(c.id) }] },
+            })),
+          );
+        return json({ data: { repository: { pullRequest: { reviewThreads: { nodes } } } } });
+      }
+      if (query.includes('minimizeComment')) {
+        minimized.add(Number(String(variables.id).replace('PRRC_', '')));
+        return json({ data: { minimizeComment: { minimizedComment: { isMinimized: true } } } });
+      }
+      throw new Error(`fake GitHub: unexpected GraphQL query ${query.slice(0, 60)}`);
+    }
+
     throw new Error(`fake GitHub: unexpected ${method} ${path}`);
   }
 
@@ -123,6 +151,8 @@ export function fakeGithub(options: FakeGithubOptions) {
     pulls: options.pulls,
     /** Reviews posted to the fake, with their comments. */
     reviews,
+    /** Comment IDs collapsed as outdated. */
+    minimized,
     /** The body of every Check Run completion, in order. */
     completedCheckRuns: () =>
       calls

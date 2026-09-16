@@ -52,6 +52,24 @@ export interface ReviewCommentInput {
   body: string;
 }
 
+/** A review thread on a pull request, and the comment that starts it. */
+export interface ReviewThread {
+  id: string;
+  /** GitHub's own answer to "has the commented code changed since?" */
+  isOutdated: boolean;
+  isResolved: boolean;
+  commentId: bigint;
+  commentNodeId: string;
+  isMinimized: boolean;
+}
+
+interface RawThread {
+  id: string;
+  isOutdated: boolean;
+  isResolved: boolean;
+  comments: { nodes: { id: string; databaseId: number; isMinimized: boolean }[] };
+}
+
 export interface PostedReviewComment {
   id: number;
   path: string;
@@ -175,6 +193,69 @@ export class GithubApiService {
       `/repos/${repo}/pulls/${prNumber}/comments?per_page=100`,
     );
     return all.filter((c) => c.pull_request_review_id !== null && BigInt(c.pull_request_review_id) === BigInt(reviewId));
+  }
+
+  /**
+   * The PR's review threads, with the comment each starts.
+   *
+   * GraphQL, because REST has no notion of a thread: `isOutdated` — GitHub's own answer to
+   * "has the commented code changed?" — exists nowhere else, and neither does the thread ID.
+   */
+  async listReviewThreads(installationId: InstallationId, repo: string, prNumber: number): Promise<ReviewThread[]> {
+    const [owner, name] = repo.split('/');
+    const query = `query($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          reviewThreads(first: 100) {
+            nodes { id isResolved isOutdated comments(first: 1) { nodes { id databaseId isMinimized } } }
+          }
+        }
+      }
+    }`;
+    const data = await this.graphql<{
+      repository: { pullRequest: { reviewThreads: { nodes: RawThread[] } } | null } | null;
+    }>(installationId, query, { owner, name, number: prNumber });
+
+    const nodes = data.repository?.pullRequest?.reviewThreads.nodes ?? [];
+    return nodes.flatMap((thread) => {
+      const [comment] = thread.comments.nodes;
+      if (!comment) return [];
+      return [
+        {
+          id: thread.id,
+          isOutdated: thread.isOutdated,
+          isResolved: thread.isResolved,
+          commentId: BigInt(comment.databaseId),
+          commentNodeId: comment.id,
+          isMinimized: comment.isMinimized,
+        },
+      ];
+    });
+  }
+
+  /**
+   * Collapses a comment as outdated — what this App can do about a comment whose code is
+   * gone. Resolving the thread (`resolveReviewThread`) is refused for an installation token
+   * unless the App may also *write* repository contents, which a reviewer has no business
+   * doing; see docs/decisions.md.
+   */
+  async minimizeComment(installationId: InstallationId, commentNodeId: string): Promise<void> {
+    const query = `mutation($id: ID!) {
+      minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) { minimizedComment { isMinimized } }
+    }`;
+    await this.graphql(installationId, query, { id: commentNodeId });
+  }
+
+  /** One GraphQL call. GraphQL answers 200 with an `errors` array, so failures are checked here. */
+  async graphql<T>(installationId: InstallationId, query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    const body = await this.json<{ data?: T; errors?: { message: string }[] }>(installationId, '/graphql', {
+      method: 'POST',
+      body: { query, variables },
+    });
+    if (body.errors?.length) {
+      throw new GithubApiError(422, '/graphql', body.errors.map((e) => e.message).join('; '));
+    }
+    return body.data as T;
   }
 
   async json<T>(installationId: InstallationId, path: string, options: RequestOptions = {}): Promise<T> {

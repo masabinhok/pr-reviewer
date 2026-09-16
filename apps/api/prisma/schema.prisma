@@ -40,6 +40,14 @@ enum FindingStatus {
   OPEN
   RESOLVED
 }
+/// Who decided a finding is done with.
+enum ResolvedBy {
+  /// A later review: the code the comment pointed at is gone, and the review didn't find it again.
+  APP
+  /// Someone resolved the thread on GitHub.
+  PERSON
+}
+
 /// How the agent's second look went; a refuted finding is never stored.
 enum Verdict {
   CONFIRMED
@@ -140,6 +148,8 @@ model Finding {
   repeatOf        Finding?  @relation("Repeats", fields: [repeatOfId], references: [id])
   repeatOfId      String?
   repeats         Finding[] @relation("Repeats")
+  resolvedAt      DateTime?
+  resolvedBy      ResolvedBy?
 
   feedbacks Feedback[]
 

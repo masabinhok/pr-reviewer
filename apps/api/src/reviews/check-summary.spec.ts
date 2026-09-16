@@ -128,6 +128,18 @@ describe('renderCheck', () => {
       expect(none.output.summary).toContain('Nothing new to post. 2 were already commented on in an earlier review, so they were not posted again.');
     });
 
+    it('says how many earlier comments the review retired', () => {
+      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.HIGH)] };
+
+      const one = renderCheck(completed, HEAD, undefined, 1);
+      const several = renderCheck(completed, HEAD, undefined, 3);
+      const none = renderCheck(completed, HEAD, undefined, 0);
+
+      expect(one.output.summary).toContain('Resolved 1 earlier comment: the code it pointed at has changed and this review did not find the problem again.');
+      expect(several.output.summary).toContain('Resolved 3 earlier comments: the code they pointed at has changed');
+      expect(none.output.summary).not.toContain('Resolved');
+    });
+
     it('shows at most 50 findings and says how many more there are', () => {
       const findings = Array.from({ length: 60 }, (_, i) => finding(Severity.LOW, 'a.ts', i + 1, `finding ${i + 1}`));
 

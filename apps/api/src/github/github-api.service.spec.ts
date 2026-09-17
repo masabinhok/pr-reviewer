@@ -72,6 +72,46 @@ describe('GithubApiService', () => {
     expect(call(0).init.headers.Accept).toBe('application/vnd.github.diff');
   });
 
+  describe('reactions on a comment', () => {
+    const reaction = { content: '-1', created_at: '2026-09-13T11:50:18Z', user: { id: 161845983, login: 'masabinhok', type: 'User' } };
+
+    it('reads them with their ETag', async () => {
+      fetchMock.mockResolvedValue(json([reaction, { ...reaction, user: null }], { headers: { etag: 'W/"abc"' } }));
+
+      const answer = await service.listCommentReactions(INSTALLATION, REPO, 991n, null);
+
+      expect(answer).toEqual({
+        kind: 'reactions',
+        etag: 'W/"abc"',
+        reactions: [{ content: '-1', createdAt: new Date('2026-09-13T11:50:18Z'), user: { id: 161845983n, type: 'User' } }],
+      });
+      expect(call(0).url).toBe('https://api.github.com/repos/octo/widgets/pulls/comments/991/reactions?per_page=100');
+      expect(call(0).init.headers['If-None-Match']).toBeUndefined();
+    });
+
+    // A 304 is free: GitHub doesn't count it against the rate limit.
+    it('asks conditionally with the last ETag, and reports a 304 as unchanged', async () => {
+      fetchMock.mockResolvedValue(new Response(null, { status: 304 }));
+
+      const answer = await service.listCommentReactions(INSTALLATION, REPO, 991n, 'W/"abc"');
+
+      expect(answer).toEqual({ kind: 'unchanged' });
+      expect(call(0).init.headers['If-None-Match']).toBe('W/"abc"');
+    });
+
+    it('reports a deleted comment as gone', async () => {
+      fetchMock.mockResolvedValue(json({ message: 'Not Found' }, { status: 404 }));
+
+      expect(await service.listCommentReactions(INSTALLATION, REPO, 991n, null)).toEqual({ kind: 'gone' });
+    });
+
+    it('still fails on anything else', async () => {
+      fetchMock.mockResolvedValue(json({ message: 'Server Error' }, { status: 500 }));
+
+      await expect(service.listCommentReactions(INSTALLATION, REPO, 991n, null)).rejects.toThrow('GitHub 500');
+    });
+  });
+
   describe('review threads', () => {
     const thread = (over: Record<string, unknown> = {}) => ({
       id: 'PRRT_1',

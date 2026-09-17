@@ -23,6 +23,8 @@ export default defineConfig({
       REVIEWER: 'stub',
       // The flows assert that high and medium are posted and low is not.
       POST_MIN_SEVERITY: 'medium',
+      // Tests poll reactions by hand, when they choose.
+      FEEDBACK_POLL_MS: '0',
     },
     // One database, shared by every file: run files one at a time so one file's
     // truncate can never land in the middle of another file's test.

@@ -40,6 +40,8 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     repeatOfId: null,
     resolvedAt: null,
     resolvedBy: null,
+    reactionsEtag: null,
+    commentGoneAt: null,
     ...overrides,
   };
 }

@@ -150,6 +150,11 @@ model Finding {
   repeats         Finding[] @relation("Repeats")
   resolvedAt      DateTime?
   resolvedBy      ResolvedBy?
+  /// The ETag of the comment's reactions as last read; sent back as If-None-Match, so an
+  /// unchanged comment costs a 304 and no rate limit.
+  reactionsEtag   String?
+  /// Set when GitHub says the comment no longer exists (someone deleted it). Not polled again.
+  commentGoneAt   DateTime?
 
   feedbacks Feedback[]
 
@@ -163,6 +168,8 @@ model Feedback {
   findingId    String
   signal       FeedbackSignal
   githubUserId BigInt
+  /// When they reacted, as GitHub records it.
+  reactedAt    DateTime?
 
   @@unique([findingId, githubUserId])
 }

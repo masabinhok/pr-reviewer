@@ -81,7 +81,24 @@ interface RequestOptions {
   accept?: string;
   method?: string;
   body?: unknown;
+  headers?: Record<string, string>;
+  /** Non-2xx statuses that are answers here, not failures — a 304, a 404. */
+  allow?: number[];
 }
+
+/** One reaction on a comment, as much of it as feedback needs. */
+export interface Reaction {
+  content: string;
+  createdAt: Date;
+  user: { id: bigint; type: string };
+}
+
+export type CommentReactions =
+  /** The ETag still matches: nothing changed, and GitHub charged no rate limit for asking. */
+  | { kind: 'unchanged' }
+  /** The comment is gone — deleted on GitHub. */
+  | { kind: 'gone' }
+  | { kind: 'reactions'; etag: string | null; reactions: Reaction[] };
 
 /**
  * The one place that calls the GitHub REST API as an installation. Every later milestone
@@ -246,6 +263,37 @@ export class GithubApiService {
     await this.graphql(installationId, query, { id: commentNodeId });
   }
 
+  /**
+   * The reactions on one review comment, asked conditionally: with the ETag from last time,
+   * an unchanged comment answers 304 — and a 304 does not count against the rate limit
+   * (verified on the real API). GitHub has no webhook for reactions, so this is polled.
+   *
+   * One page of up to 100: more reactions than that on one bot comment is not a case worth
+   * paging for.
+   */
+  async listCommentReactions(
+    installationId: InstallationId,
+    repo: string,
+    commentId: bigint,
+    etag: string | null,
+  ): Promise<CommentReactions> {
+    const response = await this.request(installationId, `/repos/${repo}/pulls/comments/${commentId}/reactions?per_page=100`, {
+      headers: etag ? { 'If-None-Match': etag } : {},
+      allow: [304, 404],
+    });
+    if (response.status === 304) return { kind: 'unchanged' };
+    if (response.status === 404) return { kind: 'gone' };
+
+    const raw = (await response.json()) as { content: string; created_at: string; user: { id: number; type: string } | null }[];
+    return {
+      kind: 'reactions',
+      etag: response.headers.get('etag'),
+      reactions: raw
+        .filter((r) => r.user !== null)
+        .map((r) => ({ content: r.content, createdAt: new Date(r.created_at), user: { id: BigInt(r.user!.id), type: r.user!.type } })),
+    };
+  }
+
   /** One GraphQL call. GraphQL answers 200 with an `errors` array, so failures are checked here. */
   async graphql<T>(installationId: InstallationId, query: string, variables: Record<string, unknown> = {}): Promise<T> {
     const body = await this.json<{ data?: T; errors?: { message: string }[] }>(installationId, '/graphql', {
@@ -293,7 +341,7 @@ export class GithubApiService {
       response = await this.send(installationId, path, options);
     }
 
-    if (response.ok) return response;
+    if (response.ok || options.allow?.includes(response.status)) return response;
     throw await failure(response, stripQuery(path));
   }
 
@@ -307,6 +355,7 @@ export class GithubApiService {
         'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'pr-reviewer',
         ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...options.headers,
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });

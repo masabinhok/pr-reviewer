@@ -908,3 +908,38 @@ Checked live on the testbed, end to end: fixing the flagged line and pushing lef
 comment collapsed as outdated, the row `RESOLVED` by `APP`, and the Check Run saying so;
 resolving another thread by hand marked its finding `RESOLVED` by `PERSON`, and reopening it
 returned the row to `OPEN`.
+
+## Feedback is polled, because GitHub has no reaction webhook
+
+Milestone 26 turns 👍 and 👎 on the App's comments into `Feedback` rows — the signal weeks 9–10
+evaluate against. The obvious design, a webhook, doesn't exist: GitHub's event list has no
+reaction event of any kind. So reactions are **polled**, by a BullMQ job scheduler (every five
+minutes, `FEEDBACK_POLL_MS`). Redis holds the schedule, so two API processes still poll once.
+
+Polling every comment every five minutes sounds expensive, and would be without conditional
+requests. Each comment is asked with the `ETag` from last time, and an unchanged comment
+answers **304, which GitHub doesn't count against the rate limit**. That was measured before it
+was relied on: a second request with `If-None-Match` answered 304 and the remaining budget stayed
+at 4998. Live, the second poll of this repository's 13 posted comments was 13 × 304. A quiet PR
+costs nothing; only a comment someone reacted to costs a request.
+
+What counts as a signal:
+
+- `+1` is UP and `-1` is DOWN. Other reactions (❤️, 🚀, 👀…) say how someone feels, not
+  whether the comment was right, and are ignored.
+- Bots don't vote, this App included.
+- One signal per person per finding. GitHub lets someone leave both 👍 and 👎; their latest is
+  what they think now.
+- The rows always mirror the comment: a reaction taken back removes its row.
+- A comment deleted on GitHub answers 404; it is marked gone and not asked about again.
+
+The plan said to poll PRs "open or closed within the last 14 days". The App doesn't track PR
+state, and fetching it would cost a request per PR per round, so the window is **reviews
+completed in the last 14 days** instead: reactions come soon after a comment appears, and a
+comment on a long-lived PR is reviewed again by later pushes anyway. Suspended and removed
+installations are skipped. A rate-limited installation is skipped for the rest of the round
+while the others carry on.
+
+`feedbackRate()` defines the numbers once — posted, with feedback, upvoted, downvoted — so the
+dashboard and anything after it report the same thing. The first real reading, on this
+repository: 13 comments posted, 3 with feedback, 3 downvoted — the three wrong comments on #33.

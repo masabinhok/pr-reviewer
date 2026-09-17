@@ -217,7 +217,8 @@ signal.
 ## Milestone 26 — Feedback: reactions
 
 - A repeating BullMQ job (`upsertJobScheduler`, every few minutes) polls reactions for posted
-  findings on pull requests that are open or closed within the last 14 days.
+  findings on pull requests that are open or closed within the last 14 days. (Built as: reviews
+  completed within the last 14 days — the App doesn't track PR state; see `docs/decisions.md`.)
 - Each request sends the `ETag` stored for that comment (migration: `Finding.reactionsEtag`);
   304 → nothing to do (trap 1).
 - `+1` → `UP`, `-1` → `DOWN`, per GitHub user; other reactions are ignored; the App's own
@@ -228,11 +229,11 @@ signal.
   any 👍/👎, and the share of those that are 👎.
 
 **Todo**
-- [ ] Repeating poll job; ETag per comment; 304 short-circuit
-- [ ] Reactions → `Feedback` upserts and deletes; the App's own reactions ignored
-- [ ] Stop polling deleted comments and old closed PRs
-- [ ] Feedback-rate query, tested
-- [ ] Tests: 304, new 👎, 👍→👎, reaction removed, comment deleted
+- [x] Repeating poll job; ETag per comment; 304 short-circuit
+- [x] Reactions → `Feedback` upserts and deletes; the App's own reactions ignored
+- [x] Stop polling deleted comments and old closed PRs
+- [x] Feedback-rate query, tested
+- [x] Tests: 304, new 👎, 👍→👎, reaction removed, comment deleted
 
 **Polish bar:** 👎 a comment on #33; within one polling interval there is a `DOWN` row for
 it, and removing the reaction removes the row.

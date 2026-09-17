@@ -6,6 +6,8 @@
  * Unknown requests throw, so a test can't pass by quietly calling something unexpected.
  */
 
+import { createHash } from 'node:crypto';
+
 export interface FakePullRequest {
   /** What `/pulls/{n}/files` returns. */
   files: unknown[];
@@ -21,6 +23,18 @@ export interface FakeGithubOptions {
   failCompare?: { status: number; message: string };
   /** Which posted comments GitHub calls outdated — its answer to "has this code changed?". */
   outdated?: (commentId: number) => boolean;
+  /**
+   * Reactions by comment ID, for the reactions endpoint. A comment ID that is absent answers
+   * 404, as a deleted comment does. The ETag is derived from the reactions, and a request
+   * whose If-None-Match still matches gets 304, as on GitHub.
+   */
+  reactions?: Map<number, FakeReaction[]>;
+}
+
+export interface FakeReaction {
+  content: string;
+  created_at: string;
+  user: { id: number; type: 'User' | 'Bot' };
 }
 
 export interface RecordedCall {
@@ -115,6 +129,15 @@ export function fakeGithub(options: FakeGithubOptions) {
     }
     if (method === 'PATCH' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/check-runs\/(\d+)$/))) {
       return json({ id: Number(m[2]) });
+    }
+
+    if (method === 'GET' && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/comments\/(\d+)\/reactions$/))) {
+      const list = options.reactions?.get(Number(m[2]));
+      if (!list) return json({ message: 'Not Found' }, 404);
+      const etag = `W/"${createHash('sha256').update(JSON.stringify(list)).digest('hex')}"`;
+      const sent = (init.headers as Record<string, string> | undefined)?.['If-None-Match'];
+      if (sent === etag) return new Response(null, { status: 304, headers: { ETag: etag } });
+      return new Response(JSON.stringify(list), { status: 200, headers: { 'Content-Type': 'application/json', ETag: etag } });
     }
 
     // GraphQL: the review threads of a PR, and collapsing a comment. One thread per posted

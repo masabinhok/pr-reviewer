@@ -8,6 +8,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { GithubModule } from './github/github.module.js';
 import configuration from './config/configuration.js';
 
+import { FeedbackModule } from './feedback/feedback.module.js';
 @Module({
   imports: [ConfigModule.forRoot({
     load: [configuration],
@@ -25,7 +26,7 @@ import configuration from './config/configuration.js';
     }),
     envFilePath: '../../.env',
     isGlobal: true
-  }), HealthModule, WebhooksModule, GithubModule],
+  }), HealthModule, WebhooksModule, GithubModule, FeedbackModule],
   controllers: [AppController],
   providers: [AppService],
 })

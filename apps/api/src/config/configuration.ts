@@ -25,6 +25,11 @@ export default () => ({
     // "fails every attempt" doesn't wait half a minute.
     retryDelayMs: Number(process.env.REVIEW_RETRY_DELAY_MS ?? 10_000),
   },
+  feedback: {
+    // How often reactions on the App's comments are polled (GitHub sends no webhook for them).
+    // 0 turns polling off; the e2e suite does, and polls by hand.
+    pollMs: Number(process.env.FEEDBACK_POLL_MS ?? 5 * 60_000),
+  },
   posting: {
     // The least severe finding that becomes a comment on the pull request; everything below
     // it stays in the Check Run. High by default, from dogfooding: the local model's medium

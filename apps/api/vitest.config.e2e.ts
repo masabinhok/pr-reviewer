@@ -25,6 +25,7 @@ export default defineConfig({
       POST_MIN_SEVERITY: 'medium',
       // Tests poll reactions by hand, when they choose.
       FEEDBACK_POLL_MS: '0',
+      DASHBOARD_TOKEN: 'e2e-dashboard-token',
     },
     // One database, shared by every file: run files one at a time so one file's
     // truncate can never land in the middle of another file's test.

@@ -972,3 +972,32 @@ heading that way. A test fails if the interceptor is removed.
 Checked against the real development database: 24 reviews, 35 findings, 13 posted, 6 dropped
 on a second look, the feedback rate straight from `feedbackRate()`, and #33's three wrong
 comments with the 👎 on each.
+
+## The dashboard reads from its server, and leads with where findings go
+
+Milestone 28 is `apps/web`, a Next.js 16 app over the M27 API. Two decisions shaped it.
+
+**Every page fetches on the server.** Server components call the dashboard API with
+`DASHBOARD_TOKEN`, so the browser only ever receives HTML. The client for that API imports
+`server-only`, which turns "a client component imported it" into a build error rather than a
+leaked token. That was checked by adding such an import and watching the build fail. The token
+appears in none of the build's files, because it is only read at runtime. The first real run
+found one trap: loading the root `.env` from `next.config.ts` works at build time, but those
+variables never reach the server `next start` runs, so the page said no token was set. The root
+`.env` is now loaded by the `dev` and `start` scripts, in the process that uses it. The API
+address is `DASHBOARD_API_URL` rather than derived from `PORT`, because Next sets `PORT` to its own
+port, which would point the dashboard at itself.
+
+**The overview leads with where findings go.** It is not a grid of numbers. Weeks 5–8 were
+about noise, and the funnel shows it in the order it happens: what the reviewer proposed, what
+the second look refuted, what was kept, what was posted, and what someone marked wrong. On this
+repository's data that reads 41 → 6 refuted → 35 kept → 13 posted → 3 marked wrong. The rest is
+tables because the rest is tabular. Severity colours are reserved and always come with their
+word. The chart's bar colour is the charting guide's validated aqua, checked for lightness,
+chroma and contrast on both the light and the dark background, and kept separate from the link
+colour. Dark mode is its own set of values, not an inversion.
+
+Looking at it on real data changed one page. The installations list first showed two
+uninstalled installations, one with 122 removed repositories, above the one that is actually
+working, which ended up below the fold. Current installations now come first, and history is
+folded away.

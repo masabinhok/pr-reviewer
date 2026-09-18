@@ -42,8 +42,8 @@ What works today:
   collapsed as outdated; a person resolving the thread on GitHub resolves it too
 - 👍 and 👎 on the App's comments are collected as feedback — polled, since GitHub has no
   reaction webhook, with ETags so an unchanged comment costs no rate limit
-- A read-only dashboard API (`/api/dashboard/…`) behind a bearer token: an overview, installations,
-  reviews and each review's findings with their verdicts and feedback
+- A dashboard (`apps/web`, Next.js) over a read-only API behind a bearer token: where findings
+  go, every review and its findings with their verdicts and feedback, and the installations
 - Findings are validated against the diff, fingerprinted, and kept to one per line; those at
   or above `POST_MIN_SEVERITY` (high, by default) are posted as **one `COMMENT` review** —
   never an approval — exactly once, however the job is retried
@@ -224,6 +224,20 @@ open a pull request. The API logs `accepted event "pull_request.opened"`, a `pr-
 check appears on the PR, and a review with inline comments follows for any finding at or
 above the posting bar.
 
+## The dashboard
+
+![The dashboard's overview: 41 findings proposed, 6 refuted by the second look, 35 kept, 13 posted, 3 marked wrong; reviews per day; the second look, feedback and the agent](docs/images/dashboard.png)
+
+How the reviewer is doing, from the reviewer's own records: where its findings go (proposed,
+refuted by the second look, kept, posted, marked wrong with a 👎), every review with what it
+posted and why the rest wasn't, and the installations it runs on. It reads the API's
+read-only `/api/dashboard` endpoints from its own server, with `DASHBOARD_TOKEN`; the token
+never reaches the browser.
+
+```bash
+npm run web                                       # http://localhost:3000 — needs the API running
+```
+
 ## Checking against the real GitHub
 
 These scripts run the app's own code against a repository the App is installed on. Run
@@ -253,6 +267,10 @@ cd ../agent
 uv run pytest          # the agent, against a scripted fake model
 uv run python scripts/verify_eval.py   # the second look, measured on findings of known truth (needs Ollama)
 uv run ruff check .
+
+cd ../web
+npm test               # the dashboard's formatting and funnel
+npm run build && npm run test:smoke   # every page, against a fake API — up, and down
 ```
 
 The API's e2e suite uses the `pr_reviewer_test` database (migrated and truncated by the
@@ -293,6 +311,11 @@ apps/agent/                   Python: the review agent
 │   └── main.py               POST /reviews
 ├── ollama/Modelfile          the local model, with a context window big enough for a review
 └── tests/
+apps/web/                     Next.js: the dashboard
+├── app/                      overview, reviews, a review, installations
+├── components/               the funnel, the daily chart, severity and verdict tags
+├── lib/                      the server-only API client, formatting, the funnel
+└── scripts/smoke.mjs         every page against a fake API
 contracts/                    the API ↔ agent request and response
 docs/decisions.md             why things are the way they are
 docs/evals/                   answer keys for judging the agent

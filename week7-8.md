@@ -254,10 +254,10 @@ it, and removing the reaction removes the row.
 - Nothing here writes.
 
 **Todo**
-- [ ] Endpoints and their response types
-- [ ] Token guard; refuses without a configured token
-- [ ] BigInt and date serialisation in one place
-- [ ] Tests: auth, pagination, a review's detail, stats on a seeded database
+- [x] Endpoints and their response types
+- [x] Token guard; refuses without a configured token
+- [x] BigInt and date serialisation in one place
+- [x] Tests: auth, pagination, a review's detail, stats on a seeded database
 
 **Polish bar:** `curl` with the token returns the overview; without it, 401; a review's
 detail shows its findings with verdicts and feedback.

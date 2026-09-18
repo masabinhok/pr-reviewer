@@ -9,6 +9,7 @@ import { GithubModule } from './github/github.module.js';
 import configuration from './config/configuration.js';
 
 import { FeedbackModule } from './feedback/feedback.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 @Module({
   imports: [ConfigModule.forRoot({
     load: [configuration],
@@ -26,7 +27,7 @@ import { FeedbackModule } from './feedback/feedback.module.js';
     }),
     envFilePath: '../../.env',
     isGlobal: true
-  }), HealthModule, WebhooksModule, GithubModule, FeedbackModule],
+  }), HealthModule, WebhooksModule, GithubModule, FeedbackModule, DashboardModule],
   controllers: [AppController],
   providers: [AppService],
 })

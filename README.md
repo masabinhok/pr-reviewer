@@ -14,13 +14,14 @@ comments**, and a Check Run on the PR shows progress and the summary.
 
 This repository is a learning project, built milestone by milestone — see
 [`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
-[`week3-4.md`](week3-4.md) and [`week5-6.md`](week5-6.md) for the milestones so far.
+[`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md) and [`week7-8.md`](week7-8.md) for the
+milestones so far.
 Non-obvious choices are written up in [`docs/decisions.md`](docs/decisions.md).
 
 ## Status
 
-**Weeks 1–4 are complete; weeks 5–6 (the agent) are built, tested and running locally.**
-What works today:
+**Weeks 1–8 are complete:** the GitHub App plumbing, the review pipeline, the agent, and
+noise control with a dashboard. What works today:
 
 - `POST /webhooks/github` verifies `X-Hub-Signature-256` over the raw request body
 - Every delivery is recorded once; redeliveries are dropped, and a redelivery of one that
@@ -82,9 +83,13 @@ flowchart LR
         S --> PR[PullRequestsService<br/>Review row, then enqueue]
         W[ReviewProcessor<br/>worker] --> P[ReviewPipeline<br/>files → filter → diff →<br/>parse → reviewer → validate]
         P --> AR[AgentReviewer]
-        W --> PUB[ReviewPublisher<br/>one COMMENT review, once]
+        W --> PUB[ReviewPublisher<br/>one COMMENT review, once<br/>repeats skipped]
+        W --> STALE[StaleFindings<br/>retire comments whose code is gone]
+        FB[FeedbackPoller<br/>👍 👎, polled with ETags] --> A
+        DASH[DashboardController<br/>read-only, bearer token]
         P --> A[GithubApiService]
         PUB --> A
+        STALE --> A
         A --> T[InstallationTokenService]
         T --> J[AppJwtService<br/>RS256]
     end
@@ -94,7 +99,10 @@ flowchart LR
         EP --> LG[LangGraph<br/>call_model ⇄ run_tools]
         LG --> TOOLS[read-only tools<br/>get_file · search_repo · …]
         TOOLS --> SNAP
+        LG --> VERIFY[verify<br/>a second look at each finding]
     end
+
+    WEB[apps/web · Next.js<br/>dashboard] -- server-side, token --> DASH
 
     AR -- contract --> EP
     LG -- anthropic SDK --> OLLAMA[Ollama · local model<br/>default, free]
@@ -106,7 +114,9 @@ flowchart LR
     I --> PG
     PR --> PG
     W --> PG
-    A -- installation token --> GHAPI[GitHub REST API]
+    DASH --> PG
+    FB --> PG
+    A -- installation token --> GHAPI[GitHub REST + GraphQL]
     SNAP --> GHAPI
 ```
 
@@ -123,15 +133,22 @@ review's exact base and head SHAs, parse it, filter again, then ask the reviewer
 **The agent:** `AgentReviewer` posts the reviewable files and a fresh installation token to
 the agent (`contracts/` holds the request and response both test suites check). The agent
 downloads the repository at the head SHA, then loops between the model and its tools until
-the model calls `submit_review`. Everything from the PR is treated as data, never
+the model calls `submit_review`, then checks every finding again in a fresh conversation and
+drops the ones the code disproves. Everything from the PR is treated as data, never
 instructions; the tools only read. Ollama serves the same Messages API as Claude, so one
 SDK client and one graph drive either; Claude's extra features (adaptive thinking, prompt
 caching, strict tools) are used only when the model is Claude.
 
 **Back in the API:** the answer is stored, validated against the line map, and written as
-`Finding` rows. Findings at or above the posting bar are posted as one GitHub review; the Check Run is
-completed with the summary; the review is marked `COMPLETED`. Each step records that it
-happened, so a retry after a failure part-way through picks up where it stopped.
+`Finding` rows — each one near code an earlier review already commented on is marked a repeat.
+Findings at or above the posting bar that aren't repeats are posted as one GitHub review;
+earlier comments whose code has changed, and whose problem wasn't found again, are resolved and
+collapsed; the Check Run is completed with the summary; the review is marked `COMPLETED`. Each
+step records that it happened, so a retry after a failure part-way through picks up where it
+stopped.
+
+**Afterwards:** a scheduled job polls 👍 and 👎 on the App's comments into `Feedback`, and the
+dashboard reads everything back through a read-only API.
 
 ## Prerequisites
 
@@ -294,11 +311,14 @@ apps/api/                     NestJS: webhooks, queue, worker, GitHub, posting
 │   ├── guards/               webhook signature verification
 │   ├── webhooks/             endpoint, idempotency, dispatch
 │   ├── installations/        installation lifecycle handlers
-│   ├── reviews/              pull_request → Review + job; worker, pipeline, publisher, Check Run
+│   ├── reviews/              pull_request → Review + job; worker, pipeline, publisher, repeats,
+│   │                         stale comments, the per-PR lock, Check Run
 │   ├── diff/                 unified diff parser and the line map
 │   ├── filters/              which files are reviewed, and PR size limits
 │   ├── reviewer/             Reviewer interface, AgentReviewer, stub, finding validation
-│   ├── github/               App JWT, installation tokens, API client, redaction
+│   ├── github/               App JWT, installation tokens, API client (REST and GraphQL), redaction
+│   ├── feedback/             reactions polled into Feedback, and the feedback rate
+│   ├── dashboard/            the read-only dashboard API, its token guard, JSON-safe output
 │   ├── queue/                BullMQ connection
 │   ├── health/               /healthz
 │   ├── prisma/ redis/        clients as Nest providers
@@ -306,10 +326,12 @@ apps/api/                     NestJS: webhooks, queue, worker, GitHub, posting
 └── test/                     e2e suites, fixtures, helpers
 apps/agent/                   Python: the review agent
 ├── src/pr_agent/
-│   ├── agent/                LangGraph graph, prompt, submit_review, pricing
+│   ├── agent/                LangGraph graph, prompt, submit_review, the second look, pricing
 │   ├── repo/                 repository snapshot and read-only tools
 │   └── main.py               POST /reviews
 ├── ollama/Modelfile          the local model, with a context window big enough for a review
+├── evals/verify/             findings of known truth, for measuring the second look
+├── scripts/                  replay.py (a review offline), verify_eval.py (the second look, measured)
 └── tests/
 apps/web/                     Next.js: the dashboard
 ├── app/                      overview, reviews, a review, installations

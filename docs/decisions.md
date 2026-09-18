@@ -943,3 +943,32 @@ while the others carry on.
 `feedbackRate()` defines the numbers once — posted, with feedback, upvoted, downvoted — so the
 dashboard and anything after it report the same thing. The first real reading, on this
 repository: 13 comments posted, 3 with feedback, 3 downvoted — the three wrong comments on #33.
+
+## The dashboard's API: read-only, one token, server to server
+
+Milestone 27 puts a JSON API on Nest for the dashboard (M28) to read: `/api/dashboard/overview`,
+`/installations`, `/reviews` (newest first, cursor-paged, filterable by repository and
+status) and `/reviews/:id`. Nothing under it writes.
+
+**One bearer token, `DASHBOARD_TOKEN`, and no GitHub login.** The dashboard is a single-user
+tool that runs next to the API on one machine. GitHub OAuth would mean a login flow, sessions
+and an access model deciding which installations each user may see — real work, and all of it
+for a single user. The token is compared in constant time over SHA-256 digests, so neither its
+characters nor its length leak through timing. **Without a token configured, the endpoints
+answer 503 rather than run open:** a forgotten setting turns the dashboard off, never on. If
+the dashboard ever serves more than its owner, GitHub login replaces the token, and nothing
+below the guard changes.
+
+**No CORS, on purpose.** The dashboard fetches from its own server (Next.js server components),
+never from a browser, so the API needs no cross-origin access. The token then never reaches a
+page, and a stray page on another origin can't call the API with someone's browser.
+
+**`BigInt` is serialised in one place.** GitHub IDs are `BigInt` in Prisma, and
+`JSON.stringify` throws on a `BigInt`, so a response built from rows would be a 500. One
+interceptor turns every `BigInt` into a string and every `Date` into ISO. Strings, not numbers:
+a JSON number above 2^53 is silently wrong in a JavaScript client, and some comment IDs are
+heading that way. A test fails if the interceptor is removed.
+
+Checked against the real development database: 24 reviews, 35 findings, 13 posted, 6 dropped
+on a second look, the feedback rate straight from `feedbackRate()`, and #33's three wrong
+comments with the 👎 on each.

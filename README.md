@@ -42,6 +42,8 @@ What works today:
   collapsed as outdated; a person resolving the thread on GitHub resolves it too
 - 👍 and 👎 on the App's comments are collected as feedback — polled, since GitHub has no
   reaction webhook, with ETags so an unchanged comment costs no rate limit
+- A read-only dashboard API (`/api/dashboard/…`) behind a bearer token: an overview, installations,
+  reviews and each review's findings with their verdicts and feedback
 - Findings are validated against the diff, fingerprinted, and kept to one per line; those at
   or above `POST_MIN_SEVERITY` (high, by default) are posted as **one `COMMENT` review** —
   never an approval — exactly once, however the job is retried
@@ -194,7 +196,8 @@ window, default 32768 — keep it equal to `num_ctx` in the Modelfile), `AGENT_E
 `AGENT_VERIFY` / `AGENT_MAX_VERIFICATIONS` (the second look: on, 15 findings per review),
 `AGENT_TIMEOUT_MS` (how long the API
 waits for the agent, default 15 minutes), `FEEDBACK_POLL_MS` (how often reactions are polled,
-default 300000; 0 turns it off), `POST_MIN_SEVERITY` (the least severe finding
+default 300000; 0 turns it off), `DASHBOARD_TOKEN` (the dashboard API's bearer token; unset, the
+dashboard is off), `POST_MIN_SEVERITY` (the least severe finding
 posted as a comment: `high`, the default, `medium` or `low`), `QUEUE_PREFIX` (Redis key prefix for the queue,
 default `pr-reviewer`) and `REVIEW_RETRY_DELAY_MS` (first retry delay, default 10000,
 doubling after).

@@ -1,0 +1,545 @@
+{
+  "id": "clean-attrs-asdict-perf",
+  "kind": "clean",
+  "split": "tune",
+  "source": {
+    "repo": "python-attrs/attrs",
+    "commit": "7369ad9f4b273e400478c8e65399d826ab3f3b32",
+    "url": "https://github.com/python-attrs/attrs/commit/7369ad9f4b273e400478c8e65399d826ab3f3b32",
+    "message": "Improve performance of asdict in the common case (#1463)"
+  },
+  "reviewed": {
+    "base": "57f0d5441c9deaac44aebbbf45e38e477651e4f2",
+    "head": "7369ad9f4b273e400478c8e65399d826ab3f3b32"
+  },
+  "request": {
+    "repo": "python-attrs/attrs",
+    "prNumber": 1,
+    "title": "Update _funcs.py",
+    "body": "",
+    "baseSha": "57f0d5441c9deaac44aebbbf45e38e477651e4f2",
+    "headSha": "7369ad9f4b273e400478c8e65399d826ab3f3b32",
+    "files": [
+      {
+        "path": "src/attr/_funcs.py",
+        "oldPath": "src/attr/_funcs.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 8,
+            "oldLines": 6,
+            "newStart": 8,
+            "newLines": 23,
+            "section": "from ._make import _OBJ_SETATTR, NOTHING, fields",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 8,
+                "newLine": 8,
+                "content": "from .exceptions import AttrsAttributeNotFoundError"
+              },
+              {
+                "kind": "context",
+                "oldLine": 9,
+                "newLine": 9,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 10,
+                "newLine": 10,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 11,
+                "content": "_ATOMIC_TYPES = frozenset("
+              },
+              {
+                "kind": "add",
+                "newLine": 12,
+                "content": "    {"
+              },
+              {
+                "kind": "add",
+                "newLine": 13,
+                "content": "        type(None),"
+              },
+              {
+                "kind": "add",
+                "newLine": 14,
+                "content": "        bool,"
+              },
+              {
+                "kind": "add",
+                "newLine": 15,
+                "content": "        int,"
+              },
+              {
+                "kind": "add",
+                "newLine": 16,
+                "content": "        float,"
+              },
+              {
+                "kind": "add",
+                "newLine": 17,
+                "content": "        str,"
+              },
+              {
+                "kind": "add",
+                "newLine": 18,
+                "content": "        complex,"
+              },
+              {
+                "kind": "add",
+                "newLine": 19,
+                "content": "        bytes,"
+              },
+              {
+                "kind": "add",
+                "newLine": 20,
+                "content": "        type(...),"
+              },
+              {
+                "kind": "add",
+                "newLine": 21,
+                "content": "        type,"
+              },
+              {
+                "kind": "add",
+                "newLine": 22,
+                "content": "        range,"
+              },
+              {
+                "kind": "add",
+                "newLine": 23,
+                "content": "        property,"
+              },
+              {
+                "kind": "add",
+                "newLine": 24,
+                "content": "    }"
+              },
+              {
+                "kind": "add",
+                "newLine": 25,
+                "content": ")"
+              },
+              {
+                "kind": "add",
+                "newLine": 26,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 27,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 11,
+                "newLine": 28,
+                "content": "def asdict("
+              },
+              {
+                "kind": "context",
+                "oldLine": 12,
+                "newLine": 29,
+                "content": "    inst,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 13,
+                "newLine": 30,
+                "content": "    recurse=True,"
+              }
+            ]
+          },
+          {
+            "oldStart": 71,
+            "oldLines": 7,
+            "newStart": 88,
+            "newLines": 10,
+            "section": "def asdict(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 71,
+                "newLine": 88,
+                "content": "            v = value_serializer(inst, a, v)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 72,
+                "newLine": 89,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 73,
+                "newLine": 90,
+                "content": "        if recurse is True:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 74,
+                "content": "            if has(v.__class__):"
+              },
+              {
+                "kind": "add",
+                "newLine": 91,
+                "content": "            value_type = type(v)"
+              },
+              {
+                "kind": "add",
+                "newLine": 92,
+                "content": "            if value_type in _ATOMIC_TYPES:"
+              },
+              {
+                "kind": "add",
+                "newLine": 93,
+                "content": "                rv[a.name] = v"
+              },
+              {
+                "kind": "add",
+                "newLine": 94,
+                "content": "            elif has(value_type):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 75,
+                "newLine": 95,
+                "content": "                rv[a.name] = asdict("
+              },
+              {
+                "kind": "context",
+                "oldLine": 76,
+                "newLine": 96,
+                "content": "                    v,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 77,
+                "newLine": 97,
+                "content": "                    recurse=True,"
+              }
+            ]
+          },
+          {
+            "oldStart": 80,
+            "oldLines": 8,
+            "newStart": 100,
+            "newLines": 8,
+            "section": "def asdict(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 80,
+                "newLine": 100,
+                "content": "                    retain_collection_types=retain_collection_types,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 81,
+                "newLine": 101,
+                "content": "                    value_serializer=value_serializer,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 82,
+                "newLine": 102,
+                "content": "                )"
+              },
+              {
+                "kind": "del",
+                "oldLine": 83,
+                "content": "            elif isinstance(v, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "del",
+                "oldLine": 84,
+                "content": "                cf = v.__class__ if retain_collection_types is True else list"
+              },
+              {
+                "kind": "add",
+                "newLine": 103,
+                "content": "            elif issubclass(value_type, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "add",
+                "newLine": 104,
+                "content": "                cf = value_type if retain_collection_types is True else list"
+              },
+              {
+                "kind": "context",
+                "oldLine": 85,
+                "newLine": 105,
+                "content": "                items = ["
+              },
+              {
+                "kind": "context",
+                "oldLine": 86,
+                "newLine": 106,
+                "content": "                    _asdict_anything("
+              },
+              {
+                "kind": "context",
+                "oldLine": 87,
+                "newLine": 107,
+                "content": "                        i,"
+              }
+            ]
+          },
+          {
+            "oldStart": 101,
+            "oldLines": 7,
+            "newStart": 121,
+            "newLines": 7,
+            "section": "def asdict(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 101,
+                "newLine": 121,
+                "content": "                    # Workaround for TypeError: cf.__new__() missing 1 required"
+              },
+              {
+                "kind": "context",
+                "oldLine": 102,
+                "newLine": 122,
+                "content": "                    # positional argument (which appears, for a namedturle)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 103,
+                "newLine": 123,
+                "content": "                    rv[a.name] = cf(*items)"
+              },
+              {
+                "kind": "del",
+                "oldLine": 104,
+                "content": "            elif isinstance(v, dict):"
+              },
+              {
+                "kind": "add",
+                "newLine": 124,
+                "content": "            elif issubclass(value_type, dict):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 105,
+                "newLine": 125,
+                "content": "                df = dict_factory"
+              },
+              {
+                "kind": "context",
+                "oldLine": 106,
+                "newLine": 126,
+                "content": "                rv[a.name] = df("
+              },
+              {
+                "kind": "context",
+                "oldLine": 107,
+                "newLine": 127,
+                "content": "                    ("
+              }
+            ]
+          },
+          {
+            "oldStart": 142,
+            "oldLines": 7,
+            "newStart": 162,
+            "newLines": 12,
+            "section": "def _asdict_anything(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 142,
+                "newLine": 162,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "context",
+                "oldLine": 143,
+                "newLine": 163,
+                "content": "    ``asdict`` only works on attrs instances, this works on anything."
+              },
+              {
+                "kind": "context",
+                "oldLine": 144,
+                "newLine": 164,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "del",
+                "oldLine": 145,
+                "content": "    if getattr(val.__class__, \"__attrs_attrs__\", None) is not None:"
+              },
+              {
+                "kind": "add",
+                "newLine": 165,
+                "content": "    val_type = type(val)"
+              },
+              {
+                "kind": "add",
+                "newLine": 166,
+                "content": "    if val_type in _ATOMIC_TYPES:"
+              },
+              {
+                "kind": "add",
+                "newLine": 167,
+                "content": "        rv = val"
+              },
+              {
+                "kind": "add",
+                "newLine": 168,
+                "content": "        if value_serializer is not None:"
+              },
+              {
+                "kind": "add",
+                "newLine": 169,
+                "content": "            rv = value_serializer(None, None, rv)"
+              },
+              {
+                "kind": "add",
+                "newLine": 170,
+                "content": "    elif getattr(val_type, \"__attrs_attrs__\", None) is not None:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 146,
+                "newLine": 171,
+                "content": "        # Attrs class."
+              },
+              {
+                "kind": "context",
+                "oldLine": 147,
+                "newLine": 172,
+                "content": "        rv = asdict("
+              },
+              {
+                "kind": "context",
+                "oldLine": 148,
+                "newLine": 173,
+                "content": "            val,"
+              }
+            ]
+          },
+          {
+            "oldStart": 152,
+            "oldLines": 7,
+            "newStart": 177,
+            "newLines": 7,
+            "section": "def _asdict_anything(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 152,
+                "newLine": 177,
+                "content": "            retain_collection_types=retain_collection_types,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 153,
+                "newLine": 178,
+                "content": "            value_serializer=value_serializer,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 154,
+                "newLine": 179,
+                "content": "        )"
+              },
+              {
+                "kind": "del",
+                "oldLine": 155,
+                "content": "    elif isinstance(val, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "add",
+                "newLine": 180,
+                "content": "    elif issubclass(val_type, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 156,
+                "newLine": 181,
+                "content": "        if retain_collection_types is True:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 157,
+                "newLine": 182,
+                "content": "            cf = val.__class__"
+              },
+              {
+                "kind": "context",
+                "oldLine": 158,
+                "newLine": 183,
+                "content": "        elif is_key:"
+              }
+            ]
+          },
+          {
+            "oldStart": 173,
+            "oldLines": 7,
+            "newStart": 198,
+            "newLines": 7,
+            "section": "def _asdict_anything(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 173,
+                "newLine": 198,
+                "content": "                for i in val"
+              },
+              {
+                "kind": "context",
+                "oldLine": 174,
+                "newLine": 199,
+                "content": "            ]"
+              },
+              {
+                "kind": "context",
+                "oldLine": 175,
+                "newLine": 200,
+                "content": "        )"
+              },
+              {
+                "kind": "del",
+                "oldLine": 176,
+                "content": "    elif isinstance(val, dict):"
+              },
+              {
+                "kind": "add",
+                "newLine": 201,
+                "content": "    elif issubclass(val_type, dict):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 177,
+                "newLine": 202,
+                "content": "        df = dict_factory"
+              },
+              {
+                "kind": "context",
+                "oldLine": 178,
+                "newLine": 203,
+                "content": "        rv = df("
+              },
+              {
+                "kind": "context",
+                "oldLine": 179,
+                "newLine": 204,
+                "content": "            ("
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "python-attrs/attrs@7369ad9 \u201cImprove performance of asdict in the common case (#1463)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

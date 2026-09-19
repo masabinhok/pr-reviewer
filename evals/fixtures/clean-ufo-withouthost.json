@@ -1,0 +1,142 @@
+{
+  "id": "clean-ufo-withouthost",
+  "kind": "clean",
+  "split": "heldout",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "aa54b6ae8f8b320bc0e03b4ff3ffc0bb2aa2b964",
+    "url": "https://github.com/unjs/ufo/commit/aa54b6ae8f8b320bc0e03b4ff3ffc0bb2aa2b964",
+    "message": "feat: add `withoutHost` utility (#212)"
+  },
+  "reviewed": {
+    "base": "595f7bbb8a3a01c177c9415ac3f026b59d3afbd8",
+    "head": "aa54b6ae8f8b320bc0e03b4ff3ffc0bb2aa2b964"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update utils.ts",
+    "body": "",
+    "baseSha": "595f7bbb8a3a01c177c9415ac3f026b59d3afbd8",
+    "headSha": "aa54b6ae8f8b320bc0e03b4ff3ffc0bb2aa2b964",
+    "files": [
+      {
+        "path": "src/utils.ts",
+        "oldPath": "src/utils.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 576,
+            "oldLines": 3,
+            "newStart": 576,
+            "newLines": 19,
+            "section": "export function withFragment(input: string, hash: string): string {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 576,
+                "newLine": 576,
+                "content": "export function withoutFragment(input: string): string {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 577,
+                "newLine": 577,
+                "content": "  return stringifyParsedURL({ ...parseURL(input), hash: \"\" });"
+              },
+              {
+                "kind": "context",
+                "oldLine": 578,
+                "newLine": 578,
+                "content": "}"
+              },
+              {
+                "kind": "add",
+                "newLine": 579,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 580,
+                "content": "/**"
+              },
+              {
+                "kind": "add",
+                "newLine": 581,
+                "content": " * Removes the host from the URL preserving everything else."
+              },
+              {
+                "kind": "add",
+                "newLine": 582,
+                "content": " *"
+              },
+              {
+                "kind": "add",
+                "newLine": 583,
+                "content": " * @example"
+              },
+              {
+                "kind": "add",
+                "newLine": 584,
+                "content": " * ```js"
+              },
+              {
+                "kind": "add",
+                "newLine": 585,
+                "content": " * withoutHost(\"http://example.com/foo?q=123#bar\")"
+              },
+              {
+                "kind": "add",
+                "newLine": 586,
+                "content": " * // Returns \"/foo?q=123#bar\""
+              },
+              {
+                "kind": "add",
+                "newLine": 587,
+                "content": " * ```"
+              },
+              {
+                "kind": "add",
+                "newLine": 588,
+                "content": " *"
+              },
+              {
+                "kind": "add",
+                "newLine": 589,
+                "content": " * @group utils"
+              },
+              {
+                "kind": "add",
+                "newLine": 590,
+                "content": " */"
+              },
+              {
+                "kind": "add",
+                "newLine": 591,
+                "content": "export function withoutHost(input: string) {"
+              },
+              {
+                "kind": "add",
+                "newLine": 592,
+                "content": "  const parsed = parseURL(input);"
+              },
+              {
+                "kind": "add",
+                "newLine": 593,
+                "content": "  return (parsed.pathname || \"/\") + parsed.search + parsed.hash;"
+              },
+              {
+                "kind": "add",
+                "newLine": 594,
+                "content": "}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "unjs/ufo@aa54b6a \u201cfeat: add `withoutHost` utility (#212)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

@@ -1,0 +1,123 @@
+{
+  "id": "humanize-naturalsize-rollover",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "python-humanize/humanize",
+    "commit": "823ad6096e1e5ba82ea876ce761fc2efebd76157",
+    "url": "https://github.com/python-humanize/humanize/commit/823ad6096e1e5ba82ea876ce761fc2efebd76157",
+    "message": "Fix `naturalsize()` rounding rollover at unit boundaries (#329)"
+  },
+  "reviewed": {
+    "base": "823ad6096e1e5ba82ea876ce761fc2efebd76157",
+    "head": "7574e0cc377d80db0d2756fc2c5e0b8799a6f8b4"
+  },
+  "request": {
+    "repo": "python-humanize/humanize",
+    "prNumber": 1,
+    "title": "Update filesize.py",
+    "body": "",
+    "baseSha": "823ad6096e1e5ba82ea876ce761fc2efebd76157",
+    "headSha": "7574e0cc377d80db0d2756fc2c5e0b8799a6f8b4",
+    "files": [
+      {
+        "path": "src/humanize/filesize.py",
+        "oldPath": "src/humanize/filesize.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 97,
+            "oldLines": 12,
+            "newStart": 97,
+            "newLines": 6,
+            "section": "def naturalsize(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 97,
+                "newLine": 97,
+                "content": "        return f\"{int(bytes_)}B\" if gnu else _(\"%d Bytes\") % int(bytes_)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 98,
+                "newLine": 98,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 99,
+                "newLine": 99,
+                "content": "    exp = int(min(log(abs_bytes, base), len(suffix)))"
+              },
+              {
+                "kind": "del",
+                "oldLine": 100,
+                "content": "    # The suffix is chosen from the unrounded byte count, but `format` rounds the"
+              },
+              {
+                "kind": "del",
+                "oldLine": 101,
+                "content": "    # mantissa afterward; rounding can push it up to `base` (e.g. 999999 is"
+              },
+              {
+                "kind": "del",
+                "oldLine": 102,
+                "content": "    # 999.999 kB, which formats to \"1000.0 kB\"). When that happens and a larger"
+              },
+              {
+                "kind": "del",
+                "oldLine": 103,
+                "content": "    # suffix is available, step up one suffix so the result reads \"1.0 MB\"."
+              },
+              {
+                "kind": "del",
+                "oldLine": 104,
+                "content": "    if exp < len(suffix) and abs(float(format % (abs_bytes / (base**exp)))) >= base:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 105,
+                "content": "        exp += 1"
+              },
+              {
+                "kind": "context",
+                "oldLine": 106,
+                "newLine": 100,
+                "content": "    space = \"\" if gnu else \" \""
+              },
+              {
+                "kind": "context",
+                "oldLine": 107,
+                "newLine": 101,
+                "content": "    ret: str = format % (bytes_ / (base**exp)) + space + _(suffix[exp - 1])"
+              },
+              {
+                "kind": "context",
+                "oldLine": 108,
+                "newLine": 102,
+                "content": "    return ret"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/humanize/filesize.py",
+      "head": [
+        99,
+        99
+      ],
+      "base": [
+        100,
+        105
+      ],
+      "description": "The unit is chosen before the value is rounded and nothing corrects it afterwards, so 999999 bytes formats as '1000.0 kB' instead of '1.0 MB'."
+    }
+  ],
+  "notes": "Reversed from python-humanize/humanize@823ad60 \u201cFix `naturalsize()` rounding rollover at unit boundaries (#329)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

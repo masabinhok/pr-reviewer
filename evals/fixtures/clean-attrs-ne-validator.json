@@ -1,0 +1,558 @@
+{
+  "id": "clean-attrs-ne-validator",
+  "kind": "clean",
+  "split": "tune",
+  "source": {
+    "repo": "python-attrs/attrs",
+    "commit": "5aa76a4450c311d87eda43946ec0ecd743572649",
+    "url": "https://github.com/python-attrs/attrs/commit/5aa76a4450c311d87eda43946ec0ecd743572649",
+    "message": "Add `ne` validator (#1571)"
+  },
+  "reviewed": {
+    "base": "f616f732c6c5f87a8f7a762176422baed250a6be",
+    "head": "5aa76a4450c311d87eda43946ec0ecd743572649"
+  },
+  "request": {
+    "repo": "python-attrs/attrs",
+    "prNumber": 1,
+    "title": "Update validators.py",
+    "body": "",
+    "baseSha": "f616f732c6c5f87a8f7a762176422baed250a6be",
+    "headSha": "5aa76a4450c311d87eda43946ec0ecd743572649",
+    "files": [
+      {
+        "path": "src/attr/validators.py",
+        "oldPath": "src/attr/validators.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 32,
+            "oldLines": 6,
+            "newStart": 32,
+            "newLines": 7,
+            "section": "__all__ = [",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 32,
+                "newLine": 32,
+                "content": "    \"matches_re\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 33,
+                "newLine": 33,
+                "content": "    \"max_len\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 34,
+                "newLine": 34,
+                "content": "    \"min_len\","
+              },
+              {
+                "kind": "add",
+                "newLine": 35,
+                "content": "    \"ne\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 35,
+                "newLine": 36,
+                "content": "    \"not_\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 36,
+                "newLine": 37,
+                "content": "    \"optional\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 37,
+                "newLine": 38,
+                "content": "    \"or_\","
+              }
+            ]
+          },
+          {
+            "oldStart": 156,
+            "oldLines": 10,
+            "newStart": 157,
+            "newLines": 10,
+            "section": "def matches_re(regex, flags=0, func=None):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 156,
+                "newLine": 157,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 157,
+                "newLine": 158,
+                "content": "    Args:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 158,
+                "newLine": 159,
+                "content": "        regex (str, re.Pattern):"
+              },
+              {
+                "kind": "del",
+                "oldLine": 159,
+                "content": "            A regex string or precompiled pattern to match against"
+              },
+              {
+                "kind": "add",
+                "newLine": 160,
+                "content": "            A regex string or precompiled pattern to match against."
+              },
+              {
+                "kind": "context",
+                "oldLine": 160,
+                "newLine": 161,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 161,
+                "newLine": 162,
+                "content": "        flags (int):"
+              },
+              {
+                "kind": "del",
+                "oldLine": 162,
+                "content": "            Flags that will be passed to the underlying re function (default 0)"
+              },
+              {
+                "kind": "add",
+                "newLine": 163,
+                "content": "            Flags that will be passed to the underlying re function (default 0)."
+              },
+              {
+                "kind": "context",
+                "oldLine": 163,
+                "newLine": 164,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 164,
+                "newLine": 165,
+                "content": "        func (typing.Callable):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 165,
+                "newLine": 166,
+                "content": "            Which underlying `re` function to call. Valid options are"
+              }
+            ]
+          },
+          {
+            "oldStart": 368,
+            "oldLines": 8,
+            "newStart": 369,
+            "newLines": 8,
+            "section": "def deep_iterable(member_validator, iterable_validator=None):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 368,
+                "newLine": 369,
+                "content": "        iterable_validator:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 369,
+                "newLine": 370,
+                "content": "            Validator(s) to apply to iterable itself (optional)."
+              },
+              {
+                "kind": "context",
+                "oldLine": 370,
+                "newLine": 371,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 371,
+                "content": "    Raises"
+              },
+              {
+                "kind": "del",
+                "oldLine": 372,
+                "content": "        TypeError: if any sub-validators fail"
+              },
+              {
+                "kind": "add",
+                "newLine": 372,
+                "content": "    Raises:"
+              },
+              {
+                "kind": "add",
+                "newLine": 373,
+                "content": "        TypeError: if any sub-validators fail."
+              },
+              {
+                "kind": "context",
+                "oldLine": 373,
+                "newLine": 374,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 374,
+                "newLine": 375,
+                "content": "    .. versionadded:: 19.1.0"
+              },
+              {
+                "kind": "context",
+                "oldLine": 375,
+                "newLine": 376,
+                "content": ""
+              }
+            ]
+          },
+          {
+            "oldStart": 513,
+            "oldLines": 7,
+            "newStart": 514,
+            "newLines": 7,
+            "section": "def ge(val):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 513,
+                "newLine": 514,
+                "content": "    The validator uses `operator.ge` to compare the values."
+              },
+              {
+                "kind": "context",
+                "oldLine": 514,
+                "newLine": 515,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 515,
+                "newLine": 516,
+                "content": "    Args:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 516,
+                "content": "        val: Inclusive lower bound for values"
+              },
+              {
+                "kind": "add",
+                "newLine": 517,
+                "content": "        val: Inclusive lower bound for values."
+              },
+              {
+                "kind": "context",
+                "oldLine": 517,
+                "newLine": 518,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 518,
+                "newLine": 519,
+                "content": "    .. versionadded:: 21.3.0"
+              },
+              {
+                "kind": "context",
+                "oldLine": 519,
+                "newLine": 520,
+                "content": "    \"\"\""
+              }
+            ]
+          },
+          {
+            "oldStart": 528,
+            "oldLines": 13,
+            "newStart": 529,
+            "newLines": 28,
+            "section": "def gt(val):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 528,
+                "newLine": 529,
+                "content": "    The validator uses `operator.gt` to compare the values."
+              },
+              {
+                "kind": "context",
+                "oldLine": 529,
+                "newLine": 530,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 530,
+                "newLine": 531,
+                "content": "    Args:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 531,
+                "content": "       val: Exclusive lower bound for values"
+              },
+              {
+                "kind": "add",
+                "newLine": 532,
+                "content": "       val: Exclusive lower bound for values."
+              },
+              {
+                "kind": "context",
+                "oldLine": 532,
+                "newLine": 533,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 533,
+                "newLine": 534,
+                "content": "    .. versionadded:: 21.3.0"
+              },
+              {
+                "kind": "context",
+                "oldLine": 534,
+                "newLine": 535,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "context",
+                "oldLine": 535,
+                "newLine": 536,
+                "content": "    return _NumberValidator(val, \">\", operator.gt)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 536,
+                "newLine": 537,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 537,
+                "newLine": 538,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 539,
+                "content": "def ne(val):"
+              },
+              {
+                "kind": "add",
+                "newLine": 540,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 541,
+                "content": "    A validator that raises `ValueError` if the initializer is called with a"
+              },
+              {
+                "kind": "add",
+                "newLine": 542,
+                "content": "    number equal to *val*."
+              },
+              {
+                "kind": "add",
+                "newLine": 543,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 544,
+                "content": "    The validator uses `operator.ne` to compare the values."
+              },
+              {
+                "kind": "add",
+                "newLine": 545,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 546,
+                "content": "    Args:"
+              },
+              {
+                "kind": "add",
+                "newLine": 547,
+                "content": "       val: The value that is not allowed."
+              },
+              {
+                "kind": "add",
+                "newLine": 548,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 549,
+                "content": "    .. versionadded:: 26.2.0"
+              },
+              {
+                "kind": "add",
+                "newLine": 550,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 551,
+                "content": "    return _NumberValidator(val, \"!=\", operator.ne)"
+              },
+              {
+                "kind": "add",
+                "newLine": 552,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 553,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 538,
+                "newLine": 554,
+                "content": "@attrs(repr=False, frozen=True, slots=True)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 539,
+                "newLine": 555,
+                "content": "class _MaxLengthValidator:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 540,
+                "newLine": 556,
+                "content": "    max_length = attrib()"
+              }
+            ]
+          },
+          {
+            "oldStart": 557,
+            "oldLines": 7,
+            "newStart": 573,
+            "newLines": 7,
+            "section": "def max_len(length):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 557,
+                "newLine": 573,
+                "content": "    with a string or iterable that is longer than *length*."
+              },
+              {
+                "kind": "context",
+                "oldLine": 558,
+                "newLine": 574,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 559,
+                "newLine": 575,
+                "content": "    Args:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 560,
+                "content": "        length (int): Maximum length of the string or iterable"
+              },
+              {
+                "kind": "add",
+                "newLine": 576,
+                "content": "        length (int): Maximum length of the string or iterable."
+              },
+              {
+                "kind": "context",
+                "oldLine": 561,
+                "newLine": 577,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 562,
+                "newLine": 578,
+                "content": "    .. versionadded:: 21.3.0"
+              },
+              {
+                "kind": "context",
+                "oldLine": 563,
+                "newLine": 579,
+                "content": "    \"\"\""
+              }
+            ]
+          },
+          {
+            "oldStart": 586,
+            "oldLines": 7,
+            "newStart": 602,
+            "newLines": 7,
+            "section": "def min_len(length):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 586,
+                "newLine": 602,
+                "content": "    with a string or iterable that is shorter than *length*."
+              },
+              {
+                "kind": "context",
+                "oldLine": 587,
+                "newLine": 603,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 588,
+                "newLine": 604,
+                "content": "    Args:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 589,
+                "content": "        length (int): Minimum length of the string or iterable"
+              },
+              {
+                "kind": "add",
+                "newLine": 605,
+                "content": "        length (int): Minimum length of the string or iterable."
+              },
+              {
+                "kind": "context",
+                "oldLine": 590,
+                "newLine": 606,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 591,
+                "newLine": 607,
+                "content": "    .. versionadded:: 22.1.0"
+              },
+              {
+                "kind": "context",
+                "oldLine": 592,
+                "newLine": 608,
+                "content": "    \"\"\""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "python-attrs/attrs@5aa76a4 \u201cAdd `ne` validator (#1571)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

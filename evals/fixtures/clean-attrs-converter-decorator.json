@@ -1,0 +1,363 @@
+{
+  "id": "clean-attrs-converter-decorator",
+  "kind": "clean",
+  "split": "heldout",
+  "source": {
+    "repo": "python-attrs/attrs",
+    "commit": "0f758fe54a8742110f730ebbaf146e79f3937c8d",
+    "url": "https://github.com/python-attrs/attrs/commit/0f758fe54a8742110f730ebbaf146e79f3937c8d",
+    "message": "Expose converter as a decorator (#1541)"
+  },
+  "reviewed": {
+    "base": "57b314c0dc8e0b80c0ed8f61c0be81965137ea41",
+    "head": "0f758fe54a8742110f730ebbaf146e79f3937c8d"
+  },
+  "request": {
+    "repo": "python-attrs/attrs",
+    "prNumber": 1,
+    "title": "Update _make.py",
+    "body": "",
+    "baseSha": "57b314c0dc8e0b80c0ed8f61c0be81965137ea41",
+    "headSha": "0f758fe54a8742110f730ebbaf146e79f3937c8d",
+    "files": [
+      {
+        "path": "src/attr/_make.py",
+        "oldPath": "src/attr/_make.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 2581,
+            "oldLines": 7,
+            "newStart": 2581,
+            "newLines": 7,
+            "section": "class Attribute:",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 2581,
+                "newLine": 2581,
+                "content": "            False,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2582,
+                "newLine": 2582,
+                "content": "            ca.metadata,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2583,
+                "newLine": 2583,
+                "content": "            type,"
+              },
+              {
+                "kind": "del",
+                "oldLine": 2584,
+                "content": "            ca.converter,"
+              },
+              {
+                "kind": "add",
+                "newLine": 2584,
+                "content": "            ca._converter,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2585,
+                "newLine": 2585,
+                "content": "            kw_only if ca.kw_only is None else ca.kw_only,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2586,
+                "newLine": 2586,
+                "content": "            ca.eq,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2587,
+                "newLine": 2587,
+                "content": "            ca.eq_key,"
+              }
+            ]
+          },
+          {
+            "oldStart": 2703,
+            "oldLines": 10,
+            "newStart": 2703,
+            "newLines": 10,
+            "section": "class _CountingAttr:",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 2703,
+                "newLine": 2703,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "context",
+                "oldLine": 2704,
+                "newLine": 2704,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 2705,
+                "newLine": 2705,
+                "content": "    __slots__ = ("
+              },
+              {
+                "kind": "add",
+                "newLine": 2706,
+                "content": "        \"_converter\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2706,
+                "newLine": 2707,
+                "content": "        \"_default\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2707,
+                "newLine": 2708,
+                "content": "        \"_validator\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2708,
+                "newLine": 2709,
+                "content": "        \"alias\","
+              },
+              {
+                "kind": "del",
+                "oldLine": 2709,
+                "content": "        \"converter\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2710,
+                "newLine": 2710,
+                "content": "        \"counter\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2711,
+                "newLine": 2711,
+                "content": "        \"eq\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 2712,
+                "newLine": 2712,
+                "content": "        \"eq_key\","
+              }
+            ]
+          },
+          {
+            "oldStart": 2794,
+            "oldLines": 7,
+            "newStart": 2794,
+            "newLines": 7,
+            "section": "class _CountingAttr:",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 2794,
+                "newLine": 2794,
+                "content": "        self.counter = _CountingAttr.cls_counter"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2795,
+                "newLine": 2795,
+                "content": "        self._default = default"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2796,
+                "newLine": 2796,
+                "content": "        self._validator = validator"
+              },
+              {
+                "kind": "del",
+                "oldLine": 2797,
+                "content": "        self.converter = converter"
+              },
+              {
+                "kind": "add",
+                "newLine": 2797,
+                "content": "        self._converter = converter"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2798,
+                "newLine": 2798,
+                "content": "        self.repr = repr"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2799,
+                "newLine": 2799,
+                "content": "        self.eq = eq"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2800,
+                "newLine": 2800,
+                "content": "        self.eq_key = eq_key"
+              }
+            ]
+          },
+          {
+            "oldStart": 2840,
+            "oldLines": 6,
+            "newStart": 2840,
+            "newLines": 26,
+            "section": "class _CountingAttr:",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 2840,
+                "newLine": 2840,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 2841,
+                "newLine": 2841,
+                "content": "        return meth"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2842,
+                "newLine": 2842,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 2843,
+                "content": "    def converter(self, meth):"
+              },
+              {
+                "kind": "add",
+                "newLine": 2844,
+                "content": "        \"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 2845,
+                "content": "        Decorator that appends *meth* to the list of converters."
+              },
+              {
+                "kind": "add",
+                "newLine": 2846,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 2847,
+                "content": "        Returns *meth* unchanged."
+              },
+              {
+                "kind": "add",
+                "newLine": 2848,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 2849,
+                "content": "        .. versionadded:: 26.2.0"
+              },
+              {
+                "kind": "add",
+                "newLine": 2850,
+                "content": "        \"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 2851,
+                "content": "        decorated_converter = Converter("
+              },
+              {
+                "kind": "add",
+                "newLine": 2852,
+                "content": "            lambda value, _self, field: meth(_self, field, value),"
+              },
+              {
+                "kind": "add",
+                "newLine": 2853,
+                "content": "            takes_self=True,"
+              },
+              {
+                "kind": "add",
+                "newLine": 2854,
+                "content": "            takes_field=True,"
+              },
+              {
+                "kind": "add",
+                "newLine": 2855,
+                "content": "        )"
+              },
+              {
+                "kind": "add",
+                "newLine": 2856,
+                "content": "        if self._converter is None:"
+              },
+              {
+                "kind": "add",
+                "newLine": 2857,
+                "content": "            self._converter = decorated_converter"
+              },
+              {
+                "kind": "add",
+                "newLine": 2858,
+                "content": "        else:"
+              },
+              {
+                "kind": "add",
+                "newLine": 2859,
+                "content": "            self._converter = pipe(self._converter, decorated_converter)"
+              },
+              {
+                "kind": "add",
+                "newLine": 2860,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 2861,
+                "content": "        return meth"
+              },
+              {
+                "kind": "add",
+                "newLine": 2862,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 2843,
+                "newLine": 2863,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 2844,
+                "newLine": 2864,
+                "content": "_CountingAttr = _add_eq(_add_repr(_CountingAttr))"
+              },
+              {
+                "kind": "context",
+                "oldLine": 2845,
+                "newLine": 2865,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "python-attrs/attrs@0f758fe \u201cExpose converter as a decorator (#1541)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

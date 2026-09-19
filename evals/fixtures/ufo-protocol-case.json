@@ -1,0 +1,204 @@
+{
+  "id": "ufo-protocol-case",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "768210a3cd4df99051d2f2981a7791030224db5b",
+    "url": "https://github.com/unjs/ufo/commit/768210a3cd4df99051d2f2981a7791030224db5b",
+    "message": "fix(parseURL): parse protocol case-insensitively (#188)"
+  },
+  "reviewed": {
+    "base": "768210a3cd4df99051d2f2981a7791030224db5b",
+    "head": "92b63c210c186fd079318e630eb56a5f4ffdf7b0"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update parse.ts",
+    "body": "",
+    "baseSha": "768210a3cd4df99051d2f2981a7791030224db5b",
+    "headSha": "92b63c210c186fd079318e630eb56a5f4ffdf7b0",
+    "files": [
+      {
+        "path": "src/parse.ts",
+        "oldPath": "src/parse.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 29,
+            "oldLines": 12,
+            "newStart": 29,
+            "newLines": 12,
+            "section": "export interface ParsedHost {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 29,
+                "newLine": 29,
+                "content": " */"
+              },
+              {
+                "kind": "context",
+                "oldLine": 30,
+                "newLine": 30,
+                "content": "export function parseURL(input = \"\", defaultProto?: string): ParsedURL {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 31,
+                "newLine": 31,
+                "content": "  const _specialProtoMatch = input.match("
+              },
+              {
+                "kind": "del",
+                "oldLine": 32,
+                "content": "    /^[\\s\\0]*(blob:|data:|javascript:|vbscript:)(.*)/i"
+              },
+              {
+                "kind": "add",
+                "newLine": 32,
+                "content": "    /^[\\s\\0]*(blob:|data:|javascript:|vbscript:)(.*)/"
+              },
+              {
+                "kind": "context",
+                "oldLine": 33,
+                "newLine": 33,
+                "content": "  );"
+              },
+              {
+                "kind": "context",
+                "oldLine": 34,
+                "newLine": 34,
+                "content": "  if (_specialProtoMatch) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 35,
+                "newLine": 35,
+                "content": "    const [, _proto, _pathname = \"\"] = _specialProtoMatch;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 36,
+                "newLine": 36,
+                "content": "    return {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 37,
+                "content": "      protocol: _proto.toLowerCase(),"
+              },
+              {
+                "kind": "add",
+                "newLine": 37,
+                "content": "      protocol: _proto,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 38,
+                "newLine": 38,
+                "content": "      pathname: _pathname,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 39,
+                "newLine": 39,
+                "content": "      href: _proto + _pathname,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 40,
+                "newLine": 40,
+                "content": "      auth: \"\","
+              }
+            ]
+          },
+          {
+            "oldStart": 58,
+            "oldLines": 7,
+            "newStart": 58,
+            "newLines": 7,
+            "section": "export function parseURL(input = \"\", defaultProto?: string): ParsedURL {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 58,
+                "newLine": 58,
+                "content": "  );"
+              },
+              {
+                "kind": "context",
+                "oldLine": 59,
+                "newLine": 59,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 60,
+                "newLine": 60,
+                "content": "  return {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 61,
+                "content": "    protocol: protocol.toLowerCase(),"
+              },
+              {
+                "kind": "add",
+                "newLine": 61,
+                "content": "    protocol,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 62,
+                "newLine": 62,
+                "content": "    auth: auth ? auth.slice(0, Math.max(0, auth.length - 1)) : \"\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 63,
+                "newLine": 63,
+                "content": "    host,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 64,
+                "newLine": 64,
+                "content": "    pathname,"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/parse.ts",
+      "head": [
+        32,
+        37
+      ],
+      "base": [
+        32,
+        37
+      ],
+      "description": "The special-protocol regex lost its `i` flag, so 'JavaScript:alert(1)' or 'DATA:...' is not recognised as a javascript:/data: URL \u2014 capitals bypass the check."
+    },
+    {
+      "file": "src/parse.ts",
+      "head": [
+        61,
+        61
+      ],
+      "base": [
+        61,
+        61
+      ],
+      "description": "The protocol is no longer lower-cased, so 'HTTP://x' parses with protocol 'HTTP:' and comparisons against 'http:' fail."
+    }
+  ],
+  "notes": "Reversed from unjs/ufo@768210a \u201cfix(parseURL): parse protocol case-insensitively (#188)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

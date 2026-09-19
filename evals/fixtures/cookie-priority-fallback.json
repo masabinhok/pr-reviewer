@@ -1,0 +1,103 @@
+{
+  "id": "cookie-priority-fallback",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "jshttp/cookie",
+    "commit": "4898ba23a59cb7196df35b58dedfe9a11b68fb91",
+    "url": "https://github.com/jshttp/cookie/commit/4898ba23a59cb7196df35b58dedfe9a11b68fb91",
+    "message": "fix: `options.priority` used incorrect fallback (#207)"
+  },
+  "reviewed": {
+    "base": "4898ba23a59cb7196df35b58dedfe9a11b68fb91",
+    "head": "408c2b40c6c5783fcfae619d30e8427e9c96a2db"
+  },
+  "request": {
+    "repo": "jshttp/cookie",
+    "prNumber": 1,
+    "title": "Update index.ts",
+    "body": "",
+    "baseSha": "4898ba23a59cb7196df35b58dedfe9a11b68fb91",
+    "headSha": "408c2b40c6c5783fcfae619d30e8427e9c96a2db",
+    "files": [
+      {
+        "path": "src/index.ts",
+        "oldPath": "src/index.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 311,
+            "oldLines": 7,
+            "newStart": 311,
+            "newLines": 7,
+            "section": "export function serialize(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 311,
+                "newLine": 311,
+                "content": "    const priority ="
+              },
+              {
+                "kind": "context",
+                "oldLine": 312,
+                "newLine": 312,
+                "content": "      typeof options.priority === \"string\""
+              },
+              {
+                "kind": "context",
+                "oldLine": 313,
+                "newLine": 313,
+                "content": "        ? options.priority.toLowerCase()"
+              },
+              {
+                "kind": "del",
+                "oldLine": 314,
+                "content": "        : undefined;"
+              },
+              {
+                "kind": "add",
+                "newLine": 314,
+                "content": "        : options.sameSite;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 315,
+                "newLine": 315,
+                "content": "    switch (priority) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 316,
+                "newLine": 316,
+                "content": "      case \"low\":"
+              },
+              {
+                "kind": "context",
+                "oldLine": 317,
+                "newLine": 317,
+                "content": "        str += \"; Priority=Low\";"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/index.ts",
+      "head": [
+        314,
+        314
+      ],
+      "base": [
+        314,
+        314
+      ],
+      "description": "With no priority given, priority falls back to `options.sameSite`, so a cookie with `sameSite: 'strict'` and no priority is treated as having priority 'strict' \u2014 an invalid priority."
+    }
+  ],
+  "notes": "Reversed from jshttp/cookie@4898ba2 \u201cfix: `options.priority` used incorrect fallback (#207)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

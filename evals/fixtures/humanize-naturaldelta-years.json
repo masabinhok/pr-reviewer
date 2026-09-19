@@ -1,0 +1,98 @@
+{
+  "id": "humanize-naturaldelta-years",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "python-humanize/humanize",
+    "commit": "392aef707c0e74341ab4a51420984e9ea6b566c5",
+    "url": "https://github.com/python-humanize/humanize/commit/392aef707c0e74341ab4a51420984e9ea6b566c5",
+    "message": "Fix `naturaldelta` truncating years instead of rounding (#295)"
+  },
+  "reviewed": {
+    "base": "392aef707c0e74341ab4a51420984e9ea6b566c5",
+    "head": "ca892b368a535a79cc5e2181d052245b94fd6652"
+  },
+  "request": {
+    "repo": "python-humanize/humanize",
+    "prNumber": 1,
+    "title": "Update time.py",
+    "body": "",
+    "baseSha": "392aef707c0e74341ab4a51420984e9ea6b566c5",
+    "headSha": "ca892b368a535a79cc5e2181d052245b94fd6652",
+    "files": [
+      {
+        "path": "src/humanize/time.py",
+        "oldPath": "src/humanize/time.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 256,
+            "oldLines": 7,
+            "newStart": 256,
+            "newLines": 6,
+            "section": "def naturaldelta(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 256,
+                "newLine": 256,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 257,
+                "newLine": 257,
+                "content": "        return _ngettext(\"1 year, %d day\", \"1 year, %d days\", days) % days"
+              },
+              {
+                "kind": "context",
+                "oldLine": 258,
+                "newLine": 258,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 259,
+                "content": "    years = round(delta.days / 365)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 260,
+                "newLine": 259,
+                "content": "    return _ngettext(\"%d year\", \"%d years\", years).replace(\"%d\", \"%s\") % intcomma(years)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 261,
+                "newLine": 260,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 262,
+                "newLine": 261,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/humanize/time.py",
+      "head": [
+        258,
+        258
+      ],
+      "base": [
+        259,
+        259
+      ],
+      "description": "The number of years is no longer recomputed with round(), so the earlier truncated value is used and a duration just under a whole number of years is reported one year short."
+    }
+  ],
+  "notes": "Reversed from python-humanize/humanize@392aef7 \u201cFix `naturaldelta` truncating years instead of rounding (#295)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

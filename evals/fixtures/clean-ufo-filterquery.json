@@ -1,0 +1,220 @@
+{
+  "id": "clean-ufo-filterquery",
+  "kind": "clean",
+  "split": "tune",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "3c4b43de1128f2c04c2131db9a7e9fe2c7daf0d5",
+    "url": "https://github.com/unjs/ufo/commit/3c4b43de1128f2c04c2131db9a7e9fe2c7daf0d5",
+    "message": "feat: add `filterQuery` utility (#287)"
+  },
+  "reviewed": {
+    "base": "7959de5b49f52e7eb2919a33a9bfe30911e05712",
+    "head": "3c4b43de1128f2c04c2131db9a7e9fe2c7daf0d5"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update utils.ts",
+    "body": "",
+    "baseSha": "7959de5b49f52e7eb2919a33a9bfe30911e05712",
+    "headSha": "3c4b43de1128f2c04c2131db9a7e9fe2c7daf0d5",
+    "files": [
+      {
+        "path": "src/utils.ts",
+        "oldPath": "src/utils.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 271,
+            "oldLines": 6,
+            "newStart": 271,
+            "newLines": 34,
+            "section": "export function withQuery(input: string, query: QueryObject): string {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 271,
+                "newLine": 271,
+                "content": "  return stringifyParsedURL(parsed);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 272,
+                "newLine": 272,
+                "content": "}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 273,
+                "newLine": 273,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 274,
+                "content": "/**"
+              },
+              {
+                "kind": "add",
+                "newLine": 275,
+                "content": " * Removes the query section of the URL."
+              },
+              {
+                "kind": "add",
+                "newLine": 276,
+                "content": " *"
+              },
+              {
+                "kind": "add",
+                "newLine": 277,
+                "content": " * @example"
+              },
+              {
+                "kind": "add",
+                "newLine": 278,
+                "content": " *"
+              },
+              {
+                "kind": "add",
+                "newLine": 279,
+                "content": " * ```js"
+              },
+              {
+                "kind": "add",
+                "newLine": 280,
+                "content": " * filterQuery(\"/foo?bar=1&baz=2\", (key) => key !== \"bar\"); // \"/foo?baz=2\""
+              },
+              {
+                "kind": "add",
+                "newLine": 281,
+                "content": " * ```"
+              },
+              {
+                "kind": "add",
+                "newLine": 282,
+                "content": " *"
+              },
+              {
+                "kind": "add",
+                "newLine": 283,
+                "content": " * @group utils"
+              },
+              {
+                "kind": "add",
+                "newLine": 284,
+                "content": " */"
+              },
+              {
+                "kind": "add",
+                "newLine": 285,
+                "content": "export function filterQuery("
+              },
+              {
+                "kind": "add",
+                "newLine": 286,
+                "content": "  input: string,"
+              },
+              {
+                "kind": "add",
+                "newLine": 287,
+                "content": "  predicate: (key: string, value: string | string[]) => boolean,"
+              },
+              {
+                "kind": "add",
+                "newLine": 288,
+                "content": "): string {"
+              },
+              {
+                "kind": "add",
+                "newLine": 289,
+                "content": "  if (!input.includes(\"?\")) {"
+              },
+              {
+                "kind": "add",
+                "newLine": 290,
+                "content": "    return input;"
+              },
+              {
+                "kind": "add",
+                "newLine": 291,
+                "content": "  }"
+              },
+              {
+                "kind": "add",
+                "newLine": 292,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 293,
+                "content": "  const parsed = parseURL(input);"
+              },
+              {
+                "kind": "add",
+                "newLine": 294,
+                "content": "  const query = parseQuery(parsed.search);"
+              },
+              {
+                "kind": "add",
+                "newLine": 295,
+                "content": "  const filteredQuery = Object.fromEntries("
+              },
+              {
+                "kind": "add",
+                "newLine": 296,
+                "content": "    Object.entries(query).filter(([key, value]) => predicate(key, value)),"
+              },
+              {
+                "kind": "add",
+                "newLine": 297,
+                "content": "  );"
+              },
+              {
+                "kind": "add",
+                "newLine": 298,
+                "content": "  parsed.search = stringifyQuery(filteredQuery);"
+              },
+              {
+                "kind": "add",
+                "newLine": 299,
+                "content": "  return stringifyParsedURL(parsed);"
+              },
+              {
+                "kind": "add",
+                "newLine": 300,
+                "content": "}"
+              },
+              {
+                "kind": "add",
+                "newLine": 301,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 274,
+                "newLine": 302,
+                "content": "/**"
+              },
+              {
+                "kind": "context",
+                "oldLine": 275,
+                "newLine": 303,
+                "content": " * Parses and decodes the query object of an input URL into an object."
+              },
+              {
+                "kind": "context",
+                "oldLine": 276,
+                "newLine": 304,
+                "content": " *"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "unjs/ufo@3c4b43d \u201cfeat: add `filterQuery` utility (#287)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

@@ -1,0 +1,191 @@
+{
+  "id": "ufo-parsequery-prototype",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "4d024df0134e2484b1e22ba17a08fea31e90de92",
+    "url": "https://github.com/unjs/ufo/commit/4d024df0134e2484b1e22ba17a08fea31e90de92",
+    "message": "fix(parseQuery): use object with null prototype (#286)"
+  },
+  "reviewed": {
+    "base": "4d024df0134e2484b1e22ba17a08fea31e90de92",
+    "head": "e383832e6aa1253a0b423cbb588bc0716f274f83"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update query.ts",
+    "body": "",
+    "baseSha": "4d024df0134e2484b1e22ba17a08fea31e90de92",
+    "headSha": "e383832e6aa1253a0b423cbb588bc0716f274f83",
+    "files": [
+      {
+        "path": "src/query.ts",
+        "oldPath": "src/query.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 18,
+            "oldLines": 12,
+            "newStart": 18,
+            "newLines": 6,
+            "section": "export type QueryObject = Record<string, QueryValue | QueryValue[]>;",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 18,
+                "newLine": 18,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 19,
+                "newLine": 19,
+                "content": "export type ParsedQuery = Record<string, string | string[]>;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 20,
+                "newLine": 20,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 21,
+                "content": "const EmptyObject = /* @__PURE__ */ (() => {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 22,
+                "content": "  const C = function () {};"
+              },
+              {
+                "kind": "del",
+                "oldLine": 23,
+                "content": "  C.prototype = Object.create(null);"
+              },
+              {
+                "kind": "del",
+                "oldLine": 24,
+                "content": "  return C;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 25,
+                "content": "})() as unknown as { new (): any };"
+              },
+              {
+                "kind": "del",
+                "oldLine": 26,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 27,
+                "newLine": 21,
+                "content": "/**"
+              },
+              {
+                "kind": "context",
+                "oldLine": 28,
+                "newLine": 22,
+                "content": " * Parses and decodes a query string into an object."
+              },
+              {
+                "kind": "context",
+                "oldLine": 29,
+                "newLine": 23,
+                "content": " *"
+              }
+            ]
+          },
+          {
+            "oldStart": 37,
+            "oldLines": 7,
+            "newStart": 31,
+            "newLines": 7,
+            "section": "const EmptyObject = /* @__PURE__ */ (() => {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 37,
+                "newLine": 31,
+                "content": "export function parseQuery<T extends ParsedQuery = ParsedQuery>("
+              },
+              {
+                "kind": "context",
+                "oldLine": 38,
+                "newLine": 32,
+                "content": "  parametersString = \"\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 39,
+                "newLine": 33,
+                "content": "): T {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 40,
+                "content": "  const object: ParsedQuery = new EmptyObject();"
+              },
+              {
+                "kind": "add",
+                "newLine": 34,
+                "content": "  const object: ParsedQuery = {};"
+              },
+              {
+                "kind": "context",
+                "oldLine": 41,
+                "newLine": 35,
+                "content": "  if (parametersString[0] === \"?\") {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 42,
+                "newLine": 36,
+                "content": "    parametersString = parametersString.slice(1);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 43,
+                "newLine": 37,
+                "content": "  }"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/query.ts",
+      "head": [
+        34,
+        34
+      ],
+      "base": [
+        40,
+        40
+      ],
+      "description": "The parsed query is a plain `{}`, so a query key such as `__proto__` or `constructor` hits Object.prototype: `?__proto__=x` changes the result's prototype.",
+      "alsoAt": [
+        {
+          "file": "src/query.ts",
+          "head": [
+            20,
+            20
+          ],
+          "base": [
+            21,
+            26
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "Reversed from unjs/ufo@4d024df \u201cfix(parseQuery): use object with null prototype (#286)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

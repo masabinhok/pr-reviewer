@@ -1,0 +1,206 @@
+{
+  "id": "ufo-base-prefix-match",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "eb29945470c8629309764f026a36e7f477a9a1ff",
+    "url": "https://github.com/unjs/ufo/commit/eb29945470c8629309764f026a36e7f477a9a1ff",
+    "message": "fix(withBase, withoutBase): prevent false prefix matches (#313)"
+  },
+  "reviewed": {
+    "base": "eb29945470c8629309764f026a36e7f477a9a1ff",
+    "head": "5fb179d51384301ffb66b48e213863a27cadd1ff"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update utils.ts",
+    "body": "",
+    "baseSha": "eb29945470c8629309764f026a36e7f477a9a1ff",
+    "headSha": "5fb179d51384301ffb66b48e213863a27cadd1ff",
+    "files": [
+      {
+        "path": "src/utils.ts",
+        "oldPath": "src/utils.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 293,
+            "oldLines": 11,
+            "newStart": 293,
+            "newLines": 7,
+            "section": "export function withBase(input: string, base: string) {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 293,
+                "newLine": 293,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 294,
+                "newLine": 294,
+                "content": "  const _base = withoutTrailingSlash(base);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 295,
+                "newLine": 295,
+                "content": "  if (input.startsWith(_base)) {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 296,
+                "content": "    const nextChar = input[_base.length];"
+              },
+              {
+                "kind": "del",
+                "oldLine": 297,
+                "content": "    // Ensure '/admin-dashboard' is not considered as having base '/admin/'"
+              },
+              {
+                "kind": "del",
+                "oldLine": 298,
+                "content": "    if (!nextChar || nextChar === \"/\" || nextChar === \"?\") {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 299,
+                "content": "      return input;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 300,
+                "content": "    }"
+              },
+              {
+                "kind": "add",
+                "newLine": 296,
+                "content": "    return input;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 301,
+                "newLine": 297,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 302,
+                "newLine": 298,
+                "content": "  return joinURL(_base, input);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 303,
+                "newLine": 299,
+                "content": "}"
+              }
+            ]
+          },
+          {
+            "oldStart": 323,
+            "oldLines": 11,
+            "newStart": 319,
+            "newLines": 6,
+            "section": "export function withoutBase(input: string, base: string) {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 323,
+                "newLine": 319,
+                "content": "  if (!input.startsWith(_base)) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 324,
+                "newLine": 320,
+                "content": "    return input;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 325,
+                "newLine": 321,
+                "content": "  }"
+              },
+              {
+                "kind": "del",
+                "oldLine": 326,
+                "content": "  // Ensure '/admin-dashboard' is not considered as having base '/admin/'"
+              },
+              {
+                "kind": "del",
+                "oldLine": 327,
+                "content": "  const nextChar = input[_base.length];"
+              },
+              {
+                "kind": "del",
+                "oldLine": 328,
+                "content": "  if (nextChar && nextChar !== \"/\" && nextChar !== \"?\") {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 329,
+                "content": "    return input;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 330,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 331,
+                "newLine": 322,
+                "content": "  const trimmed = input.slice(_base.length);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 332,
+                "newLine": 323,
+                "content": "  return trimmed[0] === \"/\" ? trimmed : \"/\" + trimmed;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 333,
+                "newLine": 324,
+                "content": "}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/utils.ts",
+      "head": [
+        296,
+        296
+      ],
+      "base": [
+        296,
+        300
+      ],
+      "description": "Base matching uses startsWith with no boundary check, so '/admin-dashboard' is treated as already under base '/admin': withBase returns it unchanged and withoutBase turns it into '/-dashboard'.",
+      "alsoAt": [
+        {
+          "file": "src/utils.ts",
+          "head": [
+            321,
+            321
+          ],
+          "base": [
+            326,
+            330
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "Reversed from unjs/ufo@eb29945 \u201cfix(withBase, withoutBase): prevent false prefix matches (#313)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

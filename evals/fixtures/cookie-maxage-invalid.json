@@ -1,0 +1,123 @@
+{
+  "id": "cookie-maxage-invalid",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "jshttp/cookie",
+    "commit": "e248786d0aaab4a4759bd277066e50f38067e402",
+    "url": "https://github.com/jshttp/cookie/commit/e248786d0aaab4a4759bd277066e50f38067e402",
+    "message": "Fix maxAge option to reject invalid values"
+  },
+  "reviewed": {
+    "base": "e248786d0aaab4a4759bd277066e50f38067e402",
+    "head": "7e1398fda5390c6b4281213d47873244d0cd3302"
+  },
+  "request": {
+    "repo": "jshttp/cookie",
+    "prNumber": 1,
+    "title": "Update index.js",
+    "body": "",
+    "baseSha": "e248786d0aaab4a4759bd277066e50f38067e402",
+    "headSha": "7e1398fda5390c6b4281213d47873244d0cd3302",
+    "files": [
+      {
+        "path": "index.js",
+        "oldPath": "index.js",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 120,
+            "oldLines": 11,
+            "newStart": 120,
+            "newLines": 7,
+            "section": "function serialize(name, val, options) {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 120,
+                "newLine": 120,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 121,
+                "newLine": 121,
+                "content": "  if (null != opt.maxAge) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 122,
+                "newLine": 122,
+                "content": "    var maxAge = opt.maxAge - 0;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 123,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 124,
+                "content": "    if (isNaN(maxAge) || !isFinite(maxAge)) {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 125,
+                "content": "      throw new TypeError('option maxAge is invalid')"
+              },
+              {
+                "kind": "del",
+                "oldLine": 126,
+                "content": "    }"
+              },
+              {
+                "kind": "del",
+                "oldLine": 127,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 123,
+                "content": "    if (isNaN(maxAge)) throw new Error('maxAge should be a Number');"
+              },
+              {
+                "kind": "context",
+                "oldLine": 128,
+                "newLine": 124,
+                "content": "    str += '; Max-Age=' + Math.floor(maxAge);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 129,
+                "newLine": 125,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 130,
+                "newLine": 126,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "index.js",
+      "head": [
+        123,
+        123
+      ],
+      "base": [
+        123,
+        127
+      ],
+      "description": "Only NaN is rejected: maxAge Infinity or -Infinity passes and is serialised as `Max-Age=Infinity`, an invalid header."
+    }
+  ],
+  "notes": "Reversed from jshttp/cookie@e248786 \u201cFix maxAge option to reject invalid values\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

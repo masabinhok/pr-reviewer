@@ -1,0 +1,158 @@
+{
+  "id": "httpx-digest-cookies",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "encode/httpx",
+    "commit": "88e84314378b31336027363af862619c519a4a3a",
+    "url": "https://github.com/encode/httpx/commit/88e84314378b31336027363af862619c519a4a3a",
+    "message": "Add cookies to the retried request when performing digest authentication. (#2846)"
+  },
+  "reviewed": {
+    "base": "88e84314378b31336027363af862619c519a4a3a",
+    "head": "c3585a5ccfa57bec653f3846b8625a27d11dcd5e"
+  },
+  "request": {
+    "repo": "encode/httpx",
+    "prNumber": 1,
+    "title": "Update _auth.py",
+    "body": "",
+    "baseSha": "88e84314378b31336027363af862619c519a4a3a",
+    "headSha": "c3585a5ccfa57bec653f3846b8625a27d11dcd5e",
+    "files": [
+      {
+        "path": "httpx/_auth.py",
+        "oldPath": "httpx/_auth.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 8,
+            "oldLines": 7,
+            "newStart": 8,
+            "newLines": 7,
+            "section": "from base64 import b64encode",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 8,
+                "newLine": 8,
+                "content": "from urllib.request import parse_http_list"
+              },
+              {
+                "kind": "context",
+                "oldLine": 9,
+                "newLine": 9,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 10,
+                "newLine": 10,
+                "content": "from ._exceptions import ProtocolError"
+              },
+              {
+                "kind": "del",
+                "oldLine": 11,
+                "content": "from ._models import Cookies, Request, Response"
+              },
+              {
+                "kind": "add",
+                "newLine": 11,
+                "content": "from ._models import Request, Response"
+              },
+              {
+                "kind": "context",
+                "oldLine": 12,
+                "newLine": 12,
+                "content": "from ._utils import to_bytes, to_str, unquote"
+              },
+              {
+                "kind": "context",
+                "oldLine": 13,
+                "newLine": 13,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 14,
+                "newLine": 14,
+                "content": "if typing.TYPE_CHECKING:  # pragma: no cover"
+              }
+            ]
+          },
+          {
+            "oldStart": 217,
+            "oldLines": 8,
+            "newStart": 217,
+            "newLines": 6,
+            "section": "class DigestAuth(Auth):",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 217,
+                "newLine": 217,
+                "content": "        request.headers[\"Authorization\"] = self._build_auth_header("
+              },
+              {
+                "kind": "context",
+                "oldLine": 218,
+                "newLine": 218,
+                "content": "            request, self._last_challenge"
+              },
+              {
+                "kind": "context",
+                "oldLine": 219,
+                "newLine": 219,
+                "content": "        )"
+              },
+              {
+                "kind": "del",
+                "oldLine": 220,
+                "content": "        if response.cookies:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 221,
+                "content": "            Cookies(response.cookies).set_cookie_header(request=request)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 222,
+                "newLine": 220,
+                "content": "        yield request"
+              },
+              {
+                "kind": "context",
+                "oldLine": 223,
+                "newLine": 221,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 224,
+                "newLine": 222,
+                "content": "    def _parse_challenge("
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "httpx/_auth.py",
+      "head": [
+        219,
+        219
+      ],
+      "base": [
+        220,
+        221
+      ],
+      "description": "The retry after a digest challenge no longer carries the cookies set on the 401 response, so a server that ties the challenge to a session cookie rejects the authenticated retry."
+    }
+  ],
+  "notes": "Reversed from encode/httpx@88e8431 \u201cAdd cookies to the retried request when performing digest authentication. (#2846)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

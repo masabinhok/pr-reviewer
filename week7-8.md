@@ -278,10 +278,10 @@ detail shows its findings with verdicts and feedback.
 - Works at phone width; readable in light and dark.
 
 **Todo**
-- [ ] `apps/web` scaffolded in the workspace; `npm run web`
-- [ ] Server-side fetching with the token; no token in the client bundle (checked)
-- [ ] The four pages
-- [ ] Tests for the data-shaping code; a smoke test that pages render against a fake API
+- [x] `apps/web` scaffolded in the workspace; `npm run web`
+- [x] Server-side fetching with the token; no token in the client bundle (checked)
+- [x] The four pages
+- [x] Tests for the data-shaping code; a smoke test that pages render against a fake API
 
 **Polish bar:** the dashboard running against the real database shows this repository's
 reviews, including #33's dropped and posted findings, and a screenshot of it goes in the

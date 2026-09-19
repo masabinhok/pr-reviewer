@@ -151,3 +151,60 @@ def test_the_snapshot_is_removed_however_the_review_ends():
 
     assert not seen[0].exists()
     assert not seen[0].parent.exists()
+
+
+SHA = "6ac523cfcd000061512a81ba4f9676e09e573ae3"
+
+
+class TestPublicRepositories:
+    """No installation token: the evaluation's open-source fixtures."""
+
+    def test_downloads_without_any_authorization(self):
+        seen = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen.append(request.headers.get("authorization"))
+            return httpx2.Response(200, content=tarball({"a.txt": "a"}))
+
+        with snapshot(github(handler), "octo/widgets", SHA, None) as snap_:
+            assert (snap_.root / "a.txt").read_text() == "a"
+
+        assert seen == [None]
+
+    def test_a_cached_commit_is_not_downloaded_again(self, tmp_path):
+        calls = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            calls.append(request.url)
+            return httpx2.Response(200, content=tarball({"a.txt": "a"}))
+
+        for _ in range(2):
+            with snapshot(github(handler), "octo/widgets", SHA, None, tmp_path) as snap_:
+                assert (snap_.root / "a.txt").exists()
+
+        assert len(calls) == 1
+        assert [p.name for p in tmp_path.iterdir()] == [f"octo__widgets@{SHA}.tar.gz"]
+
+    def test_a_download_made_with_a_token_is_never_cached(self, tmp_path):
+        client = github(lambda _: httpx2.Response(200, content=tarball({"a.txt": "a"})))
+
+        with snapshot(client, "octo/private", SHA, "ghs_t", tmp_path):
+            pass
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_a_short_sha_is_not_cached(self, tmp_path):
+        client = github(lambda _: httpx2.Response(200, content=tarball({"a.txt": "a"})))
+
+        with snapshot(client, "octo/widgets", "abc1234", None, tmp_path):
+            pass
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_a_failed_download_leaves_nothing_in_the_cache(self, tmp_path):
+        client = github(lambda _: httpx2.Response(404))
+
+        with pytest.raises(SnapshotError), snapshot(client, "octo/gone", SHA, None, tmp_path):
+            pass
+
+        assert list(tmp_path.iterdir()) == []

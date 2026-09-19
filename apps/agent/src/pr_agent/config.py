@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # How much conversation the model can hold. Unset for Claude, whose window is far larger
     # than a review needs; set for a local model, which runs out mid-review.
     agent_context_tokens: int | None = None
+    # Where public repositories' tarballs are kept between reviews (the evaluation reviews
+    # the same commits run after run). Unset: nothing is cached. Private code never is.
+    agent_tarball_cache: Path | None = None
 
     @property
     def model(self) -> str:

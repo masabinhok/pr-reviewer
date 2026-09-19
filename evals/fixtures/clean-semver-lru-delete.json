@@ -1,0 +1,115 @@
+{
+  "id": "clean-semver-lru-delete",
+  "kind": "clean",
+  "split": "tune",
+  "source": {
+    "repo": "npm/node-semver",
+    "commit": "6466ba9b540252db405fdd2a289dd4651495beea",
+    "url": "https://github.com/npm/node-semver/commit/6466ba9b540252db405fdd2a289dd4651495beea",
+    "message": "fix(lru): use map.delete() directly (#713)"
+  },
+  "reviewed": {
+    "base": "d777418116aeaecca9842b7621dd0ac1a92100bc",
+    "head": "6466ba9b540252db405fdd2a289dd4651495beea"
+  },
+  "request": {
+    "repo": "npm/node-semver",
+    "prNumber": 1,
+    "title": "Update lrucache.js",
+    "body": "",
+    "baseSha": "d777418116aeaecca9842b7621dd0ac1a92100bc",
+    "headSha": "6466ba9b540252db405fdd2a289dd4651495beea",
+    "files": [
+      {
+        "path": "internal/lrucache.js",
+        "oldPath": "internal/lrucache.js",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 17,
+            "oldLines": 12,
+            "newStart": 17,
+            "newLines": 7,
+            "section": "class LRUCache {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 17,
+                "newLine": 17,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 18,
+                "newLine": 18,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 19,
+                "newLine": 19,
+                "content": "  delete (key) {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 20,
+                "content": "    if (this.map.has(key)) {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 21,
+                "content": "      this.map.delete(key)"
+              },
+              {
+                "kind": "del",
+                "oldLine": 22,
+                "content": "      return true"
+              },
+              {
+                "kind": "del",
+                "oldLine": 23,
+                "content": "    } else {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 24,
+                "content": "      return false"
+              },
+              {
+                "kind": "del",
+                "oldLine": 25,
+                "content": "    }"
+              },
+              {
+                "kind": "add",
+                "newLine": 20,
+                "content": "    return this.map.delete(key)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 26,
+                "newLine": 21,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 27,
+                "newLine": 22,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 28,
+                "newLine": 23,
+                "content": "  set (key, value) {"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "npm/node-semver@6466ba9 \u201cfix(lru): use map.delete() directly (#713)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

@@ -1,0 +1,103 @@
+{
+  "id": "cookie-maxage-float",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "jshttp/cookie",
+    "commit": "ba8bd30205b5f13917480039c97f11d7126dcf76",
+    "url": "https://github.com/jshttp/cookie/commit/ba8bd30205b5f13917480039c97f11d7126dcf76",
+    "message": "Fix cookie Max-Age to never be a floating point number"
+  },
+  "reviewed": {
+    "base": "ba8bd30205b5f13917480039c97f11d7126dcf76",
+    "head": "7ebfa14f65807fb8d5b2d21a34b4d017c5baf3c8"
+  },
+  "request": {
+    "repo": "jshttp/cookie",
+    "prNumber": 1,
+    "title": "Update index.js",
+    "body": "",
+    "baseSha": "ba8bd30205b5f13917480039c97f11d7126dcf76",
+    "headSha": "7ebfa14f65807fb8d5b2d21a34b4d017c5baf3c8",
+    "files": [
+      {
+        "path": "index.js",
+        "oldPath": "index.js",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 114,
+            "oldLines": 7,
+            "newStart": 114,
+            "newLines": 7,
+            "section": "function serialize(name, val, options) {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 114,
+                "newLine": 114,
+                "content": "  if (null != opt.maxAge) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 115,
+                "newLine": 115,
+                "content": "    var maxAge = opt.maxAge - 0;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 116,
+                "newLine": 116,
+                "content": "    if (isNaN(maxAge)) throw new Error('maxAge should be a Number');"
+              },
+              {
+                "kind": "del",
+                "oldLine": 117,
+                "content": "    pairs.push('Max-Age=' + Math.floor(maxAge));"
+              },
+              {
+                "kind": "add",
+                "newLine": 117,
+                "content": "    pairs.push('Max-Age=' + maxAge);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 118,
+                "newLine": 118,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 119,
+                "newLine": 119,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 120,
+                "newLine": 120,
+                "content": "  if (opt.domain) {"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "index.js",
+      "head": [
+        117,
+        117
+      ],
+      "base": [
+        117,
+        117
+      ],
+      "description": "Max-Age is written without Math.floor, so a fractional maxAge such as 1.5 produces `Max-Age=1.5`, which is not a valid Max-Age value."
+    }
+  ],
+  "notes": "Reversed from jshttp/cookie@ba8bd30 \u201cFix cookie Max-Age to never be a floating point number\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

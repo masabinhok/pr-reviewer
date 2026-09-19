@@ -47,8 +47,11 @@ export const REVIEWER = Symbol('REVIEWER');
 
 /** Everything a reviewer may look at. Only files that survived filtering are included. */
 export interface ReviewContext {
-  /** GitHub's installation ID — an LLM reviewer reads the repository with its token. */
-  installationId: bigint;
+  /**
+   * GitHub's installation ID — an LLM reviewer reads the repository with its token. Null only
+   * in the evaluation, for a public repository the App isn't installed on: read without one.
+   */
+  installationId: bigint | null;
   repo: string;
   prNumber: number;
   title: string;

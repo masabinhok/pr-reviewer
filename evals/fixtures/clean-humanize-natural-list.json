@@ -1,0 +1,322 @@
+{
+  "id": "clean-humanize-natural-list",
+  "kind": "clean",
+  "split": "tune",
+  "source": {
+    "repo": "python-humanize/humanize",
+    "commit": "d7f5dc5d60a4eb8f43b1ff6ddb842030062e9910",
+    "url": "https://github.com/python-humanize/humanize/commit/d7f5dc5d60a4eb8f43b1ff6ddb842030062e9910",
+    "message": "Add natural_list (#110)"
+  },
+  "reviewed": {
+    "base": "19b43d3b8d80959d75097d8e145690be811465bd",
+    "head": "d7f5dc5d60a4eb8f43b1ff6ddb842030062e9910"
+  },
+  "request": {
+    "repo": "python-humanize/humanize",
+    "prNumber": 1,
+    "title": "Update __init__.py, lists.py",
+    "body": "",
+    "baseSha": "19b43d3b8d80959d75097d8e145690be811465bd",
+    "headSha": "d7f5dc5d60a4eb8f43b1ff6ddb842030062e9910",
+    "files": [
+      {
+        "path": "src/humanize/__init__.py",
+        "oldPath": "src/humanize/__init__.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 4,
+            "oldLines": 6,
+            "newStart": 4,
+            "newLines": 7,
+            "section": "from __future__ import annotations",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 4,
+                "newLine": 4,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 5,
+                "newLine": 5,
+                "content": "from humanize.filesize import naturalsize"
+              },
+              {
+                "kind": "context",
+                "oldLine": 6,
+                "newLine": 6,
+                "content": "from humanize.i18n import activate, deactivate, decimal_separator, thousands_separator"
+              },
+              {
+                "kind": "add",
+                "newLine": 7,
+                "content": "from humanize.lists import natural_list"
+              },
+              {
+                "kind": "context",
+                "oldLine": 7,
+                "newLine": 8,
+                "content": "from humanize.number import ("
+              },
+              {
+                "kind": "context",
+                "oldLine": 8,
+                "newLine": 9,
+                "content": "    apnumber,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 9,
+                "newLine": 10,
+                "content": "    clamp,"
+              }
+            ]
+          },
+          {
+            "oldStart": 38,
+            "oldLines": 6,
+            "newStart": 39,
+            "newLines": 7,
+            "section": "__all__ = [",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 38,
+                "newLine": 39,
+                "content": "    \"naturaldate\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 39,
+                "newLine": 40,
+                "content": "    \"naturalday\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 40,
+                "newLine": 41,
+                "content": "    \"naturaldelta\","
+              },
+              {
+                "kind": "add",
+                "newLine": 42,
+                "content": "    \"natural_list\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 41,
+                "newLine": 43,
+                "content": "    \"naturalsize\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 42,
+                "newLine": 44,
+                "content": "    \"naturaltime\","
+              },
+              {
+                "kind": "context",
+                "oldLine": 43,
+                "newLine": 45,
+                "content": "    \"ordinal\","
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": "src/humanize/lists.py",
+        "oldPath": "src/humanize/lists.py",
+        "status": "added",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 34,
+            "section": "",
+            "lines": [
+              {
+                "kind": "add",
+                "newLine": 1,
+                "content": "\"\"\"Lists related humanization.\"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 2,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 3,
+                "content": "from __future__ import annotations"
+              },
+              {
+                "kind": "add",
+                "newLine": 4,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 5,
+                "content": "from typing import Any"
+              },
+              {
+                "kind": "add",
+                "newLine": 6,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 7,
+                "content": "__all__ = [\"natural_list\"]"
+              },
+              {
+                "kind": "add",
+                "newLine": 8,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 9,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 10,
+                "content": "def natural_list(items: list[Any]) -> str:"
+              },
+              {
+                "kind": "add",
+                "newLine": 11,
+                "content": "    \"\"\"Natural list."
+              },
+              {
+                "kind": "add",
+                "newLine": 12,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 13,
+                "content": "    Convert a list of items into a human-readable string with commas and 'and'."
+              },
+              {
+                "kind": "add",
+                "newLine": 14,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 15,
+                "content": "    Examples:"
+              },
+              {
+                "kind": "add",
+                "newLine": 16,
+                "content": "        >>> natural_list([\"one\", \"two\", \"three\"])"
+              },
+              {
+                "kind": "add",
+                "newLine": 17,
+                "content": "        'one, two and three'"
+              },
+              {
+                "kind": "add",
+                "newLine": 18,
+                "content": "        >>> natural_list([\"one\", \"two\"])"
+              },
+              {
+                "kind": "add",
+                "newLine": 19,
+                "content": "        'one and two'"
+              },
+              {
+                "kind": "add",
+                "newLine": 20,
+                "content": "        >>> natural_list([\"one\"])"
+              },
+              {
+                "kind": "add",
+                "newLine": 21,
+                "content": "        'one'"
+              },
+              {
+                "kind": "add",
+                "newLine": 22,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 23,
+                "content": "    Args:"
+              },
+              {
+                "kind": "add",
+                "newLine": 24,
+                "content": "        items (list): An iterable of items."
+              },
+              {
+                "kind": "add",
+                "newLine": 25,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 26,
+                "content": "    Returns:"
+              },
+              {
+                "kind": "add",
+                "newLine": 27,
+                "content": "        str: A string with commas and 'and' in the right places."
+              },
+              {
+                "kind": "add",
+                "newLine": 28,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "add",
+                "newLine": 29,
+                "content": "    if len(items) == 1:"
+              },
+              {
+                "kind": "add",
+                "newLine": 30,
+                "content": "        return str(items[0])"
+              },
+              {
+                "kind": "add",
+                "newLine": 31,
+                "content": "    elif len(items) == 2:"
+              },
+              {
+                "kind": "add",
+                "newLine": 32,
+                "content": "        return f\"{str(items[0])} and {str(items[1])}\""
+              },
+              {
+                "kind": "add",
+                "newLine": 33,
+                "content": "    else:"
+              },
+              {
+                "kind": "add",
+                "newLine": 34,
+                "content": "        return \", \".join(str(item) for item in items[:-1]) + f\" and {str(items[-1])}\""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "python-humanize/humanize@d7f5dc5 \u201cAdd natural_list (#110)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

@@ -1,0 +1,231 @@
+{
+  "id": "clean-attrs-astuple-perf",
+  "kind": "clean",
+  "split": "heldout",
+  "source": {
+    "repo": "python-attrs/attrs",
+    "commit": "1315e42fe51743fe1c3529da6792dcda2ef6cc1f",
+    "url": "https://github.com/python-attrs/attrs/commit/1315e42fe51743fe1c3529da6792dcda2ef6cc1f",
+    "message": "Improve performance of attr.astuple (#1469)"
+  },
+  "reviewed": {
+    "base": "6ef8d73dd728cdebf939b3a2cd694af57d1f6b5d",
+    "head": "1315e42fe51743fe1c3529da6792dcda2ef6cc1f"
+  },
+  "request": {
+    "repo": "python-attrs/attrs",
+    "prNumber": 1,
+    "title": "Update _funcs.py",
+    "body": "",
+    "baseSha": "6ef8d73dd728cdebf939b3a2cd694af57d1f6b5d",
+    "headSha": "1315e42fe51743fe1c3529da6792dcda2ef6cc1f",
+    "files": [
+      {
+        "path": "src/attr/_funcs.py",
+        "oldPath": "src/attr/_funcs.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 278,
+            "oldLines": 8,
+            "newStart": 278,
+            "newLines": 11,
+            "section": "def astuple(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 278,
+                "newLine": 278,
+                "content": "        v = getattr(inst, a.name)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 279,
+                "newLine": 279,
+                "content": "        if filter is not None and not filter(a, v):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 280,
+                "newLine": 280,
+                "content": "            continue"
+              },
+              {
+                "kind": "add",
+                "newLine": 281,
+                "content": "        value_type = type(v)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 281,
+                "newLine": 282,
+                "content": "        if recurse is True:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 282,
+                "content": "            if has(v.__class__):"
+              },
+              {
+                "kind": "add",
+                "newLine": 283,
+                "content": "            if value_type in _ATOMIC_TYPES:"
+              },
+              {
+                "kind": "add",
+                "newLine": 284,
+                "content": "                rv.append(v)"
+              },
+              {
+                "kind": "add",
+                "newLine": 285,
+                "content": "            elif has(value_type):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 283,
+                "newLine": 286,
+                "content": "                rv.append("
+              },
+              {
+                "kind": "context",
+                "oldLine": 284,
+                "newLine": 287,
+                "content": "                    astuple("
+              },
+              {
+                "kind": "context",
+                "oldLine": 285,
+                "newLine": 288,
+                "content": "                        v,"
+              }
+            ]
+          },
+          {
+            "oldStart": 289,
+            "oldLines": 7,
+            "newStart": 292,
+            "newLines": 7,
+            "section": "def astuple(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 289,
+                "newLine": 292,
+                "content": "                        retain_collection_types=retain,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 290,
+                "newLine": 293,
+                "content": "                    )"
+              },
+              {
+                "kind": "context",
+                "oldLine": 291,
+                "newLine": 294,
+                "content": "                )"
+              },
+              {
+                "kind": "del",
+                "oldLine": 292,
+                "content": "            elif isinstance(v, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "add",
+                "newLine": 295,
+                "content": "            elif issubclass(value_type, (tuple, list, set, frozenset)):"
+              },
+              {
+                "kind": "context",
+                "oldLine": 293,
+                "newLine": 296,
+                "content": "                cf = v.__class__ if retain is True else list"
+              },
+              {
+                "kind": "context",
+                "oldLine": 294,
+                "newLine": 297,
+                "content": "                items = ["
+              },
+              {
+                "kind": "context",
+                "oldLine": 295,
+                "newLine": 298,
+                "content": "                    ("
+              }
+            ]
+          },
+          {
+            "oldStart": 313,
+            "oldLines": 8,
+            "newStart": 316,
+            "newLines": 8,
+            "section": "def astuple(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 313,
+                "newLine": 316,
+                "content": "                    # Workaround for TypeError: cf.__new__() missing 1 required"
+              },
+              {
+                "kind": "context",
+                "oldLine": 314,
+                "newLine": 317,
+                "content": "                    # positional argument (which appears, for a namedturle)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 315,
+                "newLine": 318,
+                "content": "                    rv.append(cf(*items))"
+              },
+              {
+                "kind": "del",
+                "oldLine": 316,
+                "content": "            elif isinstance(v, dict):"
+              },
+              {
+                "kind": "del",
+                "oldLine": 317,
+                "content": "                df = v.__class__ if retain is True else dict"
+              },
+              {
+                "kind": "add",
+                "newLine": 319,
+                "content": "            elif issubclass(value_type, dict):"
+              },
+              {
+                "kind": "add",
+                "newLine": 320,
+                "content": "                df = value_type if retain is True else dict"
+              },
+              {
+                "kind": "context",
+                "oldLine": 318,
+                "newLine": 321,
+                "content": "                rv.append("
+              },
+              {
+                "kind": "context",
+                "oldLine": 319,
+                "newLine": 322,
+                "content": "                    df("
+              },
+              {
+                "kind": "context",
+                "oldLine": 320,
+                "newLine": 323,
+                "content": "                        ("
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [],
+  "notes": "python-attrs/attrs@1315e42 \u201cImprove performance of attr.astuple (#1469)\u201d, reviewed as it was merged. Believed clean: no later commit in the repository mentions fixing it (searched 2026-09-19). Not proven \u2014 every comment posted on it is audited by hand."
+}

@@ -1,0 +1,200 @@
+{
+  "id": "ky-extend-mutation-leak",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "sindresorhus/ky",
+    "commit": "c5dc4e6a923cbadd6385d01f35a468295b17b23c",
+    "url": "https://github.com/sindresorhus/ky/commit/c5dc4e6a923cbadd6385d01f35a468295b17b23c",
+    "message": "Fix `ky.extend()` callback mutations leaking into the parent instance"
+  },
+  "reviewed": {
+    "base": "c5dc4e6a923cbadd6385d01f35a468295b17b23c",
+    "head": "cc9b5a330d04623052bf90aa09c9ffd938472a56"
+  },
+  "request": {
+    "repo": "sindresorhus/ky",
+    "prNumber": 1,
+    "title": "Update index.ts, merge.ts",
+    "body": "",
+    "baseSha": "c5dc4e6a923cbadd6385d01f35a468295b17b23c",
+    "headSha": "cc9b5a330d04623052bf90aa09c9ffd938472a56",
+    "files": [
+      {
+        "path": "source/index.ts",
+        "oldPath": "source/index.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 19,
+            "oldLines": 8,
+            "newStart": 19,
+            "newLines": 7,
+            "section": "const createInstance = (defaults?: Partial<Options>): KyInstance => {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 19,
+                "newLine": 19,
+                "content": "\tky.create = (newDefaults?: Partial<Options>) => createInstance(validateAndMerge(newDefaults));"
+              },
+              {
+                "kind": "context",
+                "oldLine": 20,
+                "newLine": 20,
+                "content": "\tky.extend = (newDefaults?: Partial<Options> | ((parentDefaults: Partial<Options>) => Partial<Options>)) => {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 21,
+                "newLine": 21,
+                "content": "\t\tif (typeof newDefaults === 'function') {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 22,
+                "content": "\t\t\t// Pass a copy so mutations inside the callback cannot leak into this instance's defaults. The copy is shallow for nested values in unmerged options like `retry` or `json`, so replace those instead of mutating them in place."
+              },
+              {
+                "kind": "del",
+                "oldLine": 23,
+                "content": "\t\t\tnewDefaults = newDefaults(validateAndMerge(defaults));"
+              },
+              {
+                "kind": "add",
+                "newLine": 22,
+                "content": "\t\t\tnewDefaults = newDefaults(defaults ?? {});"
+              },
+              {
+                "kind": "context",
+                "oldLine": 24,
+                "newLine": 23,
+                "content": "\t\t}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 25,
+                "newLine": 24,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 26,
+                "newLine": 25,
+                "content": "\t\treturn createInstance(validateAndMerge(defaults, newDefaults));"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": "source/utils/merge.ts",
+        "oldPath": "source/utils/merge.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 276,
+            "oldLines": 9,
+            "newStart": 276,
+            "newLines": 9,
+            "section": "const deepMergeInternal = <T>(isRoot: boolean, ...sources: Array<Partial<T> | un",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 276,
+                "newLine": 276,
+                "content": "\t\t\t\t\t} else if (isReplace) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 277,
+                "newLine": 277,
+                "content": "\t\t\t\t\t\tsearchParameters = value;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 278,
+                "newLine": 278,
+                "content": "\t\t\t\t\t} else {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 279,
+                "content": "\t\t\t\t\t\t// First source: shallow-clone to preserve type (string/object/URLSearchParams) without sharing the caller's object"
+              },
+              {
+                "kind": "add",
+                "newLine": 279,
+                "content": "\t\t\t\t\t\t// First source: keep as-is to preserve type (string/object/URLSearchParams)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 280,
+                "newLine": 280,
+                "content": "\t\t\t\t\t\t// Subsequent sources: merge and convert to URLSearchParams"
+              },
+              {
+                "kind": "del",
+                "oldLine": 281,
+                "content": "\t\t\t\t\t\tsearchParameters = searchParameters === undefined ? cloneShallow(value) : appendSearchParameters(searchParameters, value);"
+              },
+              {
+                "kind": "add",
+                "newLine": 281,
+                "content": "\t\t\t\t\t\tsearchParameters = searchParameters === undefined ? value : appendSearchParameters(searchParameters, value);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 282,
+                "newLine": 282,
+                "content": "\t\t\t\t\t}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 283,
+                "newLine": 283,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 284,
+                "newLine": 284,
+                "content": "\t\t\t\t\tcontinue;"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "source/index.ts",
+      "head": [
+        22,
+        22
+      ],
+      "base": [
+        22,
+        23
+      ],
+      "description": "`extend()` hands the callback this instance's own defaults instead of a copy, so a callback that mutates them (pushes a hook, sets a header) changes the parent instance; search params are likewise shared, not cloned.",
+      "alsoAt": [
+        {
+          "file": "source/utils/merge.ts",
+          "head": [
+            279,
+            281
+          ],
+          "base": [
+            279,
+            281
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "Reversed from sindresorhus/ky@c5dc4e6 \u201cFix `ky.extend()` callback mutations leaking into the parent instance\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

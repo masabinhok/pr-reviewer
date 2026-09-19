@@ -117,10 +117,16 @@ def review(
     config = agent_config(settings)
     provider = PROVIDER_NAMES[settings.agent_provider]
     where = f"{request.repo}#{request.pr_number}@{request.head_sha[:7]}"
-    token = request.installation_token.get_secret_value()
+    secret = request.installation_token
+    token = secret.get_secret_value() if secret is not None else None
 
     try:
-        with http, snapshot(http, request.repo, request.head_sha, token) as snap:
+        with (
+            http,
+            snapshot(
+                http, request.repo, request.head_sha, token, settings.agent_tarball_cache
+            ) as snap,
+        ):
             result = ReviewAgent(client, RepoTools(snap.root, request), config).run(request)
     except SnapshotError as error:
         logger.warning("review %s: snapshot failed: %s", where, error)

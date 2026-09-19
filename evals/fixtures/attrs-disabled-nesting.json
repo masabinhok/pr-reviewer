@@ -1,0 +1,143 @@
+{
+  "id": "attrs-disabled-nesting",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "python-attrs/attrs",
+    "commit": "af9c510912ce604a94896cc35c27368d5baf6ae6",
+    "url": "https://github.com/python-attrs/attrs/commit/af9c510912ce604a94896cc35c27368d5baf6ae6",
+    "message": "Fix validators.disabled() to save/restore state on nesting (#1513)"
+  },
+  "reviewed": {
+    "base": "af9c510912ce604a94896cc35c27368d5baf6ae6",
+    "head": "ab7f8b2f4c0f747d5b1575247ce35e5adaad182e"
+  },
+  "request": {
+    "repo": "python-attrs/attrs",
+    "prNumber": 1,
+    "title": "Update validators.py",
+    "body": "",
+    "baseSha": "af9c510912ce604a94896cc35c27368d5baf6ae6",
+    "headSha": "ab7f8b2f4c0f747d5b1575247ce35e5adaad182e",
+    "files": [
+      {
+        "path": "src/attr/validators.py",
+        "oldPath": "src/attr/validators.py",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 79,
+            "oldLines": 14,
+            "newStart": 79,
+            "newLines": 12,
+            "section": "def disabled():",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 79,
+                "newLine": 79,
+                "content": "        This context manager is not thread-safe!"
+              },
+              {
+                "kind": "context",
+                "oldLine": 80,
+                "newLine": 80,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 81,
+                "newLine": 81,
+                "content": "    .. versionadded:: 21.3.0"
+              },
+              {
+                "kind": "del",
+                "oldLine": 82,
+                "content": "    .. versionchanged:: 26.1.0 The contextmanager is nestable."
+              },
+              {
+                "kind": "context",
+                "oldLine": 83,
+                "newLine": 82,
+                "content": "    \"\"\""
+              },
+              {
+                "kind": "del",
+                "oldLine": 84,
+                "content": "    prev = get_run_validators()"
+              },
+              {
+                "kind": "context",
+                "oldLine": 85,
+                "newLine": 83,
+                "content": "    set_run_validators(False)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 86,
+                "newLine": 84,
+                "content": "    try:"
+              },
+              {
+                "kind": "context",
+                "oldLine": 87,
+                "newLine": 85,
+                "content": "        yield"
+              },
+              {
+                "kind": "context",
+                "oldLine": 88,
+                "newLine": 86,
+                "content": "    finally:"
+              },
+              {
+                "kind": "del",
+                "oldLine": 89,
+                "content": "        set_run_validators(prev)"
+              },
+              {
+                "kind": "add",
+                "newLine": 87,
+                "content": "        set_run_validators(True)"
+              },
+              {
+                "kind": "context",
+                "oldLine": 90,
+                "newLine": 88,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 91,
+                "newLine": 89,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 92,
+                "newLine": 90,
+                "content": "@attrs(repr=False, slots=True, unsafe_hash=True)"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/attr/validators.py",
+      "head": [
+        87,
+        87
+      ],
+      "base": [
+        82,
+        89
+      ],
+      "description": "The finally block turns validators back on unconditionally instead of restoring the previous setting, so leaving a nested `disabled()` re-enables validators while an outer `disabled()` is still active."
+    }
+  ],
+  "notes": "Reversed from python-attrs/attrs@af9c510 \u201cFix validators.disabled() to save/restore state on nesting (#1513)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

@@ -1,0 +1,171 @@
+{
+  "id": "semver-subset-prerelease",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "npm/node-semver",
+    "commit": "5f3ca133e040210b6ea80c350a1d61d9da02e722",
+    "url": "https://github.com/npm/node-semver/commit/5f3ca133e040210b6ea80c350a1d61d9da02e722",
+    "message": "fix: handle prerelease bounds in subset (#867)"
+  },
+  "reviewed": {
+    "base": "5f3ca133e040210b6ea80c350a1d61d9da02e722",
+    "head": "efa4be6096c1f9b77d9d27d6132f6220c43b4e31"
+  },
+  "request": {
+    "repo": "npm/node-semver",
+    "prNumber": 1,
+    "title": "Update subset.js",
+    "body": "",
+    "baseSha": "5f3ca133e040210b6ea80c350a1d61d9da02e722",
+    "headSha": "efa4be6096c1f9b77d9d27d6132f6220c43b4e31",
+    "files": [
+      {
+        "path": "ranges/subset.js",
+        "oldPath": "ranges/subset.js",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 174,
+            "oldLines": 7,
+            "newStart": 174,
+            "newLines": 7,
+            "section": "const simpleSubset = (sub, dom, options) => {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 174,
+                "newLine": 174,
+                "content": "        if (higher === c && higher !== gt) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 175,
+                "newLine": 175,
+                "content": "          return false"
+              },
+              {
+                "kind": "context",
+                "oldLine": 176,
+                "newLine": 176,
+                "content": "        }"
+              },
+              {
+                "kind": "del",
+                "oldLine": 177,
+                "content": "      } else if (gt.operator === '>=' && !c.test(gt.semver)) {"
+              },
+              {
+                "kind": "add",
+                "newLine": 177,
+                "content": "      } else if (gt.operator === '>=' && !satisfies(gt.semver, String(c), options)) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 178,
+                "newLine": 178,
+                "content": "        return false"
+              },
+              {
+                "kind": "context",
+                "oldLine": 179,
+                "newLine": 179,
+                "content": "      }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 180,
+                "newLine": 180,
+                "content": "    }"
+              }
+            ]
+          },
+          {
+            "oldStart": 192,
+            "oldLines": 7,
+            "newStart": 192,
+            "newLines": 7,
+            "section": "const simpleSubset = (sub, dom, options) => {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 192,
+                "newLine": 192,
+                "content": "        if (lower === c && lower !== lt) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 193,
+                "newLine": 193,
+                "content": "          return false"
+              },
+              {
+                "kind": "context",
+                "oldLine": 194,
+                "newLine": 194,
+                "content": "        }"
+              },
+              {
+                "kind": "del",
+                "oldLine": 195,
+                "content": "      } else if (lt.operator === '<=' && !c.test(lt.semver)) {"
+              },
+              {
+                "kind": "add",
+                "newLine": 195,
+                "content": "      } else if (lt.operator === '<=' && !satisfies(lt.semver, String(c), options)) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 196,
+                "newLine": 196,
+                "content": "        return false"
+              },
+              {
+                "kind": "context",
+                "oldLine": 197,
+                "newLine": 197,
+                "content": "      }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 198,
+                "newLine": 198,
+                "content": "    }"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "ranges/subset.js",
+      "head": [
+        177,
+        177
+      ],
+      "base": [
+        177,
+        177
+      ],
+      "description": "The bounds are checked with `satisfies()`, which excludes prereleases unless includePrerelease is set, instead of `c.test()`; a range bounded by a prerelease is then wrongly judged not to be a subset.",
+      "alsoAt": [
+        {
+          "file": "ranges/subset.js",
+          "head": [
+            195,
+            195
+          ],
+          "base": [
+            195,
+            195
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "Reversed from npm/node-semver@5f3ca13 \u201cfix: handle prerelease bounds in subset (#867)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

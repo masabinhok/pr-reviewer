@@ -1,0 +1,103 @@
+{
+  "id": "ky-method-uppercase",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "sindresorhus/ky",
+    "commit": "895086407b7165eb4d46cce470a3ffa27a23bac7",
+    "url": "https://github.com/sindresorhus/ky/commit/895086407b7165eb4d46cce470a3ffa27a23bac7",
+    "message": "Fix mixed-case standard `method` values not being uppercased"
+  },
+  "reviewed": {
+    "base": "895086407b7165eb4d46cce470a3ffa27a23bac7",
+    "head": "2f0a3fb6235e680afb35ddebd8b94d303aa7b4b7"
+  },
+  "request": {
+    "repo": "sindresorhus/ky",
+    "prNumber": 1,
+    "title": "Update normalize.ts",
+    "body": "",
+    "baseSha": "895086407b7165eb4d46cce470a3ffa27a23bac7",
+    "headSha": "2f0a3fb6235e680afb35ddebd8b94d303aa7b4b7",
+    "files": [
+      {
+        "path": "source/utils/normalize.ts",
+        "oldPath": "source/utils/normalize.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 3,
+            "oldLines": 7,
+            "newStart": 3,
+            "newLines": 7,
+            "section": "import type {RetryOptions} from '../types/retry.js';",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 3,
+                "newLine": 3,
+                "content": "import type {HttpMethod, InternalOptions, RequestHttpMethod} from '../types/options.js';"
+              },
+              {
+                "kind": "context",
+                "oldLine": 4,
+                "newLine": 4,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 5,
+                "newLine": 5,
+                "content": "export const normalizeRequestMethod = (input: string): string =>"
+              },
+              {
+                "kind": "del",
+                "oldLine": 6,
+                "content": "\trequestMethods.includes(input.toLowerCase() as RequestHttpMethod) ? input.toUpperCase() : input;"
+              },
+              {
+                "kind": "add",
+                "newLine": 6,
+                "content": "\trequestMethods.includes(input as RequestHttpMethod) ? input.toUpperCase() : input;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 7,
+                "newLine": 7,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 8,
+                "newLine": 8,
+                "content": "const retryMethods: HttpMethod[] = ['get', 'put', 'head', 'delete', 'options', 'trace', 'query'];"
+              },
+              {
+                "kind": "context",
+                "oldLine": 9,
+                "newLine": 9,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "source/utils/normalize.ts",
+      "head": [
+        6,
+        6
+      ],
+      "base": [
+        6,
+        6
+      ],
+      "description": "The method is looked up among lower-case names without lower-casing it first, so a mixed-case method such as 'Post' is never normalised and is sent as-is."
+    }
+  ],
+  "notes": "Reversed from sindresorhus/ky@8950864 \u201cFix mixed-case standard `method` values not being uppercased\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

@@ -55,8 +55,9 @@ class ReviewRequest(Wire):
     base_sha: str = Field(pattern=r"^[0-9a-f]{7,40}$")
     head_sha: str = Field(pattern=r"^[0-9a-f]{7,40}$")
     # Short-lived (one hour at most) and scoped to one installation. SecretStr keeps it out
-    # of reprs, logs and validation errors.
-    installation_token: SecretStr
+    # of reprs, logs and validation errors. The API always sends one; only the evaluation
+    # leaves it out, for a public repository the App isn't installed on.
+    installation_token: SecretStr | None = None
     # Only files that survived the API's filters — the ones a comment may go on.
     files: list[DiffFile]
 

@@ -9,6 +9,11 @@ import type { ReviewTarget } from './review.processor.js';
 
 export const SEVERITY_RANK: Record<Severity, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
+/** Whether a finding is severe enough to become a comment (POST_MIN_SEVERITY). The evaluation uses it too. */
+export function meetsPostingBar(severity: Severity, bar: Severity): boolean {
+  return SEVERITY_RANK[severity] >= SEVERITY_RANK[bar];
+}
+
 export interface Publication {
   /** Comments in the posted (or adopted) review; 0 when nothing met the severity gate. */
   posted: number;
@@ -47,7 +52,7 @@ export class ReviewPublisher {
   async publish(target: ReviewTarget, findings: Finding[]): Promise<Publication> {
     const { installationId, repo, prNumber, reviewId } = target;
     const bar = this.minSeverity;
-    const meetsBar = findings.filter((f) => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar]);
+    const meetsBar = findings.filter((f) => meetsPostingBar(f.severity, bar));
     // A repeat is on the PR already, as a comment from an earlier review.
     const postable = meetsBar.filter((f) => f.repeatOfId === null);
     const repeated = meetsBar.length - postable.length;

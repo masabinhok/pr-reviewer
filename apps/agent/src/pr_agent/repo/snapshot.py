@@ -3,6 +3,11 @@
 One tarball download per review, instead of one GitHub API call per file the agent wants:
 no rate limit to spend, no network in the middle of the agent's loop, and every read is of
 exactly the commit under review — never `main`, never a newer push.
+
+A request with no installation token is for a public repository — the evaluation reviews
+open-source fixes the App isn't installed on. Its tarball is downloaded anonymously and may
+be cached on disk, keyed by the commit, since a commit never changes. A download made with a
+token is never cached: that code is private.
 """
 
 import io
@@ -40,15 +45,19 @@ class Snapshot:
     sha: str
 
 
-def download_tarball(client: httpx2.Client, repo: str, sha: str, token: str) -> bytes:
-    """The tarball of `repo` at `sha`, capped at MAX_TARBALL_BYTES while it streams."""
+def download_tarball(client: httpx2.Client, repo: str, sha: str, token: str | None) -> bytes:
+    """The tarball of `repo` at `sha`, capped at MAX_TARBALL_BYTES while it streams.
+
+    With no token the download is anonymous, which works for a public repository only.
+    """
     url = f"{GITHUB_API}/repos/{repo}/tarball/{sha}"
     headers = {
-        "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "pr-reviewer-agent",
     }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
     # GitHub answers with a redirect to codeload; follow it.
     try:
         with client.stream("GET", url, headers=headers, follow_redirects=True) as response:
@@ -98,12 +107,37 @@ def extract(tarball: bytes, into: Path) -> Path:
     return entries[0]
 
 
+def public_tarball(client: httpx2.Client, repo: str, sha: str, cache: Path | None) -> bytes:
+    """An anonymous download, read from and saved to `cache` when there is one.
+
+    Only a full 40-character SHA is cached: a short one could come to name another commit.
+    """
+    path = cache / f"{repo.replace('/', '__')}@{sha}.tar.gz" if cache and len(sha) == 40 else None
+    if path is not None and path.is_file():
+        return path.read_bytes()
+    body = download_tarball(client, repo, sha, None)
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Written whole then renamed, so a stopped run never leaves half a tarball behind.
+        partial = path.with_suffix(".partial")
+        partial.write_bytes(body)
+        partial.replace(path)
+    return body
+
+
 @contextmanager
-def snapshot(client: httpx2.Client, repo: str, sha: str, token: str) -> Iterator[Snapshot]:
+def snapshot(
+    client: httpx2.Client, repo: str, sha: str, token: str | None, cache: Path | None = None
+) -> Iterator[Snapshot]:
     """The repo at `sha` in a temporary directory, removed however the review ends."""
     workdir = Path(tempfile.mkdtemp(prefix="pr-agent-"))
     try:
-        root = extract(download_tarball(client, repo, sha, token), workdir)
+        tarball = (
+            download_tarball(client, repo, sha, token)
+            if token is not None
+            else public_tarball(client, repo, sha, cache)
+        )
+        root = extract(tarball, workdir)
         yield Snapshot(root=root, repo=repo, sha=sha)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)

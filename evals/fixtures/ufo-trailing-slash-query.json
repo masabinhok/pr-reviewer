@@ -1,0 +1,179 @@
+{
+  "id": "ufo-trailing-slash-query",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "6cd1fcd39d53f89e27b487f80f01c12fbee4ab88",
+    "url": "https://github.com/unjs/ufo/commit/6cd1fcd39d53f89e27b487f80f01c12fbee4ab88",
+    "message": "fix(withoutTrailingSlash): consider qurry param  (#219)"
+  },
+  "reviewed": {
+    "base": "6cd1fcd39d53f89e27b487f80f01c12fbee4ab88",
+    "head": "69e26f8983a6a67aa5bf8c50d9b9c06f17d32796"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update utils.ts",
+    "body": "",
+    "baseSha": "6cd1fcd39d53f89e27b487f80f01c12fbee4ab88",
+    "headSha": "69e26f8983a6a67aa5bf8c50d9b9c06f17d32796",
+    "files": [
+      {
+        "path": "src/utils.ts",
+        "oldPath": "src/utils.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 93,
+            "oldLines": 7,
+            "newStart": 93,
+            "newLines": 7,
+            "section": "export function hasTrailingSlash(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 93,
+                "newLine": 93,
+                "content": "/**"
+              },
+              {
+                "kind": "context",
+                "oldLine": 94,
+                "newLine": 94,
+                "content": " * Removes trailing slash from the URL or pathname."
+              },
+              {
+                "kind": "context",
+                "oldLine": 95,
+                "newLine": 95,
+                "content": " *"
+              },
+              {
+                "kind": "del",
+                "oldLine": 96,
+                "content": " * If second argument is true, it will only remove the trailing slash if it's not part of the query or fragment with cost of more expensive operations."
+              },
+              {
+                "kind": "add",
+                "newLine": 96,
+                "content": " * If second argument is is true, it will only remove the trailing slash if it's not part of the query or fragment with cost of more expensive operations."
+              },
+              {
+                "kind": "context",
+                "oldLine": 97,
+                "newLine": 97,
+                "content": " *"
+              },
+              {
+                "kind": "context",
+                "oldLine": 98,
+                "newLine": 98,
+                "content": " * @example"
+              },
+              {
+                "kind": "context",
+                "oldLine": 99,
+                "newLine": 99,
+                "content": " *"
+              }
+            ]
+          },
+          {
+            "oldStart": 123,
+            "oldLines": 9,
+            "newStart": 123,
+            "newLines": 10,
+            "section": "export function withoutTrailingSlash(",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 123,
+                "newLine": 123,
+                "content": "    fragment = input.slice(fragmentIndex);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 124,
+                "newLine": 124,
+                "content": "  }"
+              },
+              {
+                "kind": "context",
+                "oldLine": 125,
+                "newLine": 125,
+                "content": "  const [s0, ...s] = path.split(\"?\");"
+              },
+              {
+                "kind": "del",
+                "oldLine": 126,
+                "content": "  const cleanPath = s0.endsWith(\"/\") ? s0.slice(0, -1) : s0;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 127,
+                "newLine": 126,
+                "content": "  return ("
+              },
+              {
+                "kind": "del",
+                "oldLine": 128,
+                "content": "    (cleanPath || \"/\") + (s.length > 0 ? `?${s.join(\"?\")}` : \"\") + fragment"
+              },
+              {
+                "kind": "add",
+                "newLine": 127,
+                "content": "    (s0.slice(0, -1) || \"/\") +"
+              },
+              {
+                "kind": "add",
+                "newLine": 128,
+                "content": "    (s.length > 0 ? `?${s.join(\"?\")}` : \"\") +"
+              },
+              {
+                "kind": "add",
+                "newLine": 129,
+                "content": "    fragment"
+              },
+              {
+                "kind": "context",
+                "oldLine": 129,
+                "newLine": 130,
+                "content": "  );"
+              },
+              {
+                "kind": "context",
+                "oldLine": 130,
+                "newLine": 131,
+                "content": "}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 131,
+                "newLine": 132,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/utils.ts",
+      "head": [
+        127,
+        129
+      ],
+      "base": [
+        126,
+        128
+      ],
+      "description": "`s0.slice(0, -1)` always drops the path's last character, trailing slash or not, so withoutTrailingSlash('/foo?x=1', true) returns '/fo?x=1'."
+    }
+  ],
+  "notes": "Reversed from unjs/ufo@6cd1fcd \u201cfix(withoutTrailingSlash): consider qurry param  (#219)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

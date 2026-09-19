@@ -1,0 +1,128 @@
+{
+  "id": "cookie-maxage-zero",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "jshttp/cookie",
+    "commit": "24f7da040389e9a6b3c580a177f63e1b60e60706",
+    "url": "https://github.com/jshttp/cookie/commit/24f7da040389e9a6b3c580a177f63e1b60e60706",
+    "message": "Fix for maxAge == 0"
+  },
+  "reviewed": {
+    "base": "24f7da040389e9a6b3c580a177f63e1b60e60706",
+    "head": "faf389539824d5c973e4d9604ce89089941d820b"
+  },
+  "request": {
+    "repo": "jshttp/cookie",
+    "prNumber": 1,
+    "title": "Update index.js",
+    "body": "",
+    "baseSha": "24f7da040389e9a6b3c580a177f63e1b60e60706",
+    "headSha": "faf389539824d5c973e4d9604ce89089941d820b",
+    "files": [
+      {
+        "path": "index.js",
+        "oldPath": "index.js",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 14,
+            "oldLines": 12,
+            "newStart": 14,
+            "newLines": 7,
+            "section": "var serialize = function(name, val, opt){",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 14,
+                "newLine": 14,
+                "content": "    var enc = opt.encode || encode;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 15,
+                "newLine": 15,
+                "content": "    var pairs = [name + '=' + enc(val)];"
+              },
+              {
+                "kind": "context",
+                "oldLine": 16,
+                "newLine": 16,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 17,
+                "content": "    if (null != opt.maxAge) {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 18,
+                "content": "        var maxAge = opt.maxAge - 0;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 19,
+                "content": "        if (isNaN(maxAge)) throw new Error('maxAge should be convertable to Number');"
+              },
+              {
+                "kind": "del",
+                "oldLine": 20,
+                "content": "        pairs.push('Max-Age=' + maxAge);"
+              },
+              {
+                "kind": "del",
+                "oldLine": 21,
+                "content": "    }"
+              },
+              {
+                "kind": "del",
+                "oldLine": 22,
+                "content": ""
+              },
+              {
+                "kind": "add",
+                "newLine": 17,
+                "content": "    if (opt.maxAge) pairs.push('Max-Age=' + opt.maxAge);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 23,
+                "newLine": 18,
+                "content": "    if (opt.domain) pairs.push('Domain=' + opt.domain);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 24,
+                "newLine": 19,
+                "content": "    if (opt.path) pairs.push('Path=' + opt.path);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 25,
+                "newLine": 20,
+                "content": "    if (opt.expires) pairs.push('Expires=' + opt.expires.toUTCString());"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "index.js",
+      "head": [
+        17,
+        17
+      ],
+      "base": [
+        17,
+        22
+      ],
+      "description": "`if (opt.maxAge)` treats 0 as unset, so `maxAge: 0` \u2014 the standard way to expire a cookie now \u2014 is silently dropped; the check that maxAge is a number is gone too."
+    }
+  ],
+  "notes": "Reversed from jshttp/cookie@24f7da0 \u201cFix for maxAge == 0\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

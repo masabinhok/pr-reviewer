@@ -1,0 +1,180 @@
+{
+  "id": "ufo-parsehost-port",
+  "kind": "bug",
+  "split": "tune",
+  "source": {
+    "repo": "unjs/ufo",
+    "commit": "9741e57547816901cd6539557adce163e73ffbde",
+    "url": "https://github.com/unjs/ufo/commit/9741e57547816901cd6539557adce163e73ffbde",
+    "message": "fix(parseHost): correctly parse hostnames with and without port (#120)"
+  },
+  "reviewed": {
+    "base": "9741e57547816901cd6539557adce163e73ffbde",
+    "head": "80cd389a4ce27ddbc8d2021b8a5e4a14fcd66a70"
+  },
+  "request": {
+    "repo": "unjs/ufo",
+    "prNumber": 1,
+    "title": "Update parse.ts",
+    "body": "",
+    "baseSha": "9741e57547816901cd6539557adce163e73ffbde",
+    "headSha": "80cd389a4ce27ddbc8d2021b8a5e4a14fcd66a70",
+    "files": [
+      {
+        "path": "src/parse.ts",
+        "oldPath": "src/parse.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 16,
+            "oldLines": 7,
+            "newStart": 16,
+            "newLines": 7,
+            "section": "export interface ParsedAuth {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 16,
+                "newLine": 16,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 17,
+                "newLine": 17,
+                "content": "export interface ParsedHost {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 18,
+                "newLine": 18,
+                "content": "  hostname: string;"
+              },
+              {
+                "kind": "del",
+                "oldLine": 19,
+                "content": "  port: number;"
+              },
+              {
+                "kind": "add",
+                "newLine": 19,
+                "content": "  port: string;"
+              },
+              {
+                "kind": "context",
+                "oldLine": 20,
+                "newLine": 20,
+                "content": "}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 21,
+                "newLine": 21,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 22,
+                "newLine": 22,
+                "content": "export function parseURL(input = \"\", defaultProto?: string): ParsedURL {"
+              }
+            ]
+          },
+          {
+            "oldStart": 65,
+            "oldLines": 10,
+            "newStart": 65,
+            "newLines": 10,
+            "section": "export function parseAuth(input = \"\"): ParsedAuth {",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 65,
+                "newLine": 65,
+                "content": "}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 66,
+                "newLine": 66,
+                "content": ""
+              },
+              {
+                "kind": "context",
+                "oldLine": 67,
+                "newLine": 67,
+                "content": "export function parseHost(input = \"\"): ParsedHost {"
+              },
+              {
+                "kind": "del",
+                "oldLine": 68,
+                "content": "  const [hostname, port] = (input.match(/([^/:]*):?(\\d+)?/) || []).splice(1);"
+              },
+              {
+                "kind": "add",
+                "newLine": 68,
+                "content": "  const [hostname, port] = (input.match(/([^/]*)(:0-9+)?/) || []).splice(1);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 69,
+                "newLine": 69,
+                "content": "  return {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 70,
+                "newLine": 70,
+                "content": "    hostname: decode(hostname),"
+              },
+              {
+                "kind": "del",
+                "oldLine": 71,
+                "content": "    port: port ? Number.parseInt(port) : undefined,"
+              },
+              {
+                "kind": "add",
+                "newLine": 71,
+                "content": "    port,"
+              },
+              {
+                "kind": "context",
+                "oldLine": 72,
+                "newLine": 72,
+                "content": "  };"
+              },
+              {
+                "kind": "context",
+                "oldLine": 73,
+                "newLine": 73,
+                "content": "}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 74,
+                "newLine": 74,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "src/parse.ts",
+      "head": [
+        68,
+        71
+      ],
+      "base": [
+        68,
+        71
+      ],
+      "description": "The host regex is broken \u2014 `(:0-9+)` matches the literal text ':0-9' \u2014 so the port stays inside the hostname ('example.com:8080') and port is undefined."
+    }
+  ],
+  "notes": "Reversed from unjs/ufo@9741e57 \u201cfix(parseHost): correctly parse hostnames with and without port (#120)\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

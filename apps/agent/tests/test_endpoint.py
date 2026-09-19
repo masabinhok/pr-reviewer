@@ -133,6 +133,21 @@ def test_never_logs_the_download_token_in_githubs_redirect(serve, caplog):
     assert "ghs_" not in caplog.text
 
 
+def test_reviews_a_public_repository_with_no_installation_token(serve, review_request):
+    call, _ = serve
+    del review_request["installationToken"]
+    authorizations = []
+
+    def github(request: httpx2.Request) -> httpx2.Response:
+        authorizations.append(request.headers.get("authorization"))
+        return httpx2.Response(200, content=tarball({"src/auth.ts": "export {}\n"}))
+
+    body = call(FakeClaude(message(tool_use("submit_review", findings=[]))), github).json()
+
+    assert body["outcome"] == "submitted"
+    assert authorizations == [None]
+
+
 class TestLocalModel:
     def test_reviews_with_the_local_model_for_free(self, serve):
         call, _ = serve

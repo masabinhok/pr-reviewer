@@ -1,0 +1,103 @@
+{
+  "id": "ky-merge-stale-array",
+  "kind": "bug",
+  "split": "heldout",
+  "source": {
+    "repo": "sindresorhus/ky",
+    "commit": "8cf26e0e78d7a734f5e2846bdd65b66a936c13b3",
+    "url": "https://github.com/sindresorhus/ky/commit/8cf26e0e78d7a734f5e2846bdd65b66a936c13b3",
+    "message": "Fix stale array entries when merging JSON objects"
+  },
+  "reviewed": {
+    "base": "8cf26e0e78d7a734f5e2846bdd65b66a936c13b3",
+    "head": "854608078545442344a29a0714a50b978e6d77e9"
+  },
+  "request": {
+    "repo": "sindresorhus/ky",
+    "prNumber": 1,
+    "title": "Update merge.ts",
+    "body": "",
+    "baseSha": "8cf26e0e78d7a734f5e2846bdd65b66a936c13b3",
+    "headSha": "854608078545442344a29a0714a50b978e6d77e9",
+    "files": [
+      {
+        "path": "source/utils/merge.ts",
+        "oldPath": "source/utils/merge.ts",
+        "status": "modified",
+        "binary": false,
+        "hunks": [
+          {
+            "oldStart": 347,
+            "oldLines": 7,
+            "newStart": 347,
+            "newLines": 7,
+            "section": "const deepMergeInternal = <T>(isRoot: boolean, ...sources: Array<Partial<T> | un",
+            "lines": [
+              {
+                "kind": "context",
+                "oldLine": 347,
+                "newLine": 347,
+                "content": "\t\t\t\t\t}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 348,
+                "newLine": 348,
+                "content": "\t\t\t\t}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 349,
+                "newLine": 349,
+                "content": ""
+              },
+              {
+                "kind": "del",
+                "oldLine": 350,
+                "content": "\t\t\t\tif (!isReplace && isMergeable(returnValue[key]) && isMergeable(value) && Array.isArray(returnValue[key]) === Array.isArray(value)) {"
+              },
+              {
+                "kind": "add",
+                "newLine": 350,
+                "content": "\t\t\t\tif (!isReplace && isMergeable(returnValue[key]) && isMergeable(value)) {"
+              },
+              {
+                "kind": "context",
+                "oldLine": 351,
+                "newLine": 351,
+                "content": "\t\t\t\t\tvalue = deepMergeInternal<unknown>(false, returnValue[key], value);"
+              },
+              {
+                "kind": "context",
+                "oldLine": 352,
+                "newLine": 352,
+                "content": "\t\t\t\t}"
+              },
+              {
+                "kind": "context",
+                "oldLine": 353,
+                "newLine": 353,
+                "content": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bugs": [
+    {
+      "file": "source/utils/merge.ts",
+      "head": [
+        350,
+        350
+      ],
+      "base": [
+        350,
+        350
+      ],
+      "description": "An array and a plain object under the same key are deep-merged instead of replaced, so entries of the old value survive in the result."
+    }
+  ],
+  "notes": "Reversed from sindresorhus/ky@8cf26e0 \u201cFix stale array entries when merging JSON objects\u201d: the head commit is the code before that fix. The key is where the fix changed code, described from reading the reversed diff and the fix (Claude, 2026-09-19; not yet checked by a person). Tests, docs and changelogs in the fix were left out of the review."
+}

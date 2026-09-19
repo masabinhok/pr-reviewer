@@ -121,11 +121,11 @@ milestone N` commit that ticks its boxes in this file.
 - The split (trap 3), recorded in the fixtures.
 
 **Todo**
-- [ ] Fixture format and its validation (a fixture that doesn't parse or whose key points outside the diff is an error)
-- [ ] `npm run eval:fixture`: fix → reversed fixture, key drafted from the fix
-- [ ] ~20 bug fixtures, ~10 clean ones, the planted-bugs PR — each key checked by hand
-- [ ] The tuning / held-out split
-- [ ] Tests: the builder on a recorded fix, and the validation
+- [x] Fixture format and its validation (a fixture that doesn't parse or whose key points outside the diff is an error)
+- [x] `npm run eval:fixture`: fix → reversed fixture, key drafted from the fix
+- [x] ~20 bug fixtures, ~10 clean ones, the planted-bugs PR — each key checked by hand (keys written by Claude from reading each diff and fix; a second look by you is still welcome — the fixture notes say which)
+- [x] The tuning / held-out split
+- [x] Tests: the builder on a recorded fix, and the validation
 
 **Learn:** what makes a benchmark honest — ground truth you didn't make up, and a split you don't peek at.
 

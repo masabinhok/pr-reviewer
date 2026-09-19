@@ -146,11 +146,11 @@ milestone N` commit that ticks its boxes in this file.
 - Results written as the run goes, so a stopped run keeps what it did.
 
 **Todo**
-- [ ] Token-free snapshots for public repositories, in the agent (tested)
-- [ ] The runner, reusing the production validation and posting rules, not copying them
-- [ ] Scoring, with the matching rule, tested on hand-made results
-- [ ] Runs, spread, and writing as it goes
-- [ ] A report: overall, per fixture, per run
+- [x] Token-free snapshots for public repositories, in the agent (tested)
+- [x] The runner, reusing the production validation and posting rules, not copying them
+- [x] Scoring, with the matching rule, tested on hand-made results
+- [x] Runs, spread, and writing as it goes
+- [x] A report: overall, per fixture, per run
 
 **Learn:** measuring a nondeterministic system — spread, not single numbers.
 

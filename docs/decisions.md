@@ -1001,3 +1001,22 @@ Looking at it on real data changed one page. The installations list first showed
 uninstalled installations, one with 122 removed repositories, above the one that is actually
 working, which ended up below the fold. Current installations now come first, and history is
 folded away.
+
+## Weeks 7–8, verified
+
+The plan's closing checklist, run on 2026-09-18:
+
+- **The second look, re-measured.** Five runs over the 29 findings of known truth: 85% of the wrong
+  ones refuted, 80% of the right ones confirmed, 0 of 20 known-wrong high findings confirmed. That
+  matches the tuning run (85% / 78%) within a small model's run-to-run noise.
+- **Repeats, resolving and feedback** were each checked live on the testbed when they were built:
+  a push that found the same defect again posted nothing new, a fixed line's comment was collapsed
+  and resolved by the App, a thread resolved by hand was resolved by a person, and a 👍 added and
+  removed on GitHub appeared and disappeared as feedback.
+- **The dashboard** shows this repository's and the testbed's reviews, and answers 401 without its
+  token.
+- **Every suite green, offline:** API unit 332, API e2e 72, agent 122, dashboard unit 8 plus the
+  smoke test over every page. The one lint warning left since week 1, an unused import, is gone.
+- **Anti-patterns, grepped for and absent:** resolving a finding only because it wasn't found again,
+  a reaction webhook handler, a Prisma row with a `BigInt` passed to `JSON.stringify` in the
+  dashboard, the dashboard token in client code, and a posting path around verification.

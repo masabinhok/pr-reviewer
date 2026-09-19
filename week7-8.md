@@ -304,9 +304,9 @@ server.
   settings, the screenshot.
 
 **Todo**
-- [ ] e2e for repeats, resolving, feedback polling, dashboard auth
-- [ ] `decisions.md` entries above
-- [ ] README current, with the dashboard screenshot
+- [x] e2e for repeats, resolving, feedback polling, dashboard auth
+- [x] `decisions.md` entries above
+- [x] README current, with the dashboard screenshot
 
 ---
 

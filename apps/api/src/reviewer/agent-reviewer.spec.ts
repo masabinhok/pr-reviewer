@@ -100,6 +100,13 @@ describe('AgentReviewer', () => {
     expect(body.files[0].hunks[0].lines[0]).toEqual(files[0].hunks[0].lines[0]);
   });
 
+  it('sends no token for a public repository with no installation — the evaluation', async () => {
+    await reviewer.review({ ...context, installationId: null });
+
+    expect(tokens.getToken).not.toHaveBeenCalled();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('installationToken');
+  });
+
   it('returns the findings and how the run went', async () => {
     const result = await reviewer.review(context);
 

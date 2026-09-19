@@ -7,7 +7,7 @@ import { AppModule } from '../app.module.js';
 import { GithubApiService } from '../github/github-api.service.js';
 import { AppJwtService } from '../github/app-jwt.service.js';
 import { ConfigService } from '@nestjs/config';
-import { SEVERITY_RANK } from '../reviews/review-publisher.js';
+import { meetsPostingBar } from '../reviews/review-publisher.js';
 import type { Severity } from '../generated/prisma/client.js';
 import { filterDiffFiles, filterFileList } from '../filters/review-filter.js';
 import { parseDiff } from '../diff/parse-diff.js';
@@ -140,7 +140,7 @@ async function main() {
             f.demotedFrom ? `${f.severity} (was ${f.demotedFrom})` : f.severity,
             f.verdict?.toLowerCase() ?? '—',
             `${f.path}:${f.line} ${f.side}`,
-            SEVERITY_RANK[f.severity] >= SEVERITY_RANK[bar] ? 'yes' : 'no',
+            meetsPostingBar(f.severity, bar) ? 'yes' : 'no',
             f.summary,
           ]),
         ]),

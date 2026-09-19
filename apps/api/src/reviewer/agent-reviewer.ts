@@ -56,7 +56,7 @@ export class AgentReviewer implements Reviewer {
 
   async review(context: ReviewContext): Promise<ReviewerResult> {
     const where = `${context.repo}#${context.prNumber}@${context.headSha.slice(0, 7)}`;
-    const token = await this.tokens.getToken(context.installationId);
+    const token = context.installationId === null ? undefined : await this.tokens.getToken(context.installationId);
 
     let response: Response;
     try {
@@ -70,6 +70,7 @@ export class AgentReviewer implements Reviewer {
           body: context.body,
           baseSha: context.baseSha,
           headSha: context.headSha,
+          // Left out of the JSON when undefined: the agent then reads a public repository.
           installationToken: token,
           files: context.files,
         }),

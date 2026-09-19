@@ -28,7 +28,8 @@
     "review:stats": "nest build && node dist/scripts/review-stats.js",
     "try:review": "nest build && node dist/scripts/try-review.js",
     "eval:fixture": "nest build && node dist/scripts/eval-fixture.js",
-    "eval": "nest build && node dist/scripts/eval.js"
+    "eval": "nest build && node dist/scripts/eval.js",
+    "eval:check": "nest build && node dist/scripts/eval-check.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",

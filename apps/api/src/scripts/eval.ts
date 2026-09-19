@@ -16,6 +16,7 @@ import type { Severity } from '../generated/prisma/client.js';
 import { fixtureProblems, type Fixture } from '../evals/fixture.js';
 import { renderReport, type RunMeta } from '../evals/report.js';
 import { reviewFixture } from '../evals/review-fixture.js';
+import { evalStamp } from '../evals/stamp.js';
 import type { FixtureResult, Judgments } from '../evals/score.js';
 
 /**
@@ -140,7 +141,16 @@ async function main() {
     if (chosen.length === 0) throw new Error('no fixture matches --only / --split');
     const started = new Date().toISOString();
     dir = join(RUNS, started.slice(0, 19).replaceAll(':', ''));
-    meta = { started, commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'apps').length > 0, runs, bar, fixtures: chosen.map((f) => f.id) };
+    meta = {
+      started,
+      commit: git('rev-parse', 'HEAD'),
+      dirty: git('status', '--porcelain', '--untracked-files=no', '--', 'apps').length > 0,
+      // Of the files as they are on disk now — what the agent, restarted since any change, runs.
+      stamp: evalStamp((path) => readFileSync(join(ROOT, path), 'utf8'), bar),
+      runs,
+      bar,
+      fixtures: chosen.map((f) => f.id),
+    };
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
   }

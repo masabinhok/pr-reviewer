@@ -7,6 +7,8 @@ export interface RunMeta {
   /** The commit of this repository the run was made on, and whether the tree had changes. */
   commit: string;
   dirty: boolean;
+  /** See stamp.ts: what CI compares. Absent from runs made before it existed. */
+  stamp?: string;
   runs: number;
   bar: string;
   fixtures: string[];
@@ -50,7 +52,8 @@ export function renderReport(
   out.push(
     `${models.join(', ') || 'no model answered'} · posting bar ${meta.bar.toLowerCase()} · ` +
       `${runs.length} of ${meta.runs} run(s) · ${inRun.length} fixtures (${count('bug')} bug, ${count('clean')} clean) · ` +
-      `commit ${meta.commit.slice(0, 7)}${meta.dirty ? ' with uncommitted changes' : ''}`,
+      `commit ${meta.commit.slice(0, 7)}${meta.dirty ? ' with uncommitted changes' : ''}` +
+      (meta.stamp ? ` · stamp ${meta.stamp}` : ''),
   );
   out.push('');
   out.push(

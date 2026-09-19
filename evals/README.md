@@ -27,3 +27,26 @@ npm run eval:fixture -- --repo owner/name --commit <sha> --kind bug --id <id> --
 
 It prints the reviewed diff and a drafted key. Merge and trim the drafted regions, describe each
 bug, write the notes; `npm test` fails until the fixture is sound (`src/evals/fixture.spec.ts`).
+
+## Running the evaluation
+
+```bash
+npm run agent:eval               # the agent, keeping public tarballs in evals/.cache
+cd apps/api && npm run eval      # 3 runs of every fixture — an hour or two on the local model
+```
+
+Postgres isn't needed; Ollama is, and Redis for the testbed's token. Each run gets a directory
+`evals/runs/<time>/`:
+
+- `meta.json` — the commit, posting bar, fixtures and number of runs it was started with;
+- `results.jsonl` — one line per review, written as each finishes, so `--resume <dir>` carries on
+  a stopped run;
+- `judgments.json` — yours: each location match read and marked `right` or `wrong` (trap 6);
+  `--report <dir>` then rewrites
+- `report.md` — recall, precision and false positives per clean PR, kept and posted, as the mean
+  and range over runs; cost; the tuning fixtures one by one.
+
+A finding is at a bug when it is in the bug's file within three lines of it (`MATCH_DISTANCE`),
+on the side it comments on. The held-out fixtures are scored but not shown one by one, in the
+report or while running, unless `--show-heldout`: they decide whether a change is kept, and
+aren't to be tuned against.

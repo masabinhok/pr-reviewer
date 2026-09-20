@@ -37,6 +37,9 @@ jobs:
     env:
       # Throwaway values: CI has no .env, and needs no real secret. The e2e suite sets its own
       # webhook secret, database name and Redis database on top of these.
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: pr_reviewer
       DATABASE_URL: postgresql://ci:ci@localhost:5432/pr_reviewer
       REDIS_URL: redis://localhost:6379
       GITHUB_APP_ID: '1'

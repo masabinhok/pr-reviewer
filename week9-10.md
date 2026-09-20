@@ -169,7 +169,7 @@ milestone N` commit that ticks its boxes in this file.
 - [x] Baseline run, 3 × all fixtures
 - [x] Matches confirmed and false positives audited by hand
 - [x] `docs/evals/report.md`
-- [ ] The README's headline number, linked to the report — held until PR #47 merges, so main and the docs branch don't conflict
+- [x] The README's headline number, linked to the report
 
 **Learn:** reading an eval: where the number comes from, and which failures it hides.
 

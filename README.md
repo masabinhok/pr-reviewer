@@ -12,6 +12,12 @@ comments**, and a Check Run on the PR shows progress and the summary.
 
 *A real comment from the local model, on the testbed's planted-bugs pull request.*
 
+**Measured**, on 29 real pull requests with known answers, three runs each: the local 7B model
+posts **2% of the known bugs as comments, at 0.04 false comments per clean pull request**. It
+finds four times as many — 20% — but they sit below the posting bar, in the Check Run. The
+numbers, how they were measured and what they hide are in
+[`docs/evals/report.md`](docs/evals/report.md).
+
 This repository is a learning project, built milestone by milestone — see
 [`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
 [`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md) and [`week7-8.md`](week7-8.md) for the

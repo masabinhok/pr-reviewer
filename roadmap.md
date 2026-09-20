@@ -92,10 +92,10 @@ Learn: LangGraph state and tool loops, structured output, GitHub review API.
 
 Noise is what kills these bots. This section is the interview story.
 
-- [ ] Dedupe across pushes: fingerprint findings (file + normalized code + category) so `synchronize` events do not re-post the same comment
-- [ ] Resolve stale findings: if the line changed and the issue is gone, mark resolved
-- [ ] Thumbs up / down reactions on comments, webhook, store as feedback signal
-- [ ] Next.js dashboard: installations, review history, findings, per-review token cost, feedback rate
+- [x] Dedupe across pushes: fingerprint findings (file + normalized code + category) so `synchronize` events do not re-post the same comment (anchored on the code within ±2 lines, not the line number; a repeat is stored and linked, never re-posted)
+- [x] Resolve stale findings: if the line changed and the issue is gone, mark resolved (GitHub says the thread is outdated and the finding is not re-found; the App minimises the comment, since an installation token may not resolve a thread)
+- [x] Thumbs up / down reactions on comments, webhook, store as feedback signal (there is no reaction webhook — a scheduler polls every 5 minutes with an ETag, so an unchanged poll is free)
+- [x] Next.js dashboard: installations, review history, findings, per-review token cost, feedback rate (read-only, behind a bearer token)
 
 ## Weeks 9 to 10: Evals
 

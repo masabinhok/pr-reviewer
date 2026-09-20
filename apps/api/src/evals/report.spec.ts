@@ -80,6 +80,14 @@ describe('renderReport', () => {
     expect(report).toContain('| tune | kept | 50% (0%–100%) | 100% (1 run) | — |');
   });
 
+  it('says when a run is an earlier one scored again at another bar', () => {
+    const again = renderReport({ ...meta, bar: 'MEDIUM', rescoredFrom: '2026-09-19T144109' }, results, fixtures);
+
+    expect(again).toContain('posting bar medium');
+    expect(again).toContain('Scored again from `2026-09-19T144109` at this posting bar. No model ran');
+    expect(report).not.toContain('Scored again');
+  });
+
   it('counts failures, which miss their bugs', () => {
     expect(report).toContain('6 review(s), 1 failed (agent answered 503)');
   });

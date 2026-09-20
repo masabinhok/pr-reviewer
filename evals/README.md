@@ -46,6 +46,16 @@ Postgres isn't needed; Ollama is, and Redis for the testbed's token. Each run ge
 - `report.md` — recall, precision and false positives per clean PR, kept and posted, as the mean
   and range over runs; cost; the tuning fixtures one by one.
 
+The posting bar is applied after the model has answered, so a finished run can be scored again at
+another bar without spending any GPU time:
+
+```bash
+cd apps/api && npm run eval -- --rescore ../../evals/runs/<dir> --bar medium
+```
+
+That writes a new run directory with the same findings and the new posting decisions, and both its
+`meta.json` and its report say which run it came from.
+
 A finding is at a bug when it is in the bug's file within three lines of it (`MATCH_DISTANCE`),
 on the side it comments on. The held-out fixtures are scored but not shown one by one, in the
 report or while running, unless `--show-heldout`: they decide whether a change is kept, and

@@ -29,6 +29,10 @@ import type { FixtureResult, Judgments } from '../evals/score.js';
  *   npm run eval -- --split tune          only the tuning fixtures (while changing the reviewer)
  *   npm run eval -- --resume <dir>        carry on a stopped run where it stopped
  *   npm run eval -- --report <dir>        rewrite a run's report — after judging its matches, say
+ *   npm run eval -- --rescore <dir> --bar medium
+ *                                         score a finished run at another posting bar, into a new
+ *                                         run directory. The bar applies after the model answers,
+ *                                         so this needs no GPU: same findings, different comments.
  *   --show-heldout                        list held-out fixtures one by one in the report
  *
  * The agent must be running (`npm run agent`, from the repository root) with Ollama up; which
@@ -111,6 +115,38 @@ function installations(config: ConfigService) {
   };
 }
 
+/**
+ * A finished run scored again at another posting bar, in a new directory. Only the posting
+ * decision changes — every finding, and how long it took, is the earlier run's — so `meta` says
+ * which run it came from and the report repeats it.
+ */
+function rescore(from: string, bar: Severity): string {
+  const source = JSON.parse(readFileSync(join(from, 'meta.json'), 'utf8')) as RunMeta;
+  if (source.bar === bar) throw new Error(`${basename(from)} is already at bar ${bar.toLowerCase()}`);
+  const started = new Date().toISOString();
+  const dir = join(RUNS, `${started.slice(0, 19).replaceAll(':', '')}-${bar.toLowerCase()}`);
+  mkdirSync(dir, { recursive: true });
+
+  const meta: RunMeta = {
+    ...source,
+    started,
+    bar,
+    stamp: evalStamp((path) => readFileSync(join(ROOT, path), 'utf8'), bar),
+    rescoredFrom: basename(from),
+  };
+  writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
+  const rank: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  const results = readResults(from).map((r) => ({
+    ...r,
+    findings: r.findings.map((f) => ({ ...f, posted: rank[f.severity] >= rank[bar] })),
+  }));
+  writeFileSync(join(dir, 'results.jsonl'), results.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  const judgments = join(from, 'judgments.json');
+  // The judgments are of findings, not of the bar: they carry over unchanged.
+  if (existsSync(judgments)) writeFileSync(join(dir, 'judgments.json'), readFileSync(judgments));
+  return dir;
+}
+
 async function main() {
   const a = args();
   const fixtures = loadFixtures();
@@ -125,7 +161,13 @@ async function main() {
   // must not be watched (trap 3). Its warnings and errors still show.
   Logger.overrideLogger(['warn', 'error']);
   const config = new ConfigService(configuration());
-  const bar = config.getOrThrow<Severity>('posting.minSeverity');
+  const bar = (typeof a.bar === 'string' ? a.bar.toUpperCase() : config.getOrThrow<Severity>('posting.minSeverity')) as Severity;
+  if (!['HIGH', 'MEDIUM', 'LOW'].includes(bar)) throw new Error(`--bar must be high, medium or low; got ${a.bar}`);
+
+  if (typeof a.rescore === 'string') {
+    console.log(writeReport(rescore(resolve(a.rescore), bar), fixtures, showHeldout));
+    return;
+  }
 
   let dir: string;
   let meta: RunMeta;

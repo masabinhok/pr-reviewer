@@ -9,6 +9,12 @@ export interface RunMeta {
   dirty: boolean;
   /** See stamp.ts: what CI compares. Absent from runs made before it existed. */
   stamp?: string;
+  /**
+   * The run these results came from, when this one only scored them again under a different
+   * posting bar. The bar is applied after the model has answered, so the findings are the
+   * same ones — no model ran for this directory.
+   */
+  rescoredFrom?: string;
   runs: number;
   bar: string;
   fixtures: string[];
@@ -55,6 +61,10 @@ export function renderReport(
       `commit ${meta.commit.slice(0, 7)}${meta.dirty ? ' with uncommitted changes' : ''}` +
       (meta.stamp ? ` · stamp ${meta.stamp}` : ''),
   );
+  if (meta.rescoredFrom) {
+    out.push('');
+    out.push(`Scored again from \`${meta.rescoredFrom}\` at this posting bar. No model ran: the findings are that run's.`);
+  }
   out.push('');
   out.push(
     '**Kept** is every finding that survived the second look and validation — what the Check Run lists. ' +

@@ -1,0 +1,65 @@
+# The API: lint, types, unit tests, and the e2e suite against real Postgres and Redis.
+name: api
+
+on:
+  push:
+    paths:
+      - 'apps/api/**'
+      - 'contracts/**'
+      - 'evals/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/api.yml'
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pr_reviewer
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway values: CI has no .env, and needs no real secret. The e2e suite sets its own
+      # webhook secret, database name and Redis database on top of these.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/pr_reviewer
+      REDIS_URL: redis://localhost:6379
+      GITHUB_APP_ID: '1'
+      GITHUB_APP_CLIENT_ID: ci
+      GITHUB_WEBHOOK_SECRET: ci
+      AGENT_SHARED_SECRET: ci
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --workspace api --include-workspace-root
+        working-directory: .
+      - run: npx prisma generate
+      - name: A throwaway GitHub App key (the API parses one at boot)
+        run: echo "GITHUB_APP_PRIVATE_KEY_BASE64=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null | base64 -w0)" >> "$GITHUB_ENV"
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - name: The e2e database (init.sql creates it locally)
+        run: PGPASSWORD=ci psql -h localhost -U ci -d pr_reviewer -c 'CREATE DATABASE pr_reviewer_test'
+      - run: npm run test:e2e

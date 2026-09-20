@@ -1,0 +1,33 @@
+# The dashboard: types, unit tests, the production build, and the smoke test against a fake API.
+name: web
+
+on:
+  push:
+    paths:
+      - 'apps/web/**'
+      - 'package-lock.json'
+      - '.github/workflows/web.yml'
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --workspace web --include-workspace-root
+        working-directory: .
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:smoke

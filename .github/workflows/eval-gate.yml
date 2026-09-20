@@ -1,0 +1,34 @@
+# The eval gate (week9-10.md, trap 1). CI can't run the model; it checks that someone did:
+# a change to what shapes the reviewer's answers needs a complete evaluation run, committed.
+name: eval gate
+
+on:
+  push:
+    # A superset of STAMPED in apps/api/src/evals/stamp.ts, plus the check itself.
+    paths:
+      - 'apps/agent/ollama/**'
+      - 'apps/agent/src/pr_agent/**'
+      - 'apps/api/src/reviewer/validate-findings.ts'
+      - 'apps/api/src/config/configuration.ts'
+      - 'apps/api/src/evals/stamp.ts'
+      - 'apps/api/src/scripts/eval-check.ts'
+      - 'evals/**'
+      - '.github/workflows/eval-gate.yml'
+
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --workspace api --include-workspace-root
+        working-directory: .
+      - run: npx prisma generate
+      - run: npm run eval:check

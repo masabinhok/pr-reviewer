@@ -57,6 +57,14 @@ export async function reviewFixture(
         posted: meetsPostingBar(f.severity, options.bar),
       })),
       refuted: answer.dropped?.length ?? 0,
+      refutedFindings: (answer.dropped ?? []).map(({ finding, reason }) => ({
+        path: finding.file,
+        line: finding.line,
+        side: finding.side,
+        severity: finding.severity,
+        summary: finding.summary,
+        reason,
+      })),
       invalid: dropped.length,
     };
   } catch (e) {
@@ -73,6 +81,7 @@ export async function reviewFixture(
       tokensOut: 0,
       findings: [],
       refuted: 0,
+      refutedFindings: [],
       invalid: 0,
     };
   }

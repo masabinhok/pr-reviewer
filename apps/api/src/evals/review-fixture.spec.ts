@@ -81,6 +81,10 @@ describe('reviewFixture', () => {
       refuted: 1,
       invalid: 2,
     });
+    // Kept so a later run can ask whether the second look is dropping real bugs.
+    expect(result.refutedFindings).toEqual([
+      { path: 'index.js', line: 20, side: 'RIGHT', severity: 'high', summary: 'maxAge 0 is ignored.', reason: 'The code handles it.' },
+    ]);
     expect(result.findings.map((f) => [f.line, f.severity, f.posted, f.verdict])).toEqual([
       [17, 'HIGH', true, 'CONFIRMED'],
       [19, 'LOW', false, 'CONFIRMED'],

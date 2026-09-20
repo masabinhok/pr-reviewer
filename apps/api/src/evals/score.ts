@@ -35,8 +35,23 @@ export interface FixtureResult {
   findings: EvalFinding[];
   /** Dropped by the second look. */
   refuted: number;
+  /**
+   * What those were, so a run can answer whether the second look is throwing away real bugs.
+   * Absent from runs recorded before this was kept.
+   */
+  refutedFindings?: RefutedFinding[];
   /** Dropped by the API's validation (outside the diff, no failure scenario, same line). */
   invalid: number;
+}
+
+/** A finding the agent's second look refuted, with the checker's reason. */
+export interface RefutedFinding {
+  path: string;
+  line: number;
+  side: 'LEFT' | 'RIGHT';
+  severity: string;
+  summary: string;
+  reason: string;
 }
 
 /**

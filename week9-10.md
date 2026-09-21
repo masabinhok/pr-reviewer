@@ -219,8 +219,8 @@ milestone N` commit that ticks its boxes in this file.
 - README: the eval section — how to run it, how long it takes, what the numbers mean.
 
 **Todo**
-- [ ] `decisions.md` entries above
-- [ ] README current
+- [x] `decisions.md` entries above
+- [x] README current
 
 ---
 

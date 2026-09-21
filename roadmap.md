@@ -101,16 +101,23 @@ Noise is what kills these bots. This section is the interview story.
 
 The real differentiator.
 
-Build a fixture set: about 20 real PRs (grab open-source ones) with known bugs, plus clean
-PRs that should produce zero comments.
+- [x] Build a fixture set: about 20 real PRs (grab open-source ones) with known bugs, plus clean
+  PRs that should produce zero comments (20 reversed real bug fixes, 9 clean changes and the
+  planted-bugs PR, split once into tuning and held-out)
 
 Score:
-- Recall: did it find the planted bug?
-- Precision: how many comments on clean PRs? (false positive rate)
-- Run in CI on every prompt change
+- [x] Recall: did it find the planted bug? (every location match also read by hand)
+- [x] Precision: how many comments on clean PRs? (false positive rate) — posted and kept, each over
+  three runs with its range
+- [x] Run in CI on every prompt change (CI can't run the model, so it checks a stamp of the
+  reviewer against a committed run)
 
 Then the README says "measured 78% recall at 0.4 false positives per clean PR" instead of
 "uses LangChain". That single line beats every other AI project on a junior resume.
+
+- [x] The README's measured line: 2% of known bugs posted at 0.04 false comments per clean PR, on
+  the local 7B model — honest, and low. Without the second look it finds 81% of held-out bugs but
+  rates them too low to post; see `docs/evals/report.md`.
 
 ## Month 3 and beyond
 

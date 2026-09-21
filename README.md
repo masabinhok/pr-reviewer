@@ -20,14 +20,14 @@ numbers, how they were measured and what they hide are in
 
 This repository is a learning project, built milestone by milestone — see
 [`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
-[`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md) and [`week7-8.md`](week7-8.md) for the
-milestones so far.
+[`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md), [`week7-8.md`](week7-8.md) and
+[`week9-10.md`](week9-10.md) for the milestones so far.
 Non-obvious choices are written up in [`docs/decisions.md`](docs/decisions.md).
 
 ## Status
 
-**Weeks 1–8 are complete:** the GitHub App plumbing, the review pipeline, the agent, and
-noise control with a dashboard. What works today:
+**Weeks 1–10 are complete:** the GitHub App plumbing, the review pipeline, the agent, noise
+control with a dashboard, and an evaluation that measures it. What works today:
 
 - `POST /webhooks/github` verifies `X-Hub-Signature-256` over the raw request body
 - Every delivery is recorded once; redeliveries are dropped, and a redelivery of one that
@@ -60,20 +60,20 @@ noise control with a dashboard. What works today:
 - Failed reviews retry with backoff; GitHub rate limits are waited out without using up
   retries; errors a retry can't fix fail the review at once
 - `GET /healthz` reports Postgres and Redis
+- `npm run eval` reviews 29 real pull requests with known answers through the production code,
+  three times, and reports recall and false positives with their spread; CI runs every suite and
+  refuses a change to the reviewer that has no evaluation run to go with it
 
 The app can also run with the deterministic stub reviewer (`REVIEWER=stub`), which flags
 `console.log`, `debugger` and new `TODO`s and needs no model at all.
 
-How good are the reviews? Honestly, with the free default, modest. On the testbed's
-planted-bugs PR the local 7B model finds 1–2 of 7 planted defects, and a prompt injection
-planted in the diff measurably suppresses its findings
-([`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md)). Reviewing four real pull
-requests in this repository, it found nothing real — every finding was noise, and the medium
-ones would have been posted. That is why only high-severity findings are posted by default,
-and why every finding now gets a second look: measured on 29 findings of known truth, the
-check drops 85% of the wrong ones and keeps 78% of the right ones
-([`docs/decisions.md`](docs/decisions.md)). A stronger model is one setting away for anyone
-with an API key; weeks 9–10 turn this into evals.
+How good are the reviews? Measured, with the free default: quiet, and nearly useless. The local
+7B model posts 2% of known bugs as comments, at 0.04 false comments per clean pull request. It
+does better than that suggests: without its second look it finds 81% of the held-out bugs. But it
+rates almost everything low or medium, so almost nothing reaches the posting bar, and the second
+look discards two in three of the real ones. Two attempts to fix that were measured and reverted
+([`docs/evals/report.md`](docs/evals/report.md)). A stronger model is one setting away for anyone
+with an API key, and the same evaluation would measure it.
 
 ## Architecture
 
@@ -276,6 +276,39 @@ them from `apps/api`; each builds first.
 | `npm run review:stats [n]` | Recent reviews: status, time, turns, tokens and cache hits, cost, findings posted |
 | `npm run capture:fixtures` | Copies recent real webhook deliveries into `test/fixtures` |
 
+## The evaluation
+
+`evals/fixtures/` holds 29 real pull requests with known answers: 20 real bug fixes from
+open-source repositories, **reversed** so the reviewed change reintroduces the bug, the testbed's
+planted-bugs PR, and 9 merged changes believed clean. Each says where it came from and how its
+answer was decided ([`evals/README.md`](evals/README.md)).
+
+```bash
+docker compose up -d             # Redis, for the testbed fixture's token
+npm run agent:eval               # the agent, keeping public tarballs in evals/.cache
+cd apps/api && npm run eval      # 3 runs × 29 fixtures, into evals/runs/<time>/
+```
+
+A full run is 87 reviews and takes about an hour on an 8 GB GPU (26 s per review at the median).
+It writes each result as it finishes, so `--resume <dir>` carries on a stopped run. Then read each
+location match the report lists and mark it `right` or `wrong` in the run's `judgments.json`, and
+`--report <dir>` rewrites the report.
+
+What the numbers mean:
+
+- **Recall** — of the known bugs, the share found. **Precision** — of the findings, the share at a
+  known bug. **False positives per clean PR** — findings on a pull request with nothing wrong.
+- **Posted** counts what met the posting bar — the comments a person sees. **Kept** counts what
+  survived the second look and validation — the Check Run's list.
+- Every number is the mean over runs with its range; a change only counts as better if it beats
+  the baseline by more than the range.
+- **Held-out** fixtures decide whether a change is kept; **tune** fixtures are the ones to look at
+  while making it.
+
+CI can't run a model, so it checks that someone did: a stamp of the prompts, tools, second look,
+settings, validation and posting bar must match a complete run in `evals/runs/`, or the `eval gate`
+workflow fails and says what to run (`npm run eval:check` locally).
+
 ## Tests
 
 None of the suites need Ollama, an API key or the network.
@@ -304,9 +337,8 @@ a fake client that returns real SDK message objects, and fakes GitHub with an `h
 transport. The request and response in `contracts/` are generated by one side and checked
 by the other, so the two services can't drift apart unnoticed.
 
-The testbed's planted-bugs PR, with its answer key in
-[`docs/evals/planted-bugs.md`](docs/evals/planted-bugs.md), is the hand-judged check of the
-agent itself until weeks 9–10 turn it into evals.
+Every push runs these in GitHub Actions — `api` (with Postgres and Redis as services), `agent`,
+`web` — each only when its part changed, and the `eval gate` described above.
 
 ## Layout
 
@@ -328,7 +360,8 @@ apps/api/                     NestJS: webhooks, queue, worker, GitHub, posting
 │   ├── queue/                BullMQ connection
 │   ├── health/               /healthz
 │   ├── prisma/ redis/        clients as Nest providers
-│   └── scripts/              prove:*, review:stats, capture:fixtures
+│   ├── evals/                fixtures, scoring, the report, the stamp
+│   └── scripts/              prove:*, review:stats, capture:fixtures, eval, eval:fixture, eval:check
 └── test/                     e2e suites, fixtures, helpers
 apps/agent/                   Python: the review agent
 ├── src/pr_agent/
@@ -346,5 +379,8 @@ apps/web/                     Next.js: the dashboard
 └── scripts/smoke.mjs         every page against a fake API
 contracts/                    the API ↔ agent request and response
 docs/decisions.md             why things are the way they are
-docs/evals/                   answer keys for judging the agent
+docs/evals/                   the measured report, and the planted bugs' answer key
+evals/fixtures/               29 pull requests with known answers
+evals/runs/                   committed evaluation runs: results, judgments, report
+.github/workflows/            api, agent, web, and the eval gate
 ```

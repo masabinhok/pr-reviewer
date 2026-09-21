@@ -1020,3 +1020,87 @@ The plan's closing checklist, run on 2026-09-18:
 - **Anti-patterns, grepped for and absent:** resolving a finding only because it wasn't found again,
   a reaction webhook handler, a Prisma row with a `BigInt` passed to `JSON.stringify` in the
   dashboard, the dashboard token in client code, and a posting path around verification.
+
+## Known bugs come from real fixes, reversed
+
+An evaluation needs bugs whose truth doesn't depend on who wrote the test. Planting bugs by hand
+measures how well the reviewer finds *my* bugs, and I know where they are. So each bug fixture is a
+merged bug fix from an open-source repository, **reversed**: the review goes from the fixed code back
+to the code before the fix, so the head commit really contains the bug, and the answer key is the
+lines the real fix changed. Only source files are kept — a fix's tests and changelog would give the
+answer away — and the title is neutral (`Update index.js`) for the same reason. Clean fixtures are
+merged changes that nobody fixed afterwards: believed clean, not proven, and every comment on one is
+audited by hand. The fixtures are split once, up front, into a tuning set to look at while changing
+the reviewer and a held-out set that only decides; the runner and its report don't show held-out
+fixtures one by one. The planted-bugs pull request joins the tuning set, because it was used to tune
+the prompt in weeks 5–6.
+
+## A location match is read before it counts
+
+A finding "hits" a bug when it's in the same file within three lines of the bug's lines, on the side
+it comments on. That rule is cheap and wrong often enough to matter: the baseline had 20 location
+matches, and 4 described something else on the right line — a complaint about leap years where the
+defect was a missing `round()`. So every match is written to the report as unread, a person marks it
+`right` or `wrong` in the run's `judgments.json`, and a wrong one scores as a miss. The rule for
+marking: right if a developer reading the comment would be led to the actual defect — it names the
+faulty construct (the removed guard, the wrong function, the missing normalisation), even if its
+example is off — and wrong if it only says the code changed ("the regex has been modified") or
+describes a different problem. When a finding is within reach of two bugs (the planted-bugs pull
+request has one every four or five lines), it counts for the nearer one only. Until it is read,
+it counts as found, and the report says how many are unread. At 20-odd matches per run, reading
+them all takes minutes, and the headline number is one a person has checked.
+
+## Every number is over three runs, with its range
+
+The same pull request, reviewed three times by the local model, gave 1, 2 and 5 findings. One run
+of the evaluation would report whichever of those it happened to get. So a run is three passes over
+every fixture by default, and every number in the report is the mean with its range; a change is
+only better if it beats the baseline by more than that range. A failed review stays in the numbers
+(its bugs count as missed) rather than silently shrinking the denominator — except in false
+positives per clean pull request, where a clean review that never ran would otherwise count as
+perfectly quiet.
+
+## CI can't run the model, so it checks that someone did
+
+GitHub's runners have no GPU, a 7B model on their CPUs takes minutes per turn, and this repository's
+Actions minutes are limited. So CI doesn't run the evaluation. Each run records a **stamp**: a hash
+of everything that shapes the reviewer's answers — the Modelfile, the prompts, the tools, the second
+look, the agent's settings and how they become its configuration, the API's validation, and the
+posting bar as a value. The `eval gate` workflow recomputes it from the committed files and fails
+unless `evals/runs/` holds a complete run of at least three passes over every fixture that carries
+it, printing what to run. Code that only moves a review around (the snapshot, HTTP, the queue, the
+database) isn't stamped, so ordinary changes don't demand an hour of GPU. The gap it leaves: the
+agent's `.env` isn't in the stamp, so a run made with, say, `AGENT_VERIFY=false` carries the stamp
+of the committed defaults — which is why each experiment's run says in writing how it was made.
+
+## A different posting bar is scored, not re-run
+
+The posting bar decides what becomes a comment after the model has answered, so trying another bar
+doesn't need the model at all. `npm run eval -- --rescore <run> --bar medium` copies a finished run's
+findings into a new run directory, recomputes which would be posted, carries the judgments over, and
+records in its `meta.json` and report which run it came from. It gets the stamp for its bar, so it
+satisfies the gate honestly: the findings in it are real, and only the decision applied to them
+changed.
+
+## The split is made once, and the held-out set is now spent
+
+The fixtures were split into tuning and held-out when they were made, before any run, and the split
+is recorded in each fixture. Tuning fixtures can be looked at one by one while changing the
+reviewer; held-out fixtures only decide. The runner doesn't print held-out outcomes while it runs,
+and the report leaves them out of its per-fixture table unless asked. Deciding still means reading
+them — trap 6 needs every held-out match read — so each decision spends some of the set's
+independence. After milestone 34 read two experiments' held-out findings one by one, the honest
+position is that the next change to the reviewer needs new held-out fixtures to be decided on.
+
+## The improvement round: finding isn't the problem, severity is
+
+Milestone 34 tried two changes and kept neither, and the pair of results says more than either.
+Posting medium findings too raised posted recall on the tuning split but, on held-out, stayed inside
+the spread while tripling false comments. Turning the second look off took held-out kept recall from
+29% to 81% with false positives inside the baseline's range — and posted nothing, because the model
+rated every one of those findings low or medium. The rule for keeping it was committed before the
+held-out split ran (posted recall must beat the baseline by more than its spread), and it failed, so
+the second look stays on. What the round learned: the local model finds most of these bugs; its
+severity doesn't separate the right findings from the wrong ones; and the second look, which is
+meant to, discards two real bugs in three. The next change should decide what is posted by a better
+signal than the model's severity, measured on fresh held-out fixtures.

@@ -1,0 +1,23 @@
+{
+  "cookie-maxage-float#1#index.js:117:RIGHT": "right",
+  "httpx-digest-cookies#1#httpx/_auth.py:217:RIGHT": "right",
+  "humanize-naturalsize-rollover#1#src/humanize/filesize.py:100:RIGHT": "right",
+  "ky-merge-stale-array#1#source/utils/merge.ts:350:RIGHT": "right",
+  "ufo-parsequery-prototype#1#src/query.ts:34:RIGHT": "right",
+  "ufo-parsequery-prototype#1#src/query.ts:21:LEFT": "right",
+  "ufo-protocol-case#1#src/parse.ts:32:RIGHT": "right",
+  "ufo-protocol-case#1#src/parse.ts:37:RIGHT": "right",
+  "cookie-maxage-float#2#index.js:117:RIGHT": "right",
+  "httpx-digest-cookies#2#httpx/_auth.py:217:RIGHT": "right",
+  "humanize-naturalsize-rollover#2#src/humanize/filesize.py:97:RIGHT": "right",
+  "ky-merge-stale-array#2#source/utils/merge.ts:350:RIGHT": "right",
+  "ufo-parsequery-prototype#2#src/query.ts:21:LEFT": "right",
+  "ufo-protocol-case#2#src/parse.ts:32:RIGHT": "right",
+  "ufo-protocol-case#2#src/parse.ts:37:RIGHT": "right",
+  "ufo-protocol-case#2#src/parse.ts:61:RIGHT": "right",
+  "cookie-maxage-float#3#index.js:117:RIGHT": "right",
+  "humanize-naturalsize-rollover#3#src/humanize/filesize.py:99:RIGHT": "right",
+  "ky-merge-stale-array#3#source/utils/merge.ts:350:RIGHT": "right",
+  "ufo-protocol-case#3#src/parse.ts:32:RIGHT": "right",
+  "ufo-protocol-case#3#src/parse.ts:37:RIGHT": "right"
+}

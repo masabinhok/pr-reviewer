@@ -137,3 +137,30 @@ only if, on the held-out split over three runs,
 2. posted false positives per clean PR stay within the baseline's range (at most 0.33).
 
 Otherwise it stays on, and this is recorded as reverted.
+
+**On the held-out split** (run `2026-09-21T142016`, second look off, all 21 location matches read and
+right, the 7 findings on clean pull requests all false positives):
+
+| held-out | kept recall | kept false positives per clean PR | posted recall | posted false positives per clean PR |
+|---|---|---|---|---|
+| baseline (second look on) | 29% | 0.56 (0–1.33) | 0% | 0.11 (0–0.33) |
+| second look off | **81% (57–100%)** | 0.78 (0.33–1) | **0%** | 0 |
+
+Rule 1 fails: posted recall is 0% in every run. **Reverted**: the second look stays on, the reviewer
+is unchanged, and the headline doesn't move.
+
+### What the two attempts found
+
+Neither change was kept, and together they locate the problem. Without the second look the model
+finds four in five of the held-out bugs — with false positives on clean pull requests inside the
+baseline's own range — and **rates every one of them low or medium**. Not one was high, so the
+posting bar let nothing through; and lowering the bar (attempt 1) posted the findings the second
+look had let through, which were more often wrong. The reviewer's weakness isn't finding bugs. It
+is that its severity says nothing about whether a finding is right, and that the check meant to
+say so throws away two in three of the real ones.
+
+The next attempt follows from that, with one caveat. A change that decides what is posted by some
+other signal than the model's severity — a better-calibrated verdict, or asking the checker for a
+severity instead of a yes/no — should be tuned on the tuning split. But the held-out split has now
+been looked at finding by finding, so it can no longer decide cleanly (trap 3): that attempt needs
+a fresh set of held-out fixtures.

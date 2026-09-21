@@ -1,0 +1,20 @@
+{
+  "started": "2026-09-21T14:20:16.845Z",
+  "commit": "8c141fac74c9f2c0ef5edb9be990b5951cca0a53",
+  "dirty": false,
+  "stamp": "6e8b74d28cd76708",
+  "runs": 3,
+  "bar": "HIGH",
+  "fixtures": [
+    "clean-attrs-astuple-perf",
+    "clean-attrs-converter-decorator",
+    "clean-ufo-withouthost",
+    "cookie-maxage-float",
+    "httpx-digest-cookies",
+    "humanize-naturalsize-rollover",
+    "ky-merge-stale-array",
+    "ufo-parsequery-prototype",
+    "ufo-protocol-case"
+  ],
+  "note": "M34 decision run: the agent was started with AGENT_VERIFY=false (no second look); the stamp is of the committed defaults, which have it on. Held-out split only, run after the decision rule was committed (8c141fa)."
+}

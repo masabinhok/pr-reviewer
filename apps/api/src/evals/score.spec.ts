@@ -1,5 +1,5 @@
 import type { Bug, Fixture } from './fixture.js';
-import { isAt, matchKey, scoreResult, scoreRun, spread, type EvalFinding, type FixtureResult } from './score.js';
+import { bugAt, isAt, matchKey, scoreResult, scoreRun, spread, type EvalFinding, type FixtureResult } from './score.js';
 
 // Hand-made results: the scoring is checked against answers worked out on paper.
 
@@ -98,6 +98,18 @@ describe('scoreResult', () => {
     const r = result('f', 1, [finding(17)]);
 
     expect(scoreResult(r, two, 'kept', { [matchKey(r, finding(17))]: 'right' })).toMatchObject({ found: 1, unread: 0 });
+  });
+
+  it('a comment between two bugs finds only the nearer one', () => {
+    const close = fixture('p', 'bug', [
+      { file: 'index.js', head: [28, 28], base: [0, 0], description: 'off by one' },
+      { file: 'index.js', head: [32, 32], base: [0, 0], description: 'no empty check' },
+    ]);
+    // Line 31 is within three lines of both.
+    const s = scoreResult(result('p', 1, [finding(31)]), close, 'kept');
+
+    expect(s).toMatchObject({ found: 1, matched: 1 });
+    expect(bugAt(finding(31), close.bugs)?.description).toBe('no empty check');
   });
 
   it('on a clean fixture every finding is unmatched', () => {

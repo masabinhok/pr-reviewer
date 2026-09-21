@@ -88,6 +88,12 @@ describe('renderReport', () => {
     expect(report).not.toContain('Scored again');
   });
 
+  it("shows a run's note, for what the stamp can't record", () => {
+    const noted = renderReport({ ...meta, note: 'agent started with AGENT_VERIFY=false' }, results, fixtures);
+
+    expect(noted).toContain('**Note:** agent started with AGENT_VERIFY=false');
+  });
+
   it('counts failures, which miss their bugs', () => {
     expect(report).toContain('6 review(s), 1 failed (agent answered 503)');
   });

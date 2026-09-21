@@ -83,6 +83,28 @@ export function isAt(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bug: 
   );
 }
 
+/** How far a finding is from a bug: 0 inside its lines, else lines to the nearest edge of any of its places. */
+function distance(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bug: Bug): number {
+  const places: Region[] = [bug, ...(bug.alsoAt ?? [])];
+  return Math.min(
+    ...places
+      .filter((r) => r.file === finding.path)
+      .map((r) => {
+        const [from, to] = finding.side === 'RIGHT' ? r.head : r.base;
+        return finding.line < from ? from - finding.line : finding.line > to ? finding.line - to : 0;
+      }),
+  );
+}
+
+/**
+ * The one bug a finding is at, when it is at any: the nearest. Bugs a few lines apart (the
+ * planted-bugs PR has one every four or five lines) would otherwise let one comment find two.
+ */
+export function bugAt<B extends Bug>(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bugs: B[]): B | undefined {
+  const at = bugs.filter((b) => isAt(finding, b));
+  return at.sort((a, b) => distance(finding, a) - distance(finding, b))[0];
+}
+
 export type Level = 'kept' | 'posted';
 
 /** How one review did, at one level. */
@@ -99,7 +121,7 @@ export interface FixtureScore {
 
 export function scoreResult(result: FixtureResult, fixture: Fixture, level: Level, judgments: Judgments = {}): FixtureScore {
   const findings = result.findings.filter((f) => level === 'kept' || f.posted);
-  const counts = (f: EvalFinding, bug: Bug) => isAt(f, bug) && judgments[matchKey(result, f)] !== 'wrong';
+  const counts = (f: EvalFinding, bug: Bug) => bugAt(f, fixture.bugs) === bug && judgments[matchKey(result, f)] !== 'wrong';
 
   const matching = findings.filter((f) => fixture.bugs.some((b) => counts(f, b)));
   return {

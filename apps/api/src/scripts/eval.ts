@@ -33,6 +33,8 @@ import type { FixtureResult, Judgments } from '../evals/score.js';
  *                                         score a finished run at another posting bar, into a new
  *                                         run directory. The bar applies after the model answers,
  *                                         so this needs no GPU: same findings, different comments.
+ *   --note "<text>"                       how this run was made, where the stamp can't tell —
+ *                                         e.g. "agent started with AGENT_VERIFY=false"
  *   --show-heldout                        list held-out fixtures one by one in the report
  *
  * The agent must be running (`npm run agent`, from the repository root) with Ollama up; which
@@ -192,6 +194,7 @@ async function main() {
       runs,
       bar,
       fixtures: chosen.map((f) => f.id),
+      ...(typeof a.note === 'string' ? { note: a.note } : {}),
     };
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');

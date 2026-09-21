@@ -1,5 +1,5 @@
 import type { Fixture } from './fixture.js';
-import { isAt, matchKey, scoreResult, scoreRun, spread, type FixtureResult, type Judgments, type Level, type Spread } from './score.js';
+import { bugAt, matchKey, scoreResult, scoreRun, spread, type FixtureResult, type Judgments, type Level, type Spread } from './score.js';
 
 /** What a run was made with, written when it starts (`meta.json`). */
 export interface RunMeta {
@@ -15,6 +15,11 @@ export interface RunMeta {
    * same ones — no model ran for this directory.
    */
   rescoredFrom?: string;
+  /**
+   * How the run was made, where the stamp can't say: the agent's own settings (AGENT_VERIFY and
+   * the rest) come from its environment, which the stamp — of the committed defaults — doesn't see.
+   */
+  note?: string;
   runs: number;
   bar: string;
   fixtures: string[];
@@ -61,6 +66,10 @@ export function renderReport(
       `commit ${meta.commit.slice(0, 7)}${meta.dirty ? ' with uncommitted changes' : ''}` +
       (meta.stamp ? ` · stamp ${meta.stamp}` : ''),
   );
+  if (meta.note) {
+    out.push('');
+    out.push(`**Note:** ${meta.note}`);
+  }
   if (meta.rescoredFrom) {
     out.push('');
     out.push(`Scored again from \`${meta.rescoredFrom}\` at this posting bar. No model ran: the findings are that run's.`);
@@ -163,7 +172,7 @@ function matchesToRead(results: FixtureResult[], fixtures: Fixture[], judgments:
     for (const result of results.filter((r) => r.fixture === f.id)) {
       for (const finding of result.findings) {
         const key = matchKey(result, finding);
-        const bug = f.bugs.find((b) => isAt(finding, b));
+        const bug = bugAt(finding, f.bugs);
         if (bug && judgments[key] === undefined) out.push({ key, summary: finding.summary, bug: bug.description });
       }
     }

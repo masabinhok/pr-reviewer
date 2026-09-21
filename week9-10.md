@@ -204,9 +204,9 @@ milestone N` commit that ticks its boxes in this file.
 - Record every attempt — kept or reverted — with its numbers.
 
 **Todo**
-- [ ] One or more changes, each measured on tuning then held-out
-- [ ] Kept or reverted by the numbers, recorded
-- [ ] Report and README updated if the headline moves
+- [x] One or more changes, each measured on tuning then held-out
+- [x] Kept or reverted by the numbers, recorded
+- [x] Report and README updated if the headline moves (it didn't: both changes reverted; the README's number was corrected to the re-judged baseline)
 
 **Learn:** hill-climbing against an eval without fooling yourself.
 

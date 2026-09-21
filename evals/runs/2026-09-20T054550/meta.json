@@ -1,0 +1,31 @@
+{
+  "started": "2026-09-20T05:45:50.902Z",
+  "commit": "5a4148eb85d793c6d479cca2ef4cb4c9868d8a4b",
+  "dirty": false,
+  "stamp": "6e8b74d28cd76708",
+  "runs": 3,
+  "bar": "HIGH",
+  "fixtures": [
+    "attrs-disabled-nesting",
+    "clean-attrs-asdict-perf",
+    "clean-attrs-ne-validator",
+    "clean-httpx-socks5h",
+    "clean-humanize-natural-list",
+    "clean-semver-lru-delete",
+    "clean-ufo-filterquery",
+    "click-choice-brackets",
+    "cookie-maxage-invalid",
+    "cookie-maxage-zero",
+    "cookie-priority-fallback",
+    "httpx-send-timeout",
+    "humanize-naturaldelta-years",
+    "ky-extend-mutation-leak",
+    "ky-method-uppercase",
+    "planted-bugs-testbed",
+    "semver-subset-prerelease",
+    "ufo-base-prefix-match",
+    "ufo-parsehost-port",
+    "ufo-trailing-slash-query"
+  ],
+  "note": "M34 experiment: the agent was started with AGENT_VERIFY=false (no second look); the stamp is of the committed defaults, which have it on. Tuning split only. One review (clean-httpx-socks5h, run 3) was in flight while the machine slept, so its 5,674 s is wall-clock time, not review time."
+}

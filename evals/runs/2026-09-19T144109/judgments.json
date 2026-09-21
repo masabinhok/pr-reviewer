@@ -4,7 +4,7 @@
   "click-choice-brackets#3#src/click/core.py:3576:RIGHT": "right",
   "cookie-maxage-float#1#index.js:117:RIGHT": "right",
   "cookie-maxage-float#2#index.js:117:RIGHT": "right",
-  "cookie-maxage-zero#3#index.js:17:RIGHT": "wrong",
+  "cookie-maxage-zero#3#index.js:17:RIGHT": "right",
   "humanize-naturaldelta-years#1#src/humanize/time.py:259:RIGHT": "wrong",
   "humanize-naturaldelta-years#3#src/humanize/time.py:259:LEFT": "right",
   "humanize-naturalsize-rollover#3#src/humanize/filesize.py:103:LEFT": "right",

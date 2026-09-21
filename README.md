@@ -14,7 +14,7 @@ comments**, and a Check Run on the PR shows progress and the summary.
 
 **Measured**, on 29 real pull requests with known answers, three runs each: the local 7B model
 posts **2% of the known bugs as comments, at 0.04 false comments per clean pull request**. It
-finds four times as many — 20% — but they sit below the posting bar, in the Check Run. The
+finds ten times as many — 21% — but they sit below the posting bar, in the Check Run. The
 numbers, how they were measured and what they hide are in
 [`docs/evals/report.md`](docs/evals/report.md).
 

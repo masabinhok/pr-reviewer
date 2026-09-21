@@ -15,15 +15,15 @@ which the Check Run lists but nobody is notified about.
 | | recall | precision | false positives per clean PR |
 |---|---|---|---|
 | **posted** (the comments a user sees) | **2%** (0–7%) | 50% (0–100%) | **0.04** (0–0.11) |
-| kept (the Check Run's list) | 20% (15–26%) | 49% (44–54%) | 0.41 (0.22–0.56) |
+| kept (the Check Run's list) | 21% (15–30%) | 52% (44–62%) | 0.41 (0.22–0.56) |
 | held-out only, kept | 29% | 67% (33–100%) | 0.56 (0–1.33) |
 
 So the honest headline is: **the reviewer posts almost nothing. It found 2% of known bugs as
 comments, at 0.04 false comments per clean pull request.** Quiet, and nearly useless.
 
-Every match was read by hand (trap 6): of 20 location matches, 16 describe the bug and 4 point at
+Every match was read by hand (trap 6): of 20 location matches, 17 describe the bug and 3 point at
 the right line while describing something else — a complaint about leap years where the defect was a
-missing `round()`, or "the regex has been modified" with no idea what broke. Those 4 are scored as
+missing `round()`, or "the regex has been modified" with no idea what broke. Those 3 are scored as
 misses. Every finding on a clean pull request was audited too (trap 5): all 11 are false positives,
 none was a real bug, so no answer key grew.
 
@@ -84,5 +84,56 @@ posting bar is filtering out.
   the same harness with Claude would give another number entirely.
 - The answer keys were written by reading each fix (mostly by Claude), not by a second person.
 - "Clean" is a belief: these pull requests merged and nobody fixed them afterwards.
-- 29 pull requests is small. A 20% recall has a wide error bar, and the range over three runs
-  (15–26%) is the honest width of it.
+- 29 pull requests is small. A 21% recall has a wide error bar, and the range over three runs
+  (15–30%) is the honest width of it.
+
+## Improving it (milestone 34)
+
+One change at a time, looked at on the tuning split, decided on the held-out split, kept only if it
+beats the baseline by more than the spread. Every attempt is here, kept or not.
+
+**How a match is judged.** A finding is right if a developer reading it would be led to the actual
+defect — it names the faulty construct (the removed guard, the wrong function, the missing
+normalisation), even if its example is off — and wrong if it only says the code changed ("the regex
+has been modified") or describes a different problem. Applied to the baseline, this moved one
+verdict (a cookie finding that names the removed number check), and a finding within reach of two
+bugs now counts for the nearer one only. Both are reflected in the numbers above.
+
+### 1. Post medium findings too — rejected
+
+The posting bar applies after the model answers, so this was scored from the baseline's own findings
+(`--rescore`, run `2026-09-20T054419-medium`). On the tuning split it looked good: posted recall 3% →
+10%, false positives per clean PR 0 → 0.06. On the held-out split:
+
+| held-out, posted | recall | false positives per clean PR |
+|---|---|---|
+| baseline, bar high | 0% | 0.11 (0–0.33) |
+| bar medium | 5% (0–14%) | 0.33 (0–1) |
+
+The recall gain is inside the spread (one run of three found nothing) and false positives tripled.
+**Reverted**: the bar stays at high.
+
+### 2. No second look — on the tuning split
+
+The second look refutes 72% of what the model proposes. Run `2026-09-20T054550`: the tuning split,
+three runs, with the agent started with `AGENT_VERIFY=false`. All 49 location matches read (36 right,
+13 wrong).
+
+| tuning split | kept recall | kept false positives per clean PR | posted recall | posted false positives per clean PR |
+|---|---|---|---|---|
+| baseline (second look on) | 18% (10–30%) | 0.33 (0.17–0.50) | 3% (0–10%) | 0 |
+| second look off | **50% (45–55%)** | 1.78 (1.50–2.17) | 7% (5–10%) | 0 |
+
+Without it, the reviewer finds almost three times as many bugs, and the ranges don't overlap: the
+second look is throwing away about two in three of the real bugs it is shown. The price is five
+times the findings on clean pull requests — in the Check Run, which notifies nobody. What people
+see barely moves: posted recall 3% → 7%, within the spread, still with no false comments.
+
+**The decision rule, written before the held-out split was run:** turn the second look off by default
+only if, on the held-out split over three runs,
+
+1. posted recall beats the baseline by more than its spread — its lowest run above the baseline's
+   highest (0%); and
+2. posted false positives per clean PR stay within the baseline's range (at most 0.33).
+
+Otherwise it stays on, and this is recorded as reverted.

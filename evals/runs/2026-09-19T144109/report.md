@@ -10,9 +10,9 @@ pr-reviewer:qwen2.5-7b · posting bar high · 3 of 3 run(s) · 29 fixtures (20 b
 |---|---|---|---|---|
 | held-out | kept | 29% | 67% (33%–100%) | 0.56 (0–1.33) |
 | held-out | posted | 0% | 0% (1 run) | 0.11 (0–0.33) |
-| tune | kept | 17% (10%–25%) | 51% (29%–75%) | 0.33 (0.17–0.50) |
+| tune | kept | 18% (10%–30%) | 55% (29%–75%) | 0.33 (0.17–0.50) |
 | tune | posted | 3% (0%–10%) | 100% (1 run) | 0 |
-| all | kept | 20% (15%–26%) | 49% (44%–54%) | 0.41 (0.22–0.56) |
+| all | kept | 21% (15%–30%) | 52% (44%–62%) | 0.41 (0.22–0.56) |
 | all | posted | 2% (0%–7%) | 50% (0%–100%) | 0.04 (0–0.11) |
 
 ## Cost
@@ -40,7 +40,7 @@ Held-out fixtures are left out: they decide, and are not looked at one by one (t
 | clean-ufo-filterquery | tune | 1 kept, 0 posted, 2 refuted | 0 kept, 0 posted, 0 refuted | 1 kept, 0 posted, 0 refuted |
 | click-choice-brackets | tune | 1/1 found · 1 kept, 0 posted, 0 refuted | 1/1 found · 1 kept, 0 posted, 1 refuted | 1/1 found · 1 kept, 1 posted, 0 refuted |
 | cookie-maxage-invalid | tune | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 0 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted |
-| cookie-maxage-zero | tune | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 1 kept, 0 posted, 0 refuted |
+| cookie-maxage-zero | tune | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted | 1/1 found · 1 kept, 0 posted, 0 refuted |
 | cookie-priority-fallback | tune | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 0 refuted |
 | httpx-send-timeout | tune | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted |
 | humanize-naturaldelta-years | tune | 0/1 found · 1 kept, 0 posted, 0 refuted | 0/1 found · 0 kept, 0 posted, 1 refuted | 1/1 found · 1 kept, 0 posted, 0 refuted |

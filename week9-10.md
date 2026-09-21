@@ -185,10 +185,10 @@ milestone N` commit that ticks its boxes in this file.
 - Kept within the free minutes: cache dependencies, and skip jobs for the parts a push didn't touch.
 
 **Todo**
-- [ ] Workflow: lint, unit, e2e (with services), dashboard build and smoke
-- [ ] The eval stamp, computed the same way locally and in CI
-- [ ] The stamp check, failing with a message that says what to run
-- [ ] Caching and path filters
+- [x] Workflow: lint, unit, e2e (with services), dashboard build and smoke
+- [x] The eval stamp, computed the same way locally and in CI
+- [x] The stamp check, failing with a message that says what to run
+- [x] Caching and path filters
 
 **Learn:** CI for a system whose real test is too expensive to run in CI.
 

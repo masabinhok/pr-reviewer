@@ -12,6 +12,7 @@ import { AppJwtService } from '../github/app-jwt.service.js';
 import { InstallationTokenService } from '../github/installation-token.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { AgentReviewer } from '../reviewer/agent-reviewer.js';
+import { meetsPostingBar } from '../reviews/review-publisher.js';
 import type { Severity } from '../generated/prisma/client.js';
 import { fixtureProblems, type Fixture } from '../evals/fixture.js';
 import { renderReport, type RunMeta } from '../evals/report.js';
@@ -137,10 +138,10 @@ function rescore(from: string, bar: Severity): string {
     rescoredFrom: basename(from),
   };
   writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
-  const rank: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  // The production rule, not a copy of it: the same function the publisher uses.
   const results = readResults(from).map((r) => ({
     ...r,
-    findings: r.findings.map((f) => ({ ...f, posted: rank[f.severity] >= rank[bar] })),
+    findings: r.findings.map((f) => ({ ...f, posted: meetsPostingBar(f.severity, bar) })),
   }));
   writeFileSync(join(dir, 'results.jsonl'), results.map((r) => JSON.stringify(r)).join('\n') + '\n');
   const judgments = join(from, 'judgments.json');

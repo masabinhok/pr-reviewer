@@ -1104,3 +1104,28 @@ the second look stays on. What the round learned: the local model finds most of 
 severity doesn't separate the right findings from the wrong ones; and the second look, which is
 meant to, discards two real bugs in three. The next change should decide what is posted by a better
 signal than the model's severity, measured on fresh held-out fixtures.
+
+## Weeks 9–10, verified
+
+The plan's closing checklist, run on 2026-09-22:
+
+- **The baseline reproduces.** A fresh clone of `7079343`, with its own agent and an empty tarball
+  cache, ran all 29 fixtures three times (`evals/runs/2026-09-22T112900`). Its 24 location matches
+  were read by the same rule (20 right). Every headline number lands inside the baseline's range:
+  posted recall 4% (0–7%) against 2% (0–7%), false comments per clean PR 0 against 0.04 (0–0.11),
+  kept recall 25% (22–26%) against 21% (15–30%).
+- **The fixtures are sound**: all validate, every bug fixture's key lies on lines in its diff, each
+  says where it came from, and the split is recorded in each. The held-out set was read finding by
+  finding only for deciding — the baseline's audit and milestone 34's two decisions — never while
+  tuning, which is why it is now counted as spent.
+- **The README's number matches the report** (2% posted, 0.04 false comments per clean PR, 21%
+  kept).
+- **The gate works both ways.** One word of the prompt changed and pushed on a throwaway branch: the
+  `eval gate` failed, naming the new stamp and what to run. The word reverted: it passed. The branch
+  was deleted.
+- **CI is green**: lint, unit and e2e for the API, the agent's suite, the dashboard's build and smoke
+  test, and the gate.
+- **Anti-patterns, grepped for:** no score from a single run (3 by default; the gate refuses fewer),
+  no fixture without provenance, held-out outcomes hidden while running and tuning. One was found and
+  fixed — `--rescore` recomputed the posting bar with its own severity table instead of the
+  publisher's `meetsPostingBar`; it now calls it, with identical results.

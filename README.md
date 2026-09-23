@@ -21,7 +21,8 @@ numbers, how they were measured and what they hide are in
 This repository is a learning project, built milestone by milestone — see
 [`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
 [`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md), [`week7-8.md`](week7-8.md) and
-[`week9-10.md`](week9-10.md) for the milestones so far.
+[`week9-10.md`](week9-10.md) for the milestones so far, and
+[`week11-12.md`](week11-12.md) for what is being built now.
 Non-obvious choices are written up in [`docs/decisions.md`](docs/decisions.md).
 
 ## Status

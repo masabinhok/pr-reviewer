@@ -119,11 +119,20 @@ Then the README says "measured 78% recall at 0.4 false positives per clean PR" i
   the local 7B model — honest, and low. Without the second look it finds 81% of held-out bugs but
   rates them too low to post; see `docs/evals/report.md`.
 
+## Weeks 11 to 12: What gets posted
+
+The evaluation's verdict: the reviewer finds four in five held-out bugs and posts none of them,
+because the model's severity carries no signal and the second look discards two real bugs in three.
+See [`week11-12.md`](week11-12.md).
+
+- [ ] The second look says how sure it is, and that decides what is posted — measured on a fresh
+  held-out set
+- [ ] `/review` in a PR comment to re-trigger
+- [ ] Per-repo config file `.prreviewer.yml`: paths to ignore, severity threshold
+
 ## Month 3 and beyond
 
 - [ ] Go service for diff parsing + static analysis (tree-sitter), called by the worker. A genuine reason for Go, not a rewrite for its own sake.
-- [ ] `/review` slash command in PR comments to re-trigger
-- [ ] Per-repo config file `.prreviewer.yml`: paths to ignore, severity threshold
 - [ ] Prompt caching on the repo context to cut cost
 - [ ] Langfuse tracing
 - [ ] Deploy to Fly or Railway, publish the App

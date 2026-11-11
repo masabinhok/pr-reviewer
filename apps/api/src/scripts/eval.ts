@@ -21,7 +21,7 @@ import { evalStamp } from '../evals/stamp.js';
 import type { FixtureResult, Judgments } from '../evals/score.js';
 
 /**
- * The evaluation (week9-10.md, milestone 31): every fixture reviewed by the running agent,
+ * The evaluation (docs/journal/week9-10.md, milestone 31): every fixture reviewed by the running agent,
  * through the API's own reviewer client, validation and posting bar, several times over; the
  * results written as they come, and a report at the end.
  *

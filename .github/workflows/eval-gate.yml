@@ -1,4 +1,4 @@
-# The eval gate (week9-10.md, trap 1). CI can't run the model; it checks that someone did:
+# The eval gate (docs/journal/week9-10.md, trap 1). CI can't run the model; it checks that someone did:
 # a change to what shapes the reviewer's answers needs a complete evaluation run, committed.
 name: eval gate
 

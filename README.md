@@ -19,10 +19,10 @@ numbers, how they were measured and what they hide are in
 [`docs/evals/report.md`](docs/evals/report.md).
 
 This repository is a learning project, built milestone by milestone — see
-[`roadmap.md`](roadmap.md) for the plan, and [`week1-2.md`](week1-2.md),
-[`week3-4.md`](week3-4.md), [`week5-6.md`](week5-6.md), [`week7-8.md`](week7-8.md) and
-[`week9-10.md`](week9-10.md) for the milestones so far, and
-[`week11-12.md`](week11-12.md) for what is being built now.
+[`roadmap.md`](docs/journal/roadmap.md) for the plan, and [`week1-2.md`](docs/journal/week1-2.md),
+[`week3-4.md`](docs/journal/week3-4.md), [`week5-6.md`](docs/journal/week5-6.md), [`week7-8.md`](docs/journal/week7-8.md) and
+[`week9-10.md`](docs/journal/week9-10.md) for the milestones so far, and
+[`week11-12.md`](docs/journal/week11-12.md) for what is being built now.
 Non-obvious choices are written up in [`docs/decisions.md`](docs/decisions.md).
 
 ## Status

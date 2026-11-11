@@ -55,7 +55,7 @@ export interface RefutedFinding {
 }
 
 /**
- * Someone's reading of a location match (week9-10.md, trap 6): does the comment describe the
+ * Someone's reading of a location match (docs/journal/week9-10.md, trap 6): does the comment describe the
  * bug, or a different problem that happens to be nearby? Keyed by `matchKey`.
  */
 export type Judgments = Record<string, 'right' | 'wrong'>;

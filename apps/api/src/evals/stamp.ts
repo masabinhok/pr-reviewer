@@ -23,7 +23,7 @@ export const STAMPED = [
 ] as const;
 
 /**
- * The stamp (week9-10.md, trap 1): a hash of the stamped files and the posting bar. A run
+ * The stamp (docs/journal/week9-10.md, trap 1): a hash of the stamped files and the posting bar. A run
  * records it; CI recomputes it from the committed files and asks for a run that carries it.
  */
 export function evalStamp(read: (path: string) => string, bar: string): string {

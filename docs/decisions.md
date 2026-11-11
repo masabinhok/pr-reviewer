@@ -1,7 +1,7 @@
 # Design decisions
 
 One paragraph per non-obvious choice, written as the choice is made — not retro-fitted
-once the feature is finished. See `week1-2.md` and `week3-4.md` for the milestone each of
+once the feature is finished. See `journal/week1-2.md` and `journal/week3-4.md` for the milestone each of
 these came from.
 
 ## Own `id` (cuid) instead of GitHub's numeric ID as primary key

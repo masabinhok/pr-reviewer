@@ -11,7 +11,7 @@ import type { DiffFile } from '../diff/diff.types.js';
 export interface Fixture {
   id: string;
   kind: 'bug' | 'clean';
-  /** Tune on `tune`; `heldout` only decides (week9-10.md, trap 3). */
+  /** Tune on `tune`; `heldout` only decides (docs/journal/week9-10.md, trap 3). */
   split: 'tune' | 'heldout';
   source: {
     repo: string;

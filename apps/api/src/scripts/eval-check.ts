@@ -4,7 +4,7 @@ import configuration from '../config/configuration.js';
 import { evalStamp, runProblem, type RunOnDisk } from '../evals/stamp.js';
 
 /**
- * CI's eval gate (week9-10.md, trap 1). CI can't run the model, so it checks that someone did:
+ * CI's eval gate (docs/journal/week9-10.md, trap 1). CI can't run the model, so it checks that someone did:
  * the reviewer as committed — its stamp — must have a complete run in evals/runs. A change to a
  * prompt, a tool, the second look, the validation or the posting bar without a fresh run fails.
  *

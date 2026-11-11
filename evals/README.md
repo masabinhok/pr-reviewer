@@ -1,6 +1,6 @@
 # Evaluation fixtures
 
-Real pull requests with known answers, for measuring the reviewer (see `week9-10.md`).
+Real pull requests with known answers, for measuring the reviewer (see `../docs/journal/week9-10.md`).
 
 Each `fixtures/<id>.json` is one pull request:
 

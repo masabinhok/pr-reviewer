@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { Agent, getGlobalDispatcher, setGlobalDispatcher } from 'undici';
 import { fileURLToPath } from 'node:url';
 import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
@@ -255,6 +258,20 @@ describe('AgentReviewer', () => {
       );
     });
 
+    it('names the network error’s code', async () => {
+      fetchMock.mockRejectedValue(
+        new TypeError('fetch failed', {
+          cause: Object.assign(new Error('connect'), { code: 'ECONNREFUSED' }),
+        }),
+      );
+
+      const error = await reviewer.review(context).catch((e) => e);
+
+      expect(error.message).toBe(
+        `agent unreachable for masabinhok/pr-reviewer-testbed#3@6ac523c: TypeError (ECONNREFUSED)`,
+      );
+    });
+
     it('never puts the installation token in an error', async () => {
       fetchMock.mockResolvedValue(
         json({ detail: [{ msg: 'field required' }] }, 422),
@@ -281,5 +298,61 @@ describe('AgentReviewer', () => {
           tokens as never,
         ),
     ).toThrow('agent.sharedSecret');
+  });
+
+  describe('against a real HTTP server', () => {
+    let server: Server;
+    let url: string;
+    const original = getGlobalDispatcher();
+
+    beforeEach(async () => {
+      vi.unstubAllGlobals();
+      // The agent thinks for a while before it answers at all.
+      server = createServer((_req, res) => {
+        setTimeout(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(agentAnswer));
+        }, 2_500);
+      });
+      await new Promise<void>((resolve) => server.listen(0, resolve));
+      url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    });
+
+    afterEach(async () => {
+      setGlobalDispatcher(original);
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // fetch's default headers timeout is 300 s; this lowers it to 200 ms so the test can show,
+    // in seconds, that AGENT_TIMEOUT_MS is what governs a slow review instead. undici checks
+    // its timeouts about once a second, hence an answer 2.5 s late rather than 0.5 s.
+    it('waits as long as AGENT_TIMEOUT_MS for headers, not the default dispatcher', async () => {
+      setGlobalDispatcher(new Agent({ headersTimeout: 200 }));
+      const slow = new AgentReviewer(
+        config({
+          ...settings,
+          'agent.url': url,
+          'agent.timeoutMs': 5_000,
+        }),
+        tokens as unknown as InstallationTokenService,
+      );
+
+      const result = await slow.review(context);
+
+      expect(result.findings).toHaveLength(1);
+    });
+
+    it('still gives up at AGENT_TIMEOUT_MS', async () => {
+      const impatient = new AgentReviewer(
+        config({ ...settings, 'agent.url': url, 'agent.timeoutMs': 100 }),
+        tokens as unknown as InstallationTokenService,
+      );
+
+      const error = await impatient.review(context).catch((e) => e);
+
+      expect(error.message).toMatch(
+        /^agent unreachable for .*: (TimeoutError|TypeError)/,
+      );
+    });
   });
 });

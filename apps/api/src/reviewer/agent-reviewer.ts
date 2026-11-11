@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UnrecoverableError } from 'bullmq';
+import { Agent } from 'undici';
 import { InstallationTokenService } from '../github/installation-token.service.js';
 import type {
   FindingVerification,
@@ -58,6 +59,10 @@ export class AgentReviewer implements Reviewer {
   private readonly url: string;
   private readonly secret: string;
   private readonly timeoutMs: number;
+  // fetch's default dispatcher gives up after 300 s without response headers, whatever the
+  // signal says; this one waits as long as AGENT_TIMEOUT_MS. undici 6 is the copy Node 22's
+  // fetch is built on, so its Agent plugs straight in.
+  private readonly dispatcher: Agent;
 
   constructor(
     config: ConfigService,
@@ -67,6 +72,10 @@ export class AgentReviewer implements Reviewer {
     this.url = config.getOrThrow<string>('agent.url');
     this.secret = config.getOrThrow<string>('agent.sharedSecret');
     this.timeoutMs = config.getOrThrow<number>('agent.timeoutMs');
+    this.dispatcher = new Agent({
+      headersTimeout: this.timeoutMs,
+      bodyTimeout: this.timeoutMs,
+    });
   }
 
   async review(context: ReviewContext): Promise<ReviewerResult> {
@@ -97,11 +106,16 @@ export class AgentReviewer implements Reviewer {
         }),
         // A review is many model turns; minutes, not seconds. Past this, give up and retry.
         signal: AbortSignal.timeout(this.timeoutMs),
-      });
+        // Not in the DOM RequestInit type, but Node's fetch reads it.
+        dispatcher: this.dispatcher,
+      } as RequestInit);
     } catch (e) {
-      // Connection refused, DNS, timeout — the agent may simply be restarting.
+      // Connection refused, DNS, timeout — the agent may simply be restarting. fetch's own
+      // error is a bare TypeError; the cause's code says which.
+      const code = (e as { cause?: { code?: unknown } } | null)?.cause?.code;
       throw new Error(
-        `agent unreachable for ${where}: ${e instanceof Error ? e.name : String(e)}`,
+        `agent unreachable for ${where}: ${e instanceof Error ? e.name : String(e)}` +
+          (typeof code === 'string' ? ` (${code})` : ''),
       );
     }
 

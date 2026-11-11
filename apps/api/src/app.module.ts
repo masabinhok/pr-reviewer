@@ -13,9 +13,6 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
     ConfigModule.forRoot({
       load: [configuration],
       validationSchema: z.object({
-        POSTGRES_USER: z.string(),
-        POSTGRES_PASSWORD: z.string(),
-        POSTGRES_DB: z.string(),
         PORT: z.coerce.number().default(3333),
         DATABASE_URL: z.url(),
         REDIS_URL: z.url(),

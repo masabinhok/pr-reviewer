@@ -32,20 +32,33 @@ export function parseDiff(text: string): DiffFile[] {
 
   while (i < lines.length) {
     if (!lines[i].startsWith('diff --git ')) {
-      throw new DiffParseError(`expected "diff --git", found "${lines[i].slice(0, 40)}"`, i + 1);
+      throw new DiffParseError(
+        `expected "diff --git", found "${lines[i].slice(0, 40)}"`,
+        i + 1,
+      );
     }
     const start = i;
     const header = headerPaths(lines[i].slice('diff --git '.length));
     i++;
 
-    const file: DiffFile = { path: '', oldPath: '', status: 'modified', binary: false, hunks: [] };
+    const file: DiffFile = {
+      path: '',
+      oldPath: '',
+      status: 'modified',
+      binary: false,
+      hunks: [],
+    };
     let from = header?.from;
     let to = header?.to;
     let oldMode: string | undefined;
     let newMode: string | undefined;
 
     // Extended header lines, until the first hunk or the next file.
-    while (i < lines.length && !lines[i].startsWith('@@') && !lines[i].startsWith('diff --git ')) {
+    while (
+      i < lines.length &&
+      !lines[i].startsWith('@@') &&
+      !lines[i].startsWith('diff --git ')
+    ) {
       const line = lines[i];
       if (line.startsWith('new file mode ')) {
         file.status = 'added';
@@ -67,7 +80,10 @@ export function parseDiff(text: string): DiffFile[] {
       } else if (line.startsWith('copy to ')) {
         file.status = 'copied';
         to = unquote(line.slice('copy to '.length));
-      } else if (line.startsWith('Binary files ') || line === 'GIT binary patch') {
+      } else if (
+        line.startsWith('Binary files ') ||
+        line === 'GIT binary patch'
+      ) {
         file.binary = true;
       } else if (line.startsWith('--- ')) {
         const path = markerPath(line.slice(4), 'a/');
@@ -88,7 +104,8 @@ export function parseDiff(text: string): DiffFile[] {
     }
     file.oldPath = from;
     file.path = file.status === 'removed' ? from : to;
-    if (oldMode && newMode && oldMode !== newMode) file.modeChange = { from: oldMode, to: newMode };
+    if (oldMode && newMode && oldMode !== newMode)
+      file.modeChange = { from: oldMode, to: newMode };
 
     while (i < lines.length && lines[i].startsWith('@@')) {
       const [hunk, next] = parseHunk(lines, i);
@@ -104,7 +121,8 @@ export function parseDiff(text: string): DiffFile[] {
 
 function parseHunk(lines: string[], at: number): [Hunk, number] {
   const match = HUNK_HEADER.exec(lines[at]);
-  if (!match) throw new DiffParseError(`malformed hunk header "${lines[at]}"`, at + 1);
+  if (!match)
+    throw new DiffParseError(`malformed hunk header "${lines[at]}"`, at + 1);
 
   const hunk: Hunk = {
     oldStart: Number(match[1]),
@@ -124,7 +142,10 @@ function parseHunk(lines: string[], at: number): [Hunk, number] {
 
   while (oldLeft > 0 || newLeft > 0) {
     if (i >= lines.length) {
-      throw new DiffParseError(`hunk ends early: ${oldLeft} old and ${newLeft} new line(s) missing`, i);
+      throw new DiffParseError(
+        `hunk ends early: ${oldLeft} old and ${newLeft} new line(s) missing`,
+        i,
+      );
     }
     const raw = lines[i];
     const prefix = raw[0];
@@ -134,7 +155,12 @@ function parseHunk(lines: string[], at: number): [Hunk, number] {
     // An empty string is a context line whose leading space some tool stripped along the
     // way; git itself always writes the space.
     if (prefix === ' ' || raw === '') {
-      line = { kind: 'context', oldLine: oldLine++, newLine: newLine++, content };
+      line = {
+        kind: 'context',
+        oldLine: oldLine++,
+        newLine: newLine++,
+        content,
+      };
       oldLeft--;
       newLeft--;
     } else if (prefix === '-') {
@@ -148,11 +174,17 @@ function parseHunk(lines: string[], at: number): [Hunk, number] {
       i++;
       continue;
     } else {
-      throw new DiffParseError(`unexpected line inside a hunk: "${raw.slice(0, 40)}"`, i + 1);
+      throw new DiffParseError(
+        `unexpected line inside a hunk: "${raw.slice(0, 40)}"`,
+        i + 1,
+      );
     }
 
     if (oldLeft < 0 || newLeft < 0) {
-      throw new DiffParseError('hunk has more lines than its @@ header declares', i + 1);
+      throw new DiffParseError(
+        'hunk has more lines than its @@ header declares',
+        i + 1,
+      );
     }
     hunk.lines.push(line);
     i++;
@@ -165,8 +197,15 @@ function parseHunk(lines: string[], at: number): [Hunk, number] {
   }
 
   // Anything else before the next hunk or file means the counts were wrong.
-  if (i < lines.length && !lines[i].startsWith('@@') && !lines[i].startsWith('diff --git ')) {
-    throw new DiffParseError('hunk has more lines than its @@ header declares', i + 1);
+  if (
+    i < lines.length &&
+    !lines[i].startsWith('@@') &&
+    !lines[i].startsWith('diff --git ')
+  ) {
+    throw new DiffParseError(
+      'hunk has more lines than its @@ header declares',
+      i + 1,
+    );
   }
 
   return [hunk, i];
@@ -174,7 +213,11 @@ function parseHunk(lines: string[], at: number): [Hunk, number] {
 
 function markNoNewline(hunk: Hunk, at: number) {
   const previous = hunk.lines.at(-1);
-  if (!previous) throw new DiffParseError('"No newline" marker with no line before it', at + 1);
+  if (!previous)
+    throw new DiffParseError(
+      '"No newline" marker with no line before it',
+      at + 1,
+    );
   previous.noNewlineAtEnd = true;
 }
 
@@ -187,7 +230,10 @@ function headerPaths(rest: string): { from: string; to: string } | undefined {
   if (rest.startsWith('"')) {
     const [a, after] = readQuoted(rest);
     const b = after.trimStart();
-    return { from: stripPrefix(a, 'a/'), to: stripPrefix(b.startsWith('"') ? readQuoted(b)[0] : b, 'b/') };
+    return {
+      from: stripPrefix(a, 'a/'),
+      to: stripPrefix(b.startsWith('"') ? readQuoted(b)[0] : b, 'b/'),
+    };
   }
 
   const half = (rest.length - 5) / 2; // rest is "a/" + X + " b/" + X
@@ -198,7 +244,8 @@ function headerPaths(rest: string): { from: string; to: string } | undefined {
 
   // Unquoted, different, no spaces — a plain rename or copy.
   const split = rest.indexOf(' b/');
-  if (rest.startsWith('a/') && split > 0) return { from: rest.slice(2, split), to: rest.slice(split + 3) };
+  if (rest.startsWith('a/') && split > 0)
+    return { from: rest.slice(2, split), to: rest.slice(split + 3) };
   return undefined;
 }
 
@@ -216,7 +263,17 @@ function unquote(value: string): string {
   return value.startsWith('"') ? readQuoted(value)[0] : value;
 }
 
-const ESCAPES: Record<string, number> = { n: 10, t: 9, r: 13, '"': 34, '\\': 92, a: 7, b: 8, f: 12, v: 11 };
+const ESCAPES: Record<string, number> = {
+  n: 10,
+  t: 9,
+  r: 13,
+  '"': 34,
+  '\\': 92,
+  a: 7,
+  b: 8,
+  f: 12,
+  v: 11,
+};
 
 /**
  * Reads a C-style quoted path, as git writes names containing non-ASCII or special

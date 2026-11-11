@@ -19,7 +19,12 @@ import type { InstallationPayload } from '../src/installations/github-payloads.j
 // GitHub IDs far above anything real, so these rows can never collide with a captured
 // fixture's installation, and cleanup can find exactly its own rows.
 const base = 9_000_000_000_000 + Math.floor(Math.random() * 1_000_000_000);
-const ids = { installation: base, reinstalled: base + 1, repoA: base + 2, repoB: base + 3 };
+const ids = {
+  installation: base,
+  reinstalled: base + 1,
+  repoA: base + 2,
+  repoB: base + 3,
+};
 
 function installationEvent(
   action: string,
@@ -28,8 +33,15 @@ function installationEvent(
 ): InstallationPayload {
   return {
     action,
-    installation: { id: installationId, account: { login: 'itest-owner', type: 'User' } },
-    repositories: repos.map((r) => ({ id: r.id, full_name: `itest-owner/${r.name}-${base}`, private: true })),
+    installation: {
+      id: installationId,
+      account: { login: 'itest-owner', type: 'User' },
+    },
+    repositories: repos.map((r) => ({
+      id: r.id,
+      full_name: `itest-owner/${r.name}-${base}`,
+      private: true,
+    })),
   };
 }
 
@@ -61,10 +73,14 @@ describe('Installation lifecycle (real database)', () => {
 
   afterAll(async () => {
     const repoIds = [BigInt(ids.repoA), BigInt(ids.repoB)];
-    await prisma.review.deleteMany({ where: { repo: { githubId: { in: repoIds } } } });
+    await prisma.review.deleteMany({
+      where: { repo: { githubId: { in: repoIds } } },
+    });
     await prisma.repo.deleteMany({ where: { githubId: { in: repoIds } } });
     await prisma.installation.deleteMany({
-      where: { githubId: { in: [BigInt(ids.installation), BigInt(ids.reinstalled)] } },
+      where: {
+        githubId: { in: [BigInt(ids.installation), BigInt(ids.reinstalled)] },
+      },
     });
     await module.close();
     vi.restoreAllMocks();
@@ -73,15 +89,22 @@ describe('Installation lifecycle (real database)', () => {
   beforeEach(() => invalidate.mockClear());
 
   const installationRow = (githubId: number) =>
-    prisma.installation.findUniqueOrThrow({ where: { githubId: BigInt(githubId) } });
+    prisma.installation.findUniqueOrThrow({
+      where: { githubId: BigInt(githubId) },
+    });
   const repoRow = (githubId: number) =>
-    prisma.repo.findUniqueOrThrow({ where: { githubId: BigInt(githubId) }, include: { reviews: true } });
+    prisma.repo.findUniqueOrThrow({
+      where: { githubId: BigInt(githubId) },
+      include: { reviews: true },
+    });
 
   // The steps below share state on purpose: each one is the next event in one real
   // lifecycle, and the assertions are about what that sequence leaves behind.
 
   it('install: records the installation and its repositories', async () => {
-    await service.created(installationEvent('created', ids.installation, [repoA, repoB]));
+    await service.created(
+      installationEvent('created', ids.installation, [repoA, repoB]),
+    );
 
     const installation = await installationRow(ids.installation);
     expect(installation.deletedAt).toBeNull();
@@ -93,7 +116,13 @@ describe('Installation lifecycle (real database)', () => {
 
     // Stand-in for week 3: a review now hangs off this repo. It is what must survive.
     await prisma.review.create({
-      data: { repoId: repo.id, prNumber: 1, baseSha: 'base123', headSha: 'abc123', status: ReviewStatus.COMPLETED },
+      data: {
+        repoId: repo.id,
+        prNumber: 1,
+        baseSha: 'base123',
+        headSha: 'abc123',
+        status: ReviewStatus.COMPLETED,
+      },
     });
   });
 
@@ -114,7 +143,9 @@ describe('Installation lifecycle (real database)', () => {
   it('reinstall under the same installation ID: revives the original rows', async () => {
     const before = await installationRow(ids.installation);
 
-    await service.created(installationEvent('created', ids.installation, [repoA]));
+    await service.created(
+      installationEvent('created', ids.installation, [repoA]),
+    );
 
     const after = await installationRow(ids.installation);
     expect(after.id).toBe(before.id); // same row, not a new one
@@ -132,7 +163,9 @@ describe('Installation lifecycle (real database)', () => {
   // because it hangs off the Repo, and repo IDs survive an uninstall.
   it('reinstall under a new installation ID: the old repo row follows it, history intact', async () => {
     await service.deleted(installationEvent('deleted', ids.installation));
-    await service.created(installationEvent('created', ids.reinstalled, [repoA]));
+    await service.created(
+      installationEvent('created', ids.reinstalled, [repoA]),
+    );
 
     const fresh = await installationRow(ids.reinstalled);
     const repo = await repoRow(ids.repoA);
@@ -142,17 +175,25 @@ describe('Installation lifecycle (real database)', () => {
     expect(repo.reviews).toHaveLength(1);
 
     // The old installation stays as a soft-deleted record of the first install.
-    expect((await installationRow(ids.installation)).deletedAt).toBeInstanceOf(Date);
+    expect((await installationRow(ids.installation)).deletedAt).toBeInstanceOf(
+      Date,
+    );
   });
 
   it('suspend and unsuspend set and clear suspendedAt, and evict the token on suspend', async () => {
     const suspendedAt = '2026-09-11T10:00:00Z';
     await service.suspended({
       ...installationEvent('suspend', ids.reinstalled),
-      installation: { id: ids.reinstalled, account: { login: 'itest-owner', type: 'User' }, suspended_at: suspendedAt },
+      installation: {
+        id: ids.reinstalled,
+        account: { login: 'itest-owner', type: 'User' },
+        suspended_at: suspendedAt,
+      },
     });
 
-    expect((await installationRow(ids.reinstalled)).suspendedAt).toEqual(new Date(suspendedAt));
+    expect((await installationRow(ids.reinstalled)).suspendedAt).toEqual(
+      new Date(suspendedAt),
+    );
     expect(invalidate).toHaveBeenCalledWith(ids.reinstalled);
 
     await service.unsuspended(installationEvent('unsuspend', ids.reinstalled));
@@ -160,15 +201,34 @@ describe('Installation lifecycle (real database)', () => {
   });
 
   it('repositories added and removed: upserts and soft deletes individual repos', async () => {
-    const installation = { id: ids.reinstalled, account: { login: 'itest-owner', type: 'User' } };
-    const beta = { id: ids.repoB, full_name: `itest-owner/beta-${base}`, private: true };
+    const installation = {
+      id: ids.reinstalled,
+      account: { login: 'itest-owner', type: 'User' },
+    };
+    const beta = {
+      id: ids.repoB,
+      full_name: `itest-owner/beta-${base}`,
+      private: true,
+    };
 
-    await service.reposAdded({ action: 'added', installation, repositories_added: [beta], repositories_removed: [] });
+    await service.reposAdded({
+      action: 'added',
+      installation,
+      repositories_added: [beta],
+      repositories_removed: [],
+    });
     const added = await repoRow(ids.repoB);
     expect(added.deletedAt).toBeNull();
-    expect(added.installationId).toBe((await installationRow(ids.reinstalled)).id);
+    expect(added.installationId).toBe(
+      (await installationRow(ids.reinstalled)).id,
+    );
 
-    await service.reposRemoved({ action: 'removed', installation, repositories_added: [], repositories_removed: [beta] });
+    await service.reposRemoved({
+      action: 'removed',
+      installation,
+      repositories_added: [],
+      repositories_removed: [beta],
+    });
     expect((await repoRow(ids.repoB)).deletedAt).toBeInstanceOf(Date);
   });
 
@@ -185,15 +245,23 @@ describe('Installation lifecycle (real database)', () => {
       service.created(installationEvent('created', racer, [racerRepo])),
     ]);
 
-    expect(await prisma.installation.count({ where: { githubId: BigInt(racer) } })).toBe(1);
-    expect(await prisma.repo.count({ where: { githubId: BigInt(racerRepo.id) } })).toBe(1);
+    expect(
+      await prisma.installation.count({ where: { githubId: BigInt(racer) } }),
+    ).toBe(1);
+    expect(
+      await prisma.repo.count({ where: { githubId: BigInt(racerRepo.id) } }),
+    ).toBe(1);
 
     await prisma.repo.deleteMany({ where: { githubId: BigInt(racerRepo.id) } });
-    await prisma.installation.deleteMany({ where: { githubId: BigInt(racer) } });
+    await prisma.installation.deleteMany({
+      where: { githubId: BigInt(racer) },
+    });
   });
 
   it('uninstalling an installation that was never recorded is a no-op, not an error', async () => {
-    await expect(service.deleted(installationEvent('deleted', base + 99))).resolves.toBeUndefined();
+    await expect(
+      service.deleted(installationEvent('deleted', base + 99)),
+    ).resolves.toBeUndefined();
     expect(invalidate).toHaveBeenCalledWith(base + 99);
   });
 });

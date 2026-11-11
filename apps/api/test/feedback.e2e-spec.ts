@@ -4,7 +4,11 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { FeedbackPoller } from '../src/feedback/feedback-poller.js';
 import { feedbackRate } from '../src/feedback/feedback-rate.js';
-import { FindingSide, ReviewStatus, Severity } from '../src/generated/prisma/client.js';
+import {
+  FindingSide,
+  ReviewStatus,
+  Severity,
+} from '../src/generated/prisma/client.js';
 import { truncateAll } from './helpers/db.js';
 import { fakeGithub, type FakeReaction } from './helpers/github-fake.js';
 
@@ -22,44 +26,84 @@ describe('Feedback from reactions (e2e)', () => {
   const NOW = new Date('2026-09-17T12:00:00Z');
   const PERSON = { id: 161845983, type: 'User' as const };
   const OTHER = { id: 42, type: 'User' as const };
-  const react = (content: string, user: FakeReaction['user'], minute = 0): FakeReaction => ({
+  const react = (
+    content: string,
+    user: FakeReaction['user'],
+    minute = 0,
+  ): FakeReaction => ({
     content,
     created_at: `2026-09-17T11:${String(minute).padStart(2, '0')}:00Z`,
     user,
   });
 
   /** An installation, repo and completed review with one posted finding per comment ID. */
-  async function seed(commentIds: number[], { completedAt = NOW, suspended = false } = {}) {
+  async function seed(
+    commentIds: number[],
+    { completedAt = NOW, suspended = false } = {},
+  ) {
     const installation = await prisma.installation.create({
-      data: { githubId: 160831076n, accountLogin: 'masabinhok', accountType: 'User', suspendedAt: suspended ? NOW : null },
+      data: {
+        githubId: 160831076n,
+        accountLogin: 'masabinhok',
+        accountType: 'User',
+        suspendedAt: suspended ? NOW : null,
+      },
     });
     const repo = await prisma.repo.create({
-      data: { githubId: 1n, installationId: installation.id, fullName: 'masabinhok/pr-reviewer', private: false, defaultBranch: 'main' },
+      data: {
+        githubId: 1n,
+        installationId: installation.id,
+        fullName: 'masabinhok/pr-reviewer',
+        private: false,
+        defaultBranch: 'main',
+      },
     });
     const review = await prisma.review.create({
-      data: { repoId: repo.id, prNumber: 33, baseSha: 'b', headSha: 'h', status: ReviewStatus.COMPLETED, completedAt },
+      data: {
+        repoId: repo.id,
+        prNumber: 33,
+        baseSha: 'b',
+        headSha: 'h',
+        status: ReviewStatus.COMPLETED,
+        completedAt,
+      },
     });
     for (const [i, commentId] of commentIds.entries()) {
       await prisma.finding.create({
         data: {
-          reviewId: review.id, filePath: 'src/a.ts', line: 10 + i, side: FindingSide.RIGHT, severity: Severity.HIGH,
-          category: 'correctness', summary: `finding ${i}`, whyItBreaks: 'x', fingerprint: `f${i}`, githubCommentId: BigInt(commentId),
+          reviewId: review.id,
+          filePath: 'src/a.ts',
+          line: 10 + i,
+          side: FindingSide.RIGHT,
+          severity: Severity.HIGH,
+          category: 'correctness',
+          summary: `finding ${i}`,
+          whyItBreaks: 'x',
+          fingerprint: `f${i}`,
+          githubCommentId: BigInt(commentId),
         },
       });
     }
   }
 
   const feedbackOn = (commentId: number) =>
-    prisma.feedback.findMany({ where: { finding: { githubCommentId: BigInt(commentId) } }, orderBy: { githubUserId: 'asc' } });
-  const reactionCalls = () => github.calls.filter((c) => c.path.endsWith('/reactions')).length;
+    prisma.feedback.findMany({
+      where: { finding: { githubCommentId: BigInt(commentId) } },
+      orderBy: { githubUserId: 'asc' },
+    });
+  const reactionCalls = () =>
+    github.calls.filter((c) => c.path.endsWith('/reactions')).length;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication({ rawBody: true });
     await app.init();
     prisma = app.get(PrismaService);
     poller = app.get(FeedbackPoller);
-    for (const level of ['log', 'warn'] as const) vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
+    for (const level of ['log', 'warn'] as const)
+      vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
   });
 
   afterAll(async () => {
@@ -83,7 +127,11 @@ describe('Feedback from reactions (e2e)', () => {
 
     expect(summary).toMatchObject({ checked: 1, updated: 1 });
     expect(await feedbackOn(991)).toEqual([
-      expect.objectContaining({ signal: 'DOWN', githubUserId: 161845983n, reactedAt: new Date('2026-09-17T11:50:00Z') }),
+      expect.objectContaining({
+        signal: 'DOWN',
+        githubUserId: 161845983n,
+        reactedAt: new Date('2026-09-17T11:50:00Z'),
+      }),
     ]);
   });
 
@@ -97,7 +145,9 @@ describe('Feedback from reactions (e2e)', () => {
 
     expect(summary).toMatchObject({ checked: 1, unchanged: 1, updated: 0 });
     expect(await feedbackOn(991)).toHaveLength(1);
-    const [, second] = github.calls.filter((c) => c.path.endsWith('/reactions'));
+    const [, second] = github.calls.filter((c) =>
+      c.path.endsWith('/reactions'),
+    );
     expect(second).toBeDefined();
   });
 
@@ -109,12 +159,18 @@ describe('Feedback from reactions (e2e)', () => {
     reactions.set(991, [react('+1', PERSON, 1), react('-1', PERSON, 9)]); // PERSON adds 👎 later; OTHER removes 👍
     await poller.pollOnce(NOW);
 
-    expect((await feedbackOn(991)).map((f) => [f.githubUserId, f.signal])).toEqual([[161845983n, 'DOWN']]);
+    expect(
+      (await feedbackOn(991)).map((f) => [f.githubUserId, f.signal]),
+    ).toEqual([[161845983n, 'DOWN']]);
   });
 
   it('ignores reactions that are not 👍 or 👎, and bots', async () => {
     await seed([991]);
-    reactions.set(991, [react('heart', PERSON), react('rocket', OTHER), react('+1', { id: 7, type: 'Bot' })]);
+    reactions.set(991, [
+      react('heart', PERSON),
+      react('rocket', OTHER),
+      react('+1', { id: 7, type: 'Bot' }),
+    ]);
 
     await poller.pollOnce(NOW);
 
@@ -129,7 +185,9 @@ describe('Feedback from reactions (e2e)', () => {
     await poller.pollOnce(NOW);
 
     expect(reactionCalls()).toBe(calls);
-    expect(await prisma.finding.findFirst()).toMatchObject({ commentGoneAt: NOW });
+    expect(await prisma.finding.findFirst()).toMatchObject({
+      commentGoneAt: NOW,
+    });
   });
 
   it('does not poll comments from reviews older than the window, or a suspended installation', async () => {
@@ -152,6 +210,11 @@ describe('Feedback from reactions (e2e)', () => {
     // 994 was deleted on GitHub.
     await poller.pollOnce(NOW);
 
-    expect(await feedbackRate(prisma)).toEqual({ posted: 3, withFeedback: 2, upvoted: 1, downvoted: 2 });
+    expect(await feedbackRate(prisma)).toEqual({
+      posted: 3,
+      withFeedback: 2,
+      upvoted: 1,
+      downvoted: 2,
+    });
   });
 });

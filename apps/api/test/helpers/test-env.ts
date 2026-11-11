@@ -11,7 +11,9 @@ config({ path: '../../.env', quiet: true });
 export function testDatabaseUrl(): string {
   if (process.env.TEST_DATABASE_URL) return process.env.TEST_DATABASE_URL;
   if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set — copy .env.example to .env at the repo root');
+    throw new Error(
+      'DATABASE_URL is not set — copy .env.example to .env at the repo root',
+    );
   }
   const url = new URL(process.env.DATABASE_URL);
   url.pathname = '/pr_reviewer_test';
@@ -27,7 +29,9 @@ export function testDatabaseUrl(): string {
 export function testRedisUrl(): string {
   if (process.env.TEST_REDIS_URL) return process.env.TEST_REDIS_URL;
   if (!process.env.REDIS_URL) {
-    throw new Error('REDIS_URL is not set — copy .env.example to .env at the repo root');
+    throw new Error(
+      'REDIS_URL is not set — copy .env.example to .env at the repo root',
+    );
   }
   const url = new URL(process.env.REDIS_URL);
   url.pathname = '/1';

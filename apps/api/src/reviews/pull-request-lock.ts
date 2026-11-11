@@ -30,10 +30,15 @@ export class PullRequestLock {
   }
 
   /** A release function if the lock was free, or null if another review holds it. */
-  async acquire(repo: string, prNumber: number, ttlMs = 120_000): Promise<(() => Promise<void>) | null> {
+  async acquire(
+    repo: string,
+    prNumber: number,
+    ttlMs = 120_000,
+  ): Promise<(() => Promise<void>) | null> {
     const key = `${this.prefix}:settle:${repo}#${prNumber}`;
     const token = randomUUID();
-    if ((await this.redis.set(key, token, 'PX', ttlMs, 'NX')) !== 'OK') return null;
+    if ((await this.redis.set(key, token, 'PX', ttlMs, 'NX')) !== 'OK')
+      return null;
     return async () => {
       await this.redis.eval(RELEASE, 1, key, token);
     };

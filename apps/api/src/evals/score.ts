@@ -63,7 +63,10 @@ export type Judgments = Record<string, 'right' | 'wrong'>;
 /** A finding is at a bug when it is in the same file within this many lines of it (trap 6). */
 export const MATCH_DISTANCE = 3;
 
-export function matchKey(result: Pick<FixtureResult, 'fixture' | 'run'>, f: Pick<EvalFinding, 'path' | 'line' | 'side'>): string {
+export function matchKey(
+  result: Pick<FixtureResult, 'fixture' | 'run'>,
+  f: Pick<EvalFinding, 'path' | 'line' | 'side'>,
+): string {
   return `${result.fixture}#${result.run}#${f.path}:${f.line}:${f.side}`;
 }
 
@@ -76,22 +79,34 @@ function near(line: number, [from, to]: [number, number]): boolean {
  * side it comments on — head lines for a comment on the new code, base lines for one on removed
  * code. Any of the bug's places (`alsoAt`) will do.
  */
-export function isAt(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bug: Bug): boolean {
+export function isAt(
+  finding: Pick<EvalFinding, 'path' | 'line' | 'side'>,
+  bug: Bug,
+): boolean {
   const places: Region[] = [bug, ...(bug.alsoAt ?? [])];
   return places.some(
-    (r) => r.file === finding.path && near(finding.line, finding.side === 'RIGHT' ? r.head : r.base),
+    (r) =>
+      r.file === finding.path &&
+      near(finding.line, finding.side === 'RIGHT' ? r.head : r.base),
   );
 }
 
 /** How far a finding is from a bug: 0 inside its lines, else lines to the nearest edge of any of its places. */
-function distance(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bug: Bug): number {
+function distance(
+  finding: Pick<EvalFinding, 'path' | 'line' | 'side'>,
+  bug: Bug,
+): number {
   const places: Region[] = [bug, ...(bug.alsoAt ?? [])];
   return Math.min(
     ...places
       .filter((r) => r.file === finding.path)
       .map((r) => {
         const [from, to] = finding.side === 'RIGHT' ? r.head : r.base;
-        return finding.line < from ? from - finding.line : finding.line > to ? finding.line - to : 0;
+        return finding.line < from
+          ? from - finding.line
+          : finding.line > to
+            ? finding.line - to
+            : 0;
       }),
   );
 }
@@ -100,7 +115,10 @@ function distance(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bug: Bug
  * The one bug a finding is at, when it is at any: the nearest. Bugs a few lines apart (the
  * planted-bugs PR has one every four or five lines) would otherwise let one comment find two.
  */
-export function bugAt<B extends Bug>(finding: Pick<EvalFinding, 'path' | 'line' | 'side'>, bugs: B[]): B | undefined {
+export function bugAt<B extends Bug>(
+  finding: Pick<EvalFinding, 'path' | 'line' | 'side'>,
+  bugs: B[],
+): B | undefined {
   const at = bugs.filter((b) => isAt(finding, b));
   return at.sort((a, b) => distance(finding, a) - distance(finding, b))[0];
 }
@@ -119,17 +137,28 @@ export interface FixtureScore {
   unread: number;
 }
 
-export function scoreResult(result: FixtureResult, fixture: Fixture, level: Level, judgments: Judgments = {}): FixtureScore {
+export function scoreResult(
+  result: FixtureResult,
+  fixture: Fixture,
+  level: Level,
+  judgments: Judgments = {},
+): FixtureScore {
   const findings = result.findings.filter((f) => level === 'kept' || f.posted);
-  const counts = (f: EvalFinding, bug: Bug) => bugAt(f, fixture.bugs) === bug && judgments[matchKey(result, f)] !== 'wrong';
+  const counts = (f: EvalFinding, bug: Bug) =>
+    bugAt(f, fixture.bugs) === bug &&
+    judgments[matchKey(result, f)] !== 'wrong';
 
-  const matching = findings.filter((f) => fixture.bugs.some((b) => counts(f, b)));
+  const matching = findings.filter((f) =>
+    fixture.bugs.some((b) => counts(f, b)),
+  );
   return {
     bugs: fixture.bugs.length,
-    found: fixture.bugs.filter((b) => findings.some((f) => counts(f, b))).length,
+    found: fixture.bugs.filter((b) => findings.some((f) => counts(f, b)))
+      .length,
     findings: findings.length,
     matched: matching.length,
-    unread: matching.filter((f) => judgments[matchKey(result, f)] === undefined).length,
+    unread: matching.filter((f) => judgments[matchKey(result, f)] === undefined)
+      .length,
   };
 }
 
@@ -163,7 +192,13 @@ export function scoreRun(
   judgments: Judgments = {},
 ): RunScore {
   const mine = results.filter((r) => r.run === run && fixtures.has(r.fixture));
-  let bugs = 0, found = 0, findings = 0, matched = 0, cleanFixtures = 0, cleanFindings = 0, unread = 0;
+  let bugs = 0,
+    found = 0,
+    findings = 0,
+    matched = 0,
+    cleanFixtures = 0,
+    cleanFindings = 0,
+    unread = 0;
   for (const result of mine) {
     const fixture = fixtures.get(result.fixture)!;
     const s = scoreResult(result, fixture, level, judgments);
@@ -190,7 +225,9 @@ export function scoreRun(
     cleanFindings,
     errors: mine.length - timed.length,
     unread,
-    meanSeconds: timed.length ? timed.reduce((t, r) => t + r.seconds, 0) / timed.length : null,
+    meanSeconds: timed.length
+      ? timed.reduce((t, r) => t + r.seconds, 0) / timed.length
+      : null,
   };
 }
 

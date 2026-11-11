@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GithubApiService } from '../github/github-api.service.js';
-import { FindingStatus, ResolvedBy, type Finding } from '../generated/prisma/client.js';
+import {
+  FindingStatus,
+  ResolvedBy,
+  type Finding,
+} from '../generated/prisma/client.js';
 import type { ReviewTarget } from './review.processor.js';
 
 /**
@@ -48,29 +52,50 @@ export class StaleFindings {
     });
     if (open.length === 0) return 0;
 
-    const foundAgain = new Set(findings.map((f) => f.repeatOfId).filter((id): id is string => id !== null));
+    const foundAgain = new Set(
+      findings
+        .map((f) => f.repeatOfId)
+        .filter((id): id is string => id !== null),
+    );
     const candidates = open.filter((f) => !foundAgain.has(f.id));
     if (candidates.length === 0) return 0;
 
-    const threads = await this.github.listReviewThreads(target.installationId, target.repo, target.prNumber);
-    const outdated = new Map(threads.filter((t) => t.isOutdated).map((t) => [String(t.commentId), t]));
+    const threads = await this.github.listReviewThreads(
+      target.installationId,
+      target.repo,
+      target.prNumber,
+    );
+    const outdated = new Map(
+      threads.filter((t) => t.isOutdated).map((t) => [String(t.commentId), t]),
+    );
 
-    const stale = candidates.filter((f) => outdated.has(String(f.githubCommentId)));
+    const stale = candidates.filter((f) =>
+      outdated.has(String(f.githubCommentId)),
+    );
     if (stale.length === 0) return 0;
 
     await this.prisma.finding.updateMany({
       where: { id: { in: stale.map((f) => f.id) } },
-      data: { status: FindingStatus.RESOLVED, resolvedAt: new Date(), resolvedBy: ResolvedBy.APP },
+      data: {
+        status: FindingStatus.RESOLVED,
+        resolvedAt: new Date(),
+        resolvedBy: ResolvedBy.APP,
+      },
     });
 
     for (const finding of stale) {
       const thread = outdated.get(String(finding.githubCommentId))!;
       if (thread.isMinimized) continue;
       try {
-        await this.github.minimizeComment(target.installationId, thread.commentNodeId);
+        await this.github.minimizeComment(
+          target.installationId,
+          thread.commentNodeId,
+        );
       } catch (e) {
         // The row already says resolved; a comment left expanded is untidy, not wrong.
-        this.logger.warn(`review ${target.reviewId}: could not collapse the comment on ${finding.filePath}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.warn(
+          `review ${target.reviewId}: could not collapse the comment on ${finding.filePath}:${finding.line}: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     }
 
@@ -84,12 +109,19 @@ export class StaleFindings {
    * Someone resolved or reopened a thread on GitHub. Their decision wins over ours: a
    * resolved thread's findings are RESOLVED, and reopening one puts them back to OPEN.
    */
-  async setResolvedByPerson(commentIds: bigint[], resolved: boolean): Promise<number> {
+  async setResolvedByPerson(
+    commentIds: bigint[],
+    resolved: boolean,
+  ): Promise<number> {
     if (commentIds.length === 0) return 0;
     const { count } = await this.prisma.finding.updateMany({
       where: { githubCommentId: { in: commentIds } },
       data: resolved
-        ? { status: FindingStatus.RESOLVED, resolvedAt: new Date(), resolvedBy: ResolvedBy.PERSON }
+        ? {
+            status: FindingStatus.RESOLVED,
+            resolvedAt: new Date(),
+            resolvedBy: ResolvedBy.PERSON,
+          }
         : { status: FindingStatus.OPEN, resolvedAt: null, resolvedBy: null },
     });
     return count;

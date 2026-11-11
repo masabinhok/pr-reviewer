@@ -1,11 +1,20 @@
 import { Logger } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
-import { ReviewPublisher, commentBody, reviewMarker } from './review-publisher.js';
+import {
+  ReviewPublisher,
+  commentBody,
+  reviewMarker,
+} from './review-publisher.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { GithubApiService } from '../github/github-api.service.js';
 import type { ConfigService } from '@nestjs/config';
 import { GithubApiError } from '../github/github-api.errors.js';
-import { FindingSide, FindingStatus, Severity, type Finding } from '../generated/prisma/client.js';
+import {
+  FindingSide,
+  FindingStatus,
+  Severity,
+  type Finding,
+} from '../generated/prisma/client.js';
 import type { ReviewTarget } from './review.processor.js';
 
 const target: ReviewTarget = {
@@ -18,7 +27,10 @@ const target: ReviewTarget = {
 };
 
 let nextId = 1;
-function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding {
+function finding(
+  severity: Severity,
+  overrides: Partial<Finding> = {},
+): Finding {
   return {
     id: `f-${nextId++}`,
     reviewId: 'rev-1',
@@ -48,7 +60,10 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
 
 describe('ReviewPublisher', () => {
   let prisma: {
-    review: { findUniqueOrThrow: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+    review: {
+      findUniqueOrThrow: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+    };
     finding: { update: ReturnType<typeof vi.fn> };
   };
   let github: {
@@ -73,19 +88,27 @@ describe('ReviewPublisher', () => {
       finding: { update: vi.fn().mockResolvedValue({}) },
     };
     github = {
-      createReview: vi.fn().mockResolvedValue({ id: 9001, html_url: 'https://github.com/octo/widgets/pull/6#pullrequestreview-9001' }),
+      createReview: vi.fn().mockResolvedValue({
+        id: 9001,
+        html_url:
+          'https://github.com/octo/widgets/pull/6#pullrequestreview-9001',
+      }),
       listReviews: vi.fn().mockResolvedValue([]),
       listReviewComments: vi.fn().mockResolvedValue([]),
     };
     publisher = withBar(Severity.MEDIUM);
-    for (const level of ['log', 'warn'] as const) vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
+    for (const level of ['log', 'warn'] as const)
+      vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
   });
 
   afterEach(() => vi.restoreAllMocks());
 
   it('posts high and medium findings as one review, and keeps low ones out of it', async () => {
     const high = finding(Severity.HIGH, { line: 18 });
-    const medium = finding(Severity.MEDIUM, { line: 28, category: 'correctness' });
+    const medium = finding(Severity.MEDIUM, {
+      line: 28,
+      category: 'correctness',
+    });
     const low = finding(Severity.LOW, { line: 32 });
 
     const publication = await publisher.publish(target, [high, medium, low]);
@@ -94,8 +117,13 @@ describe('ReviewPublisher', () => {
     const [installation, repo, pr, review] = github.createReview.mock.calls[0];
     expect([installation, repo, pr]).toEqual([42n, 'octo/widgets', 6]);
     expect(review.commitId).toBe('head111');
-    expect(review.comments.map((c: { line: number }) => c.line)).toEqual([18, 28]);
-    expect(review.comments[0]).toMatchObject({ path: 'src/users.ts', side: 'RIGHT' });
+    expect(review.comments.map((c: { line: number }) => c.line)).toEqual([
+      18, 28,
+    ]);
+    expect(review.comments[0]).toMatchObject({
+      path: 'src/users.ts',
+      side: 'RIGHT',
+    });
     expect(review.body).toBe(
       'pr-reviewer found 2 issues (1 high, 1 medium). 1 lower-severity note is in the pr-reviewer check.\n\n' +
         reviewMarker('rev-1'),
@@ -110,26 +138,43 @@ describe('ReviewPublisher', () => {
 
   describe('findings an earlier review already commented on', () => {
     it('are not posted again, and are counted', async () => {
-      const again = finding(Severity.HIGH, { line: 18, repeatOfId: 'first-comment' });
-      const fresh = finding(Severity.HIGH, { line: 22, category: 'correctness' });
+      const again = finding(Severity.HIGH, {
+        line: 18,
+        repeatOfId: 'first-comment',
+      });
+      const fresh = finding(Severity.HIGH, {
+        line: 22,
+        category: 'correctness',
+      });
 
-      const publication = await withBar(Severity.HIGH).publish(target, [again, fresh]);
+      const publication = await withBar(Severity.HIGH).publish(target, [
+        again,
+        fresh,
+      ]);
 
       const [, , , review] = github.createReview.mock.calls[0];
-      expect(review.comments.map((c: { line: number }) => c.line)).toEqual([22]);
-      expect(review.body).toBe(`pr-reviewer found 1 issue (1 high).\n\n${reviewMarker('rev-1')}`);
+      expect(review.comments.map((c: { line: number }) => c.line)).toEqual([
+        22,
+      ]);
+      expect(review.body).toBe(
+        `pr-reviewer found 1 issue (1 high).\n\n${reviewMarker('rev-1')}`,
+      );
       expect(publication).toMatchObject({ posted: 1, repeated: 1 });
     });
 
     it('post no review at all when every finding is a repeat', async () => {
-      const publication = await withBar(Severity.HIGH).publish(target, [finding(Severity.HIGH, { repeatOfId: 'first-comment' })]);
+      const publication = await withBar(Severity.HIGH).publish(target, [
+        finding(Severity.HIGH, { repeatOfId: 'first-comment' }),
+      ]);
 
       expect(github.createReview).not.toHaveBeenCalled();
       expect(publication).toMatchObject({ posted: 0, repeated: 1, url: null });
     });
 
     it('are not counted as repeats when they are below the bar anyway', async () => {
-      const publication = await withBar(Severity.HIGH).publish(target, [finding(Severity.LOW, { repeatOfId: 'first-comment' })]);
+      const publication = await withBar(Severity.HIGH).publish(target, [
+        finding(Severity.LOW, { repeatOfId: 'first-comment' }),
+      ]);
 
       expect(publication.repeated).toBe(0);
     });
@@ -141,16 +186,27 @@ describe('ReviewPublisher', () => {
     const high = finding(Severity.HIGH, { line: 18 });
     const medium = finding(Severity.MEDIUM, { line: 28 });
 
-    const publication = await withBar(Severity.HIGH).publish(target, [high, medium]);
+    const publication = await withBar(Severity.HIGH).publish(target, [
+      high,
+      medium,
+    ]);
 
     const [, , , review] = github.createReview.mock.calls[0];
     expect(review.comments.map((c: { line: number }) => c.line)).toEqual([18]);
-    expect(review.body).toContain('1 lower-severity note is in the pr-reviewer check');
-    expect(publication).toMatchObject({ posted: 1, minSeverity: Severity.HIGH });
+    expect(review.body).toContain(
+      '1 lower-severity note is in the pr-reviewer check',
+    );
+    expect(publication).toMatchObject({
+      posted: 1,
+      minSeverity: Severity.HIGH,
+    });
   });
 
   it('with the bar at low, posts everything', async () => {
-    await withBar(Severity.LOW).publish(target, [finding(Severity.HIGH), finding(Severity.LOW, { line: 32 })]);
+    await withBar(Severity.LOW).publish(target, [
+      finding(Severity.HIGH),
+      finding(Severity.LOW, { line: 32 }),
+    ]);
 
     expect(github.createReview.mock.calls[0][3].comments).toHaveLength(2);
   });
@@ -158,13 +214,20 @@ describe('ReviewPublisher', () => {
   it('stores the GitHub review ID so a retry never posts again', async () => {
     await publisher.publish(target, [finding(Severity.HIGH)]);
 
-    expect(prisma.review.update).toHaveBeenCalledWith({ where: { id: 'rev-1' }, data: { githubReviewId: 9001n } });
+    expect(prisma.review.update).toHaveBeenCalledWith({
+      where: { id: 'rev-1' },
+      data: { githubReviewId: 9001n },
+    });
   });
 
   it('posts nothing when the review was already posted', async () => {
-    prisma.review.findUniqueOrThrow.mockResolvedValue({ githubReviewId: 9001n });
+    prisma.review.findUniqueOrThrow.mockResolvedValue({
+      githubReviewId: 9001n,
+    });
 
-    const publication = await publisher.publish(target, [finding(Severity.HIGH)]);
+    const publication = await publisher.publish(target, [
+      finding(Severity.HIGH),
+    ]);
 
     expect(github.createReview).not.toHaveBeenCalled();
     expect(github.listReviews).not.toHaveBeenCalled();
@@ -175,21 +238,38 @@ describe('ReviewPublisher', () => {
   it('adopts a review an earlier attempt posted but never recorded, instead of posting twice', async () => {
     github.listReviews.mockResolvedValue([
       { id: 111, body: 'someone else’s review', html_url: 'u1' },
-      { id: 8000, body: `pr-reviewer found 1 issue (1 high).\n\n${reviewMarker('rev-1')}`, html_url: 'u2' },
+      {
+        id: 8000,
+        body: `pr-reviewer found 1 issue (1 high).\n\n${reviewMarker('rev-1')}`,
+        html_url: 'u2',
+      },
     ]);
 
-    const publication = await publisher.publish(target, [finding(Severity.HIGH)]);
+    const publication = await publisher.publish(target, [
+      finding(Severity.HIGH),
+    ]);
 
     expect(github.createReview).not.toHaveBeenCalled();
-    expect(prisma.review.update).toHaveBeenCalledWith({ where: { id: 'rev-1' }, data: { githubReviewId: 8000n } });
+    expect(prisma.review.update).toHaveBeenCalledWith({
+      where: { id: 'rev-1' },
+      data: { githubReviewId: 8000n },
+    });
     expect(publication.url).toBe('u2');
   });
 
   it('posts nothing when no finding meets the severity gate', async () => {
-    const publication = await publisher.publish(target, [finding(Severity.LOW), finding(Severity.LOW)]);
+    const publication = await publisher.publish(target, [
+      finding(Severity.LOW),
+      finding(Severity.LOW),
+    ]);
 
     expect(github.createReview).not.toHaveBeenCalled();
-    expect(publication).toEqual({ posted: 0, url: null, minSeverity: Severity.MEDIUM, repeated: 0 });
+    expect(publication).toEqual({
+      posted: 0,
+      url: null,
+      minSeverity: Severity.MEDIUM,
+      repeated: 0,
+    });
   });
 
   it('links each posted finding to its comment, matching path, line and side', async () => {
@@ -204,7 +284,10 @@ describe('ReviewPublisher', () => {
 
     await publisher.publish(target, [a, b, c]);
 
-    const links = prisma.finding.update.mock.calls.map(([arg]) => [arg.where.id, arg.data.githubCommentId]);
+    const links = prisma.finding.update.mock.calls.map(([arg]) => [
+      arg.where.id,
+      arg.data.githubCommentId,
+    ]);
     expect(links).toEqual([
       [a.id, 502n],
       [b.id, 503n],
@@ -215,15 +298,31 @@ describe('ReviewPublisher', () => {
   // Every comment was validated against the diff first, so GitHub refusing one is a bug
   // the same request will hit again — not something to retry.
   it('does not retry a review GitHub refuses as unprocessable', async () => {
-    github.createReview.mockRejectedValue(new GithubApiError(422, '/repos/octo/widgets/pulls/6/reviews', 'Line could not be resolved'));
+    github.createReview.mockRejectedValue(
+      new GithubApiError(
+        422,
+        '/repos/octo/widgets/pulls/6/reviews',
+        'Line could not be resolved',
+      ),
+    );
 
-    await expect(publisher.publish(target, [finding(Severity.HIGH)])).rejects.toBeInstanceOf(UnrecoverableError);
+    await expect(
+      publisher.publish(target, [finding(Severity.HIGH)]),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
   });
 
   it('lets any other GitHub failure retry', async () => {
-    github.createReview.mockRejectedValue(new GithubApiError(502, '/repos/octo/widgets/pulls/6/reviews', 'Bad Gateway'));
+    github.createReview.mockRejectedValue(
+      new GithubApiError(
+        502,
+        '/repos/octo/widgets/pulls/6/reviews',
+        'Bad Gateway',
+      ),
+    );
 
-    const error = await publisher.publish(target, [finding(Severity.HIGH)]).catch((e) => e);
+    const error = await publisher
+      .publish(target, [finding(Severity.HIGH)])
+      .catch((e) => e);
 
     expect(error).toBeInstanceOf(GithubApiError);
     expect(error).not.toBeInstanceOf(UnrecoverableError);
@@ -240,6 +339,8 @@ describe('commentBody', () => {
   });
 
   it('leaves out the fix line when there is no fix', () => {
-    expect(commentBody(finding(Severity.MEDIUM, { suggestedFix: null }))).not.toContain('Suggested fix');
+    expect(
+      commentBody(finding(Severity.MEDIUM, { suggestedFix: null })),
+    ).not.toContain('Suggested fix');
   });
 });

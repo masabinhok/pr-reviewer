@@ -2,8 +2,14 @@ import { signalsByUser } from './feedback-poller.js';
 import { FeedbackSignal } from '../generated/prisma/client.js';
 import type { Reaction } from '../github/github-api.service.js';
 
-const at = (minute: number) => new Date(`2026-09-17T10:${String(minute).padStart(2, '0')}:00Z`);
-const reaction = (content: string, userId: number, minute: number, type = 'User'): Reaction => ({
+const at = (minute: number) =>
+  new Date(`2026-09-17T10:${String(minute).padStart(2, '0')}:00Z`);
+const reaction = (
+  content: string,
+  userId: number,
+  minute: number,
+  type = 'User',
+): Reaction => ({
   content,
   createdAt: at(minute),
   user: { id: BigInt(userId), type },
@@ -22,7 +28,9 @@ describe('signalsByUser', () => {
   it('ignores every other reaction — they say nothing about whether the comment was right', () => {
     const contents = ['laugh', 'confused', 'heart', 'hooray', 'rocket', 'eyes'];
 
-    expect(signalsByUser(contents.map((c, i) => reaction(c, i + 1, i))).size).toBe(0);
+    expect(
+      signalsByUser(contents.map((c, i) => reaction(c, i + 1, i))).size,
+    ).toBe(0);
   });
 
   it('does not count bots, this App included', () => {
@@ -31,8 +39,14 @@ describe('signalsByUser', () => {
 
   // GitHub lets one person leave both; what they think now is their latest.
   it('keeps one signal per person: the latest of their 👍 and 👎', () => {
-    const changedMind = signalsByUser([reaction('+1', 1, 1), reaction('-1', 1, 5)]);
-    const changedBack = signalsByUser([reaction('-1', 1, 5), reaction('+1', 1, 9)]);
+    const changedMind = signalsByUser([
+      reaction('+1', 1, 1),
+      reaction('-1', 1, 5),
+    ]);
+    const changedBack = signalsByUser([
+      reaction('-1', 1, 5),
+      reaction('+1', 1, 9),
+    ]);
 
     expect(changedMind.get(1n)?.signal).toBe(FeedbackSignal.DOWN);
     expect(changedBack.get(1n)?.signal).toBe(FeedbackSignal.UP);
@@ -43,19 +57,31 @@ describe('FeedbackPoller rate limits', () => {
   // A rate-limited installation is skipped for the rest of the round; others still get polled.
   it('stops asking for a rate-limited installation, and carries on with the others', async () => {
     const { FeedbackPoller } = await import('./feedback-poller.js');
-    const { GithubRateLimitError } = await import('../github/github-api.errors.js');
+    const { GithubRateLimitError } =
+      await import('../github/github-api.errors.js');
     const finding = (id: string, installation: bigint) => ({
       id,
       githubCommentId: 1n,
       reactionsEtag: null,
-      review: { repo: { fullName: 'o/r', installation: { githubId: installation } } },
+      review: {
+        repo: { fullName: 'o/r', installation: { githubId: installation } },
+      },
     });
     const prisma = {
-      finding: { findMany: vi.fn().mockResolvedValue([finding('a1', 1n), finding('a2', 1n), finding('b1', 2n)]) },
+      finding: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            finding('a1', 1n),
+            finding('a2', 1n),
+            finding('b1', 2n),
+          ]),
+      },
     };
     const github = {
       listCommentReactions: vi.fn(async (installation: bigint) => {
-        if (installation === 1n) throw new GithubRateLimitError('primary', new Date(), '/x');
+        if (installation === 1n)
+          throw new GithubRateLimitError('primary', new Date(), '/x');
         return { kind: 'unchanged' };
       }),
     };

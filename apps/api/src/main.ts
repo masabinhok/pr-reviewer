@@ -9,9 +9,9 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    rawBody: true
+    rawBody: true,
   });
-  app.enableShutdownHooks()
+  app.enableShutdownHooks();
   app.disable('x-powered-by');
   const configService = app.get(ConfigService);
   await app.listen(configService.getOrThrow<number>('port'));

@@ -6,13 +6,26 @@ import type { FeedbackPoller } from './feedback-poller.js';
 
 describe('FeedbackProcessor', () => {
   const make = (pollMs: number) => {
-    const queue = { upsertJobScheduler: vi.fn().mockResolvedValue(undefined), removeJobScheduler: vi.fn().mockResolvedValue(true) };
+    const queue = {
+      upsertJobScheduler: vi.fn().mockResolvedValue(undefined),
+      removeJobScheduler: vi.fn().mockResolvedValue(true),
+    };
     const poller = { pollOnce: vi.fn().mockResolvedValue({ checked: 0 }) };
     const config = { getOrThrow: () => pollMs } as unknown as ConfigService;
-    return { queue, poller, processor: new FeedbackProcessor(poller as unknown as FeedbackPoller, config, queue as unknown as Queue) };
+    return {
+      queue,
+      poller,
+      processor: new FeedbackProcessor(
+        poller as unknown as FeedbackPoller,
+        config,
+        queue as unknown as Queue,
+      ),
+    };
   };
 
-  beforeEach(() => vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined));
+  beforeEach(() =>
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  );
   afterEach(() => vi.restoreAllMocks());
 
   it('schedules the poll in Redis, so several processes still poll once', async () => {
@@ -20,7 +33,11 @@ describe('FeedbackProcessor', () => {
 
     await processor.onModuleInit();
 
-    expect(queue.upsertJobScheduler).toHaveBeenCalledWith('poll-reactions', { every: 300_000 }, expect.objectContaining({ name: 'poll' }));
+    expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
+      'poll-reactions',
+      { every: 300_000 },
+      expect.objectContaining({ name: 'poll' }),
+    );
   });
 
   it('removes the schedule when polling is turned off', async () => {

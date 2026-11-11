@@ -25,11 +25,20 @@ export async function reviewFixture(
 ): Promise<FixtureResult> {
   const now = options.now ?? Date.now;
   const lines = new LineMap(fixture.request.files);
-  const base = { fixture: fixture.id, run, kind: fixture.kind, split: fixture.split };
+  const base = {
+    fixture: fixture.id,
+    run,
+    kind: fixture.kind,
+    split: fixture.split,
+  };
   const started = now();
 
   try {
-    const answer = await reviewer.review({ ...fixture.request, installationId: options.installationId, lines });
+    const answer = await reviewer.review({
+      ...fixture.request,
+      installationId: options.installationId,
+      lines,
+    });
     const seconds = (now() - started) / 1000;
     const { accepted, dropped } = validateFindings(answer.findings, lines);
     const u = answer.run?.usage;
@@ -42,7 +51,9 @@ export async function reviewFixture(
       turns: answer.run?.turns ?? 0,
       toolCalls: answer.run?.toolCalls ?? 0,
       verifyCalls: answer.run?.verifyCalls ?? 0,
-      tokensIn: u ? u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens : 0,
+      tokensIn: u
+        ? u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens
+        : 0,
       tokensOut: u?.outputTokens ?? 0,
       findings: accepted.map((f) => ({
         path: f.path,

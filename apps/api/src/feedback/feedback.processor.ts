@@ -31,7 +31,11 @@ export class FeedbackProcessor extends WorkerHost implements OnModuleInit {
       await this.queue.removeJobScheduler(SCHEDULER_ID);
       return;
     }
-    await this.queue.upsertJobScheduler(SCHEDULER_ID, { every }, { name: 'poll', opts: { removeOnComplete: 100, removeOnFail: 100 } });
+    await this.queue.upsertJobScheduler(
+      SCHEDULER_ID,
+      { every },
+      { name: 'poll', opts: { removeOnComplete: 100, removeOnFail: 100 } },
+    );
     this.logger.log(`polling reactions every ${Math.round(every / 1000)}s`);
   }
 

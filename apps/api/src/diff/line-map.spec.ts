@@ -4,7 +4,12 @@ import { parseDiff } from './parse-diff.js';
 import { LineMap } from './line-map.js';
 import type { Side } from './diff.types.js';
 
-const diff = readFileSync(fileURLToPath(new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url)), 'utf8');
+const diff = readFileSync(
+  fileURLToPath(
+    new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url),
+  ),
+  'utf8',
+);
 const map = new LineMap(parseDiff(diff));
 
 describe('LineMap on a real PR diff', () => {
@@ -50,7 +55,18 @@ describe('LineMap on a real PR diff', () => {
   it('does not alias a copy’s source, which is a different file', () => {
     const copied = new LineMap(
       parseDiff(
-        ['diff --git a/a.ts b/b.ts', 'similarity index 90%', 'copy from a.ts', 'copy to b.ts', '--- a/a.ts', '+++ b/b.ts', '@@ -1 +1 @@', '-x', '+y', ''].join('\n'),
+        [
+          'diff --git a/a.ts b/b.ts',
+          'similarity index 90%',
+          'copy from a.ts',
+          'copy to b.ts',
+          '--- a/a.ts',
+          '+++ b/b.ts',
+          '@@ -1 +1 @@',
+          '-x',
+          '+y',
+          '',
+        ].join('\n'),
       ),
     );
     expect(copied.canComment('b.ts', 1, 'RIGHT')).toBe(true);

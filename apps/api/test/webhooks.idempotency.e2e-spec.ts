@@ -23,7 +23,8 @@ import { StaleFindings } from '../src/reviews/stale-findings.service.js';
 // Every row this file writes is prefixed, so cleanup deletes exactly its own rows and
 // leaves the database as the next file expects to find it.
 const PREFIX = 'itest-';
-const uniqueId = () => `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const uniqueId = () =>
+  `${PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const pullRequests = { handle: async () => 'enqueued' as const };
 
@@ -41,7 +42,10 @@ describe('WebhooksService idempotency (real database)', () => {
         PrismaService,
         { provide: InstallationsService, useValue: {} },
         { provide: PullRequestsService, useValue: pullRequests },
-        { provide: StaleFindings, useValue: { setResolvedByPerson: async () => 0 } },
+        {
+          provide: StaleFindings,
+          useValue: { setResolvedByPerson: async () => 0 },
+        },
       ],
     }).compile();
 
@@ -57,7 +61,9 @@ describe('WebhooksService idempotency (real database)', () => {
   });
 
   afterAll(async () => {
-    await prisma.webhookDelivery.deleteMany({ where: { deliveryId: { startsWith: PREFIX } } });
+    await prisma.webhookDelivery.deleteMany({
+      where: { deliveryId: { startsWith: PREFIX } },
+    });
     await module.close();
     vi.restoreAllMocks();
   });
@@ -65,24 +71,38 @@ describe('WebhooksService idempotency (real database)', () => {
   it('writes exactly one row when the same delivery arrives twice', async () => {
     const deliveryId = uniqueId();
 
-    const first = await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
-    const second = await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
+    const first = await service.handleWebhook(deliveryId, 'pull_request', {
+      action: 'opened',
+    });
+    const second = await service.handleWebhook(deliveryId, 'pull_request', {
+      action: 'opened',
+    });
 
     expect(first).toEqual({ ok: true, handled: true });
     expect(second).toEqual({ ok: true, duplicate: true });
 
-    const rows = await prisma.webhookDelivery.findMany({ where: { deliveryId } });
+    const rows = await prisma.webhookDelivery.findMany({
+      where: { deliveryId },
+    });
     expect(rows).toHaveLength(1);
   });
 
   it('leaves the original row untouched when a duplicate arrives', async () => {
     const deliveryId = uniqueId();
 
-    await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
-    const afterFirst = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    await service.handleWebhook(deliveryId, 'pull_request', {
+      action: 'opened',
+    });
+    const afterFirst = await prisma.webhookDelivery.findUniqueOrThrow({
+      where: { deliveryId },
+    });
 
-    await service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' });
-    const afterSecond = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    await service.handleWebhook(deliveryId, 'pull_request', {
+      action: 'opened',
+    });
+    const afterSecond = await prisma.webhookDelivery.findUniqueOrThrow({
+      where: { deliveryId },
+    });
 
     // The first run's outcome is the record of what happened. A duplicate must not
     // overwrite it — including resetting processedAt to a later timestamp.
@@ -104,7 +124,9 @@ describe('WebhooksService idempotency (real database)', () => {
     expect(results.filter((r) => 'duplicate' in r)).toHaveLength(1);
     expect(results.filter((r) => 'handled' in r)).toHaveLength(1);
 
-    const rows = await prisma.webhookDelivery.findMany({ where: { deliveryId } });
+    const rows = await prisma.webhookDelivery.findMany({
+      where: { deliveryId },
+    });
     expect(rows).toHaveLength(1);
   });
 
@@ -112,14 +134,20 @@ describe('WebhooksService idempotency (real database)', () => {
   // and two concurrent redeliveries must still only retry it once.
   it('reprocesses a redelivery of a FAILED delivery exactly once, even under a race', async () => {
     const deliveryId = uniqueId();
-    const handle = vi.spyOn(pullRequests, 'handle').mockRejectedValueOnce(new Error('Redis down'));
+    const handle = vi
+      .spyOn(pullRequests, 'handle')
+      .mockRejectedValueOnce(new Error('Redis down'));
 
     await expect(
       service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
     ).rejects.toThrow('Redis down');
-    expect((await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } })).status).toBe(
-      DeliveryStatus.FAILED,
-    );
+    expect(
+      (
+        await prisma.webhookDelivery.findUniqueOrThrow({
+          where: { deliveryId },
+        })
+      ).status,
+    ).toBe(DeliveryStatus.FAILED);
 
     const results = await Promise.all([
       service.handleWebhook(deliveryId, 'pull_request', { action: 'opened' }),
@@ -128,7 +156,9 @@ describe('WebhooksService idempotency (real database)', () => {
 
     expect(results.filter((r) => 'duplicate' in r)).toHaveLength(1);
     expect(handle).toHaveBeenCalledTimes(2); // the failed first run, then exactly one retry
-    const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    const row = await prisma.webhookDelivery.findUniqueOrThrow({
+      where: { deliveryId },
+    });
     expect(row.status).toBe(DeliveryStatus.PROCESSED);
     expect(row.error).toBeNull();
     handle.mockRestore();
@@ -139,7 +169,9 @@ describe('WebhooksService idempotency (real database)', () => {
 
     await service.handleWebhook(deliveryId, 'issues', { action: 'opened' });
 
-    const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+    const row = await prisma.webhookDelivery.findUniqueOrThrow({
+      where: { deliveryId },
+    });
     expect(row.status).toBe(DeliveryStatus.IGNORED);
     expect(row.event).toBe('issues');
   });

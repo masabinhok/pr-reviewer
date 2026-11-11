@@ -49,7 +49,10 @@ export class InstallationsService {
       });
       if (!installation) return false;
 
-      await tx.installation.update({ where: { id: installation.id }, data: { deletedAt: now } });
+      await tx.installation.update({
+        where: { id: installation.id },
+        data: { deletedAt: now },
+      });
       await tx.repo.updateMany({
         where: { installationId: installation.id, deletedAt: null },
         data: { deletedAt: now },
@@ -116,7 +119,9 @@ export class InstallationsService {
       data: { deletedAt: new Date() },
     });
 
-    this.logger.log(`installation ${payload.installation.id}: ${count} repo(s) removed (soft)`);
+    this.logger.log(
+      `installation ${payload.installation.id}: ${count} repo(s) removed (soft)`,
+    );
   }
 }
 
@@ -135,9 +140,17 @@ function upsertInstallation(tx: Tx, installation: GithubInstallation) {
   });
 }
 
-async function upsertRepos(tx: Tx, installationId: string, repos: GithubInstallationRepo[]) {
+async function upsertRepos(
+  tx: Tx,
+  installationId: string,
+  repos: GithubInstallationRepo[],
+) {
   for (const repo of repos) {
-    const fields = { fullName: repo.full_name, private: repo.private, installationId };
+    const fields = {
+      fullName: repo.full_name,
+      private: repo.private,
+      installationId,
+    };
 
     await tx.repo.upsert({
       // Keyed on the repo's GitHub ID, which survives an uninstall. If a reinstall comes

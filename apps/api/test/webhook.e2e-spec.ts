@@ -21,7 +21,9 @@ describe('POST /webhooks/github (e2e)', () => {
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
     // Same option main.ts passes to NestFactory. Without it req.rawBody is undefined and
     // every request 401s — which is exactly what this suite would then catch.
@@ -73,12 +75,20 @@ describe('POST /webhooks/github (e2e)', () => {
         .expect(200)
         .expect({ ok: true, handled: true });
 
-      const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
-      expect(row).toMatchObject({ event: 'pull_request', action: 'opened', status: DeliveryStatus.PROCESSED });
+      const row = await prisma.webhookDelivery.findUniqueOrThrow({
+        where: { deliveryId },
+      });
+      expect(row).toMatchObject({
+        event: 'pull_request',
+        action: 'opened',
+        status: DeliveryStatus.PROCESSED,
+      });
     });
 
     it('rejects a signature made with the wrong secret, and writes nothing', async () => {
-      await deliver('pull_request', body, { signature: sign(body, 'not-the-secret') }).expect(401);
+      await deliver('pull_request', body, {
+        signature: sign(body, 'not-the-secret'),
+      }).expect(401);
 
       expect(await deliveryCount()).toBe(0);
     });
@@ -89,7 +99,9 @@ describe('POST /webhooks/github (e2e)', () => {
       const tampered = body.replace('"action": "opened"', '"action": "closed"');
       expect(tampered).not.toBe(body);
 
-      await deliver('pull_request', tampered, { signature: sign(body) }).expect(401);
+      await deliver('pull_request', tampered, { signature: sign(body) }).expect(
+        401,
+      );
 
       expect(await deliveryCount()).toBe(0);
     });
@@ -100,7 +112,9 @@ describe('POST /webhooks/github (e2e)', () => {
 
     // Wrong length is the case that used to crash timingSafeEqual into a 500.
     it('rejects a malformed signature with a 401, not a 500', async () => {
-      await deliver('pull_request', body, { signature: 'sha256=abc' }).expect(401);
+      await deliver('pull_request', body, { signature: 'sha256=abc' }).expect(
+        401,
+      );
     });
   });
 
@@ -110,8 +124,12 @@ describe('POST /webhooks/github (e2e)', () => {
       const deliveryId = randomUUID();
       const created = vi.spyOn(app.get(InstallationsService), 'created');
 
-      await deliver('installation', body, { deliveryId }).expect(200).expect({ ok: true, handled: true });
-      await deliver('installation', body, { deliveryId }).expect(200).expect({ ok: true, duplicate: true });
+      await deliver('installation', body, { deliveryId })
+        .expect(200)
+        .expect({ ok: true, handled: true });
+      await deliver('installation', body, { deliveryId })
+        .expect(200)
+        .expect({ ok: true, duplicate: true });
 
       expect(created).toHaveBeenCalledTimes(1);
       expect(await deliveryCount()).toBe(1);
@@ -125,13 +143,17 @@ describe('POST /webhooks/github (e2e)', () => {
     it('installation.created records the installation and its repositories', async () => {
       const payload = fixtureJson<InstallationPayload>('installation.created');
 
-      await deliver('installation', fixture('installation.created')).expect(200);
+      await deliver('installation', fixture('installation.created')).expect(
+        200,
+      );
 
       const installation = await prisma.installation.findUniqueOrThrow({
         where: { githubId: BigInt(payload.installation.id) },
         include: { repos: true },
       });
-      expect(installation.accountLogin).toBe(payload.installation.account.login);
+      expect(installation.accountLogin).toBe(
+        payload.installation.account.login,
+      );
       expect(installation.deletedAt).toBeNull();
       expect(installation.repos.map((r) => r.fullName).sort()).toEqual(
         (payload.repositories ?? []).map((r) => r.full_name).sort(),
@@ -147,7 +169,9 @@ describe('POST /webhooks/github (e2e)', () => {
       await deliver('installation', seed).expect(200);
       const reposBefore = await prisma.repo.count();
 
-      await deliver('installation', fixture('installation.deleted')).expect(200);
+      await deliver('installation', fixture('installation.deleted')).expect(
+        200,
+      );
 
       const installation = await prisma.installation.findUniqueOrThrow({
         where: { githubId: BigInt(deleted.installation.id) },
@@ -155,7 +179,9 @@ describe('POST /webhooks/github (e2e)', () => {
       });
       expect(installation.deletedAt).toBeInstanceOf(Date);
       expect(installation.repos).toHaveLength(reposBefore);
-      expect(installation.repos.every((r) => r.deletedAt instanceof Date)).toBe(true);
+      expect(installation.repos.every((r) => r.deletedAt instanceof Date)).toBe(
+        true,
+      );
     });
   });
 
@@ -163,11 +189,15 @@ describe('POST /webhooks/github (e2e)', () => {
     it('acknowledges an unknown event with a 2xx and records it as IGNORED', async () => {
       const deliveryId = randomUUID();
 
-      await deliver('check_suite', fixture('check_suite.requested'), { deliveryId })
+      await deliver('check_suite', fixture('check_suite.requested'), {
+        deliveryId,
+      })
         .expect(200)
         .expect({ ok: true, handled: false });
 
-      const row = await prisma.webhookDelivery.findUniqueOrThrow({ where: { deliveryId } });
+      const row = await prisma.webhookDelivery.findUniqueOrThrow({
+        where: { deliveryId },
+      });
       expect(row.status).toBe(DeliveryStatus.IGNORED);
     });
   });

@@ -9,7 +9,9 @@ describe('PullRequestLock (e2e, Redis)', () => {
 
   beforeAll(() => {
     redis = new RedisService();
-    lock = new PullRequestLock(redis, { getOrThrow: () => 'pr-reviewer-test' } as unknown as ConfigService);
+    lock = new PullRequestLock(redis, {
+      getOrThrow: () => 'pr-reviewer-test',
+    } as unknown as ConfigService);
   });
 
   afterAll(async () => {

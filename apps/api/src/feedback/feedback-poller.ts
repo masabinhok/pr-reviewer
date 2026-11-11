@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { GithubApiService, type Reaction } from '../github/github-api.service.js';
+import {
+  GithubApiService,
+  type Reaction,
+} from '../github/github-api.service.js';
 import { GithubRateLimitError } from '../github/github-api.errors.js';
 import { FeedbackSignal } from '../generated/prisma/client.js';
 
@@ -43,25 +46,45 @@ export class FeedbackPoller {
   ) {}
 
   async pollOnce(now = new Date()): Promise<PollSummary> {
-    const since = new Date(now.getTime() - FEEDBACK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const since = new Date(
+      now.getTime() - FEEDBACK_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
     const findings = await this.prisma.finding.findMany({
       where: {
         githubCommentId: { not: null },
         commentGoneAt: null,
         review: {
           completedAt: { gte: since },
-          repo: { deletedAt: null, installation: { deletedAt: null, suspendedAt: null } },
+          repo: {
+            deletedAt: null,
+            installation: { deletedAt: null, suspendedAt: null },
+          },
         },
       },
       select: {
         id: true,
         githubCommentId: true,
         reactionsEtag: true,
-        review: { select: { repo: { select: { fullName: true, installation: { select: { githubId: true } } } } } },
+        review: {
+          select: {
+            repo: {
+              select: {
+                fullName: true,
+                installation: { select: { githubId: true } },
+              },
+            },
+          },
+        },
       },
     });
 
-    const summary: PollSummary = { checked: 0, unchanged: 0, updated: 0, gone: 0, rateLimited: 0 };
+    const summary: PollSummary = {
+      checked: 0,
+      unchanged: 0,
+      updated: 0,
+      gone: 0,
+      rateLimited: 0,
+    };
     const limited = new Set<bigint>();
 
     for (const finding of findings) {
@@ -70,7 +93,12 @@ export class FeedbackPoller {
 
       let answer;
       try {
-        answer = await this.github.listCommentReactions(installationId, finding.review.repo.fullName, finding.githubCommentId!, finding.reactionsEtag);
+        answer = await this.github.listCommentReactions(
+          installationId,
+          finding.review.repo.fullName,
+          finding.githubCommentId!,
+          finding.reactionsEtag,
+        );
       } catch (e) {
         if (e instanceof GithubRateLimitError) {
           // Stop asking for this installation until the next round; the rest can go on.
@@ -85,7 +113,10 @@ export class FeedbackPoller {
       if (answer.kind === 'unchanged') {
         summary.unchanged++;
       } else if (answer.kind === 'gone') {
-        await this.prisma.finding.update({ where: { id: finding.id }, data: { commentGoneAt: now } });
+        await this.prisma.finding.update({
+          where: { id: finding.id },
+          data: { commentGoneAt: now },
+        });
         summary.gone++;
       } else {
         await this.apply(finding.id, answer.reactions, answer.etag);
@@ -96,18 +127,26 @@ export class FeedbackPoller {
     if (summary.updated || summary.gone || summary.rateLimited) {
       this.logger.log(
         `feedback: ${summary.checked} comment(s) checked, ${summary.updated} with new reactions, ${summary.gone} gone, ${summary.unchanged} unchanged` +
-          (summary.rateLimited ? `, ${summary.rateLimited} installation(s) rate-limited` : ''),
+          (summary.rateLimited
+            ? `, ${summary.rateLimited} installation(s) rate-limited`
+            : ''),
       );
     }
     return summary;
   }
 
   /** Makes the finding's Feedback rows say exactly what the comment's reactions say now. */
-  private async apply(findingId: string, reactions: Reaction[], etag: string | null): Promise<void> {
+  private async apply(
+    findingId: string,
+    reactions: Reaction[],
+    etag: string | null,
+  ): Promise<void> {
     const signals = signalsByUser(reactions);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.feedback.deleteMany({ where: { findingId, githubUserId: { notIn: [...signals.keys()] } } });
+      await tx.feedback.deleteMany({
+        where: { findingId, githubUserId: { notIn: [...signals.keys()] } },
+      });
       for (const [githubUserId, { signal, reactedAt }] of signals) {
         await tx.feedback.upsert({
           where: { findingId_githubUserId: { findingId, githubUserId } },
@@ -115,16 +154,29 @@ export class FeedbackPoller {
           update: { signal, reactedAt },
         });
       }
-      await tx.finding.update({ where: { id: findingId }, data: { reactionsEtag: etag } });
+      await tx.finding.update({
+        where: { id: findingId },
+        data: { reactionsEtag: etag },
+      });
     });
   }
 }
 
 /** Each person's latest 👍 or 👎; everything else — other reactions, bots — dropped. */
-export function signalsByUser(reactions: Reaction[]): Map<bigint, { signal: FeedbackSignal; reactedAt: Date }> {
-  const signals = new Map<bigint, { signal: FeedbackSignal; reactedAt: Date }>();
+export function signalsByUser(
+  reactions: Reaction[],
+): Map<bigint, { signal: FeedbackSignal; reactedAt: Date }> {
+  const signals = new Map<
+    bigint,
+    { signal: FeedbackSignal; reactedAt: Date }
+  >();
   for (const reaction of reactions) {
-    const signal = reaction.content === '+1' ? FeedbackSignal.UP : reaction.content === '-1' ? FeedbackSignal.DOWN : null;
+    const signal =
+      reaction.content === '+1'
+        ? FeedbackSignal.UP
+        : reaction.content === '-1'
+          ? FeedbackSignal.DOWN
+          : null;
     if (!signal || reaction.user.type === 'Bot') continue;
     const current = signals.get(reaction.user.id);
     if (!current || reaction.createdAt > current.reactedAt) {

@@ -18,7 +18,10 @@ const ROOT = resolve(import.meta.dirname, '../../../..');
 
 function main(): number {
   const bar = configuration().posting.minSeverity;
-  const stamp = evalStamp((path) => readFileSync(join(ROOT, path), 'utf8'), bar);
+  const stamp = evalStamp(
+    (path) => readFileSync(join(ROOT, path), 'utf8'),
+    bar,
+  );
   if (process.argv.includes('--print')) {
     console.log(stamp);
     return 0;
@@ -32,7 +35,9 @@ function main(): number {
     .filter((d) => existsSync(join(runsDir, d, 'meta.json')))
     .map((d) => ({
       dir: d,
-      meta: JSON.parse(readFileSync(join(runsDir, d, 'meta.json'), 'utf8')) as RunOnDisk['meta'],
+      meta: JSON.parse(
+        readFileSync(join(runsDir, d, 'meta.json'), 'utf8'),
+      ) as RunOnDisk['meta'],
       results: existsSync(join(runsDir, d, 'results.jsonl'))
         ? readFileSync(join(runsDir, d, 'results.jsonl'), 'utf8')
             .split('\n')
@@ -47,8 +52,11 @@ function main(): number {
     return 0;
   }
 
-  console.error(`eval stamp ${stamp}: the reviewer has changed since its last full evaluation.`);
-  for (const r of runs) console.error(`  evals/runs/${r.dir}: ${runProblem(r, stamp, fixtures)}`);
+  console.error(
+    `eval stamp ${stamp}: the reviewer has changed since its last full evaluation.`,
+  );
+  for (const r of runs)
+    console.error(`  evals/runs/${r.dir}: ${runProblem(r, stamp, fixtures)}`);
   console.error(
     '\nRun the evaluation and commit its directory:\n' +
       '  npm run agent:eval                  # from the repository root\n' +

@@ -22,7 +22,7 @@ export class HealthService {
     }
 
     try {
-      await this.redis.ping()
+      await this.redis.ping();
       checks.redis = 'up';
     } catch {
       checks.redis = 'down';

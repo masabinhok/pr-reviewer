@@ -15,13 +15,27 @@ export interface FeedbackRate {
  * How the App's comments are received — defined once, here, so the dashboard and anything
  * else report the same numbers. `where` narrows the findings (a repository, a time range).
  */
-export async function feedbackRate(prisma: PrismaService, where: Prisma.FindingWhereInput = {}): Promise<FeedbackRate> {
-  const posted = { ...where, githubCommentId: { not: null }, commentGoneAt: null };
+export async function feedbackRate(
+  prisma: PrismaService,
+  where: Prisma.FindingWhereInput = {},
+): Promise<FeedbackRate> {
+  const posted = {
+    ...where,
+    githubCommentId: { not: null },
+    commentGoneAt: null,
+  };
   const [total, withFeedback, upvoted, downvoted] = await Promise.all([
     prisma.finding.count({ where: posted }),
     prisma.finding.count({ where: { ...posted, feedbacks: { some: {} } } }),
-    prisma.finding.count({ where: { ...posted, feedbacks: { some: { signal: FeedbackSignal.UP } } } }),
-    prisma.finding.count({ where: { ...posted, feedbacks: { some: { signal: FeedbackSignal.DOWN } } } }),
+    prisma.finding.count({
+      where: { ...posted, feedbacks: { some: { signal: FeedbackSignal.UP } } },
+    }),
+    prisma.finding.count({
+      where: {
+        ...posted,
+        feedbacks: { some: { signal: FeedbackSignal.DOWN } },
+      },
+    }),
   ]);
   return { posted: total, withFeedback, upvoted, downvoted };
 }

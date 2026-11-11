@@ -83,7 +83,9 @@ describe('WebhooksService', () => {
   });
 
   it('records the delivery and reports it handled', async () => {
-    const result = await service.handleWebhook('d-1', 'pull_request', { action: 'opened' });
+    const result = await service.handleWebhook('d-1', 'pull_request', {
+      action: 'opened',
+    });
 
     expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
       data: { deliveryId: 'd-1', event: 'pull_request', action: 'opened' },
@@ -119,11 +121,17 @@ describe('WebhooksService', () => {
     it('reclaims the row only if it is FAILED, then processes it again', async () => {
       prisma.webhookDelivery.updateMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.handleWebhook('d-11', 'pull_request', { action: 'opened' });
+      const result = await service.handleWebhook('d-11', 'pull_request', {
+        action: 'opened',
+      });
 
       expect(prisma.webhookDelivery.updateMany).toHaveBeenCalledWith({
         where: { deliveryId: 'd-11', status: DeliveryStatus.FAILED },
-        data: { status: DeliveryStatus.RECEIVED, error: null, processedAt: null },
+        data: {
+          status: DeliveryStatus.RECEIVED,
+          error: null,
+          processedAt: null,
+        },
       });
       expect(pullRequests.handle).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ ok: true, handled: true });
@@ -132,7 +140,9 @@ describe('WebhooksService', () => {
     // updateMany matched nothing: the original is PROCESSED or IGNORED — or another
     // concurrent redelivery already reclaimed it. Either way this one is a duplicate.
     it('is dropped as a duplicate when there was nothing FAILED to reclaim', async () => {
-      const result = await service.handleWebhook('d-12', 'pull_request', { action: 'opened' });
+      const result = await service.handleWebhook('d-12', 'pull_request', {
+        action: 'opened',
+      });
 
       expect(result).toEqual({ ok: true, duplicate: true });
       expect(pullRequests.handle).not.toHaveBeenCalled();
@@ -142,7 +152,9 @@ describe('WebhooksService', () => {
   // 'issues' has no entry in the dispatch table, but the row is still written — every delivery
   // gets one — and then moved to its terminal status.
   it('records an unhandled event and marks it IGNORED', async () => {
-    const result = await service.handleWebhook('d-2', 'issues', { action: 'opened' });
+    const result = await service.handleWebhook('d-2', 'issues', {
+      action: 'opened',
+    });
 
     expect(prisma.webhookDelivery.create).toHaveBeenCalledWith({
       data: { deliveryId: 'd-2', event: 'issues', action: 'opened' },
@@ -151,7 +163,11 @@ describe('WebhooksService', () => {
       where: { deliveryId: 'd-2' },
       // `expect.any(Date)` matches the type without pinning the exact instant — the
       // service calls `new Date()` itself, so the test cannot know the value.
-      data: { status: DeliveryStatus.IGNORED, processedAt: expect.any(Date), error: undefined },
+      data: {
+        status: DeliveryStatus.IGNORED,
+        processedAt: expect.any(Date),
+        error: undefined,
+      },
     });
     expect(result).toEqual({ ok: true, handled: false });
   });
@@ -161,7 +177,11 @@ describe('WebhooksService', () => {
 
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
       where: { deliveryId: 'd-3' },
-      data: { status: DeliveryStatus.PROCESSED, processedAt: expect.any(Date), error: undefined },
+      data: {
+        status: DeliveryStatus.PROCESSED,
+        processedAt: expect.any(Date),
+        error: undefined,
+      },
     });
   });
 
@@ -169,9 +189,13 @@ describe('WebhooksService', () => {
   // violation has to propagate. If this ever goes green by returning a value instead
   // of throwing, the service is swallowing real database failures.
   it('rethrows an error that is not a unique-constraint violation', async () => {
-    prisma.webhookDelivery.create.mockRejectedValue(new Error('connection lost'));
+    prisma.webhookDelivery.create.mockRejectedValue(
+      new Error('connection lost'),
+    );
 
-    await expect(service.handleWebhook('d-4', 'pull_request')).rejects.toThrow('connection lost');
+    await expect(service.handleWebhook('d-4', 'pull_request')).rejects.toThrow(
+      'connection lost',
+    );
     expect(prisma.webhookDelivery.update).not.toHaveBeenCalled();
   });
 
@@ -192,33 +216,53 @@ describe('WebhooksService', () => {
       ['installation', 'unsuspend', 'unsuspended'],
       ['installation_repositories', 'added', 'reposAdded'],
       ['installation_repositories', 'removed', 'reposRemoved'],
-    ] as const)('routes %s.%s to InstallationsService.%s', async (event, action, method) => {
-      const payload = { action, installation: { id: 1 } };
+    ] as const)(
+      'routes %s.%s to InstallationsService.%s',
+      async (event, action, method) => {
+        const payload = { action, installation: { id: 1 } };
 
-      const result = await service.handleWebhook('d-6', event, payload);
+        const result = await service.handleWebhook('d-6', event, payload);
 
-      expect(installations[method]).toHaveBeenCalledWith(payload);
-      expect(result).toEqual({ ok: true, handled: true });
-    });
+        expect(installations[method]).toHaveBeenCalledWith(payload);
+        expect(result).toEqual({ ok: true, handled: true });
+      },
+    );
 
     it.each([
       ['resolved', true],
       ['unresolved', false],
-    ] as const)('routes pull_request_review_thread.%s to StaleFindings', async (action, resolved) => {
-      const payload = { action, thread: { comments: [{ id: 991 }, { id: 992 }] } };
+    ] as const)(
+      'routes pull_request_review_thread.%s to StaleFindings',
+      async (action, resolved) => {
+        const payload = {
+          action,
+          thread: { comments: [{ id: 991 }, { id: 992 }] },
+        };
 
-      const result = await service.handleWebhook(`d-thread-${action}`, 'pull_request_review_thread', payload);
+        const result = await service.handleWebhook(
+          `d-thread-${action}`,
+          'pull_request_review_thread',
+          payload,
+        );
 
-      expect(stale.setResolvedByPerson).toHaveBeenCalledWith([991n, 992n], resolved);
-      expect(result).toEqual({ ok: true, handled: true });
-    });
+        expect(stale.setResolvedByPerson).toHaveBeenCalledWith(
+          [991n, 992n],
+          resolved,
+        );
+        expect(result).toEqual({ ok: true, handled: true });
+      },
+    );
 
     it.each(['opened', 'reopened', 'synchronize', 'ready_for_review'])(
       'routes pull_request.%s to PullRequestsService',
       async (action) => {
         const payload = { action, number: 1 };
 
-        const result = await service.handleWebhook('d-9', 'pull_request', payload);
+        const result = await service.handleWebhook(
+          'd-9',
+          'pull_request',
+          payload,
+        );
 
         expect(pullRequests.handle).toHaveBeenCalledWith(payload, 'd-9');
         expect(result).toEqual({ ok: true, handled: true });
@@ -226,12 +270,17 @@ describe('WebhooksService', () => {
     );
 
     // Closing, labelling, editing a PR is not new code — nothing to review.
-    it.each(['closed', 'labeled', 'edited'])('ignores pull_request.%s', async (action) => {
-      const result = await service.handleWebhook('d-10', 'pull_request', { action });
+    it.each(['closed', 'labeled', 'edited'])(
+      'ignores pull_request.%s',
+      async (action) => {
+        const result = await service.handleWebhook('d-10', 'pull_request', {
+          action,
+        });
 
-      expect(result).toEqual({ ok: true, handled: false });
-      expect(pullRequests.handle).not.toHaveBeenCalled();
-    });
+        expect(result).toEqual({ ok: true, handled: false });
+        expect(pullRequests.handle).not.toHaveBeenCalled();
+      },
+    );
 
     // The key is event.action, so a known event with an unknown action is unhandled —
     // it must not fall into some other installation handler.
@@ -241,9 +290,13 @@ describe('WebhooksService', () => {
       });
 
       expect(result).toEqual({ ok: true, handled: false });
-      expect(Object.values(installations).some((fn) => fn.mock.calls.length > 0)).toBe(false);
+      expect(
+        Object.values(installations).some((fn) => fn.mock.calls.length > 0),
+      ).toBe(false);
       expect(prisma.webhookDelivery.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: DeliveryStatus.IGNORED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: DeliveryStatus.IGNORED }),
+        }),
       );
     });
 
@@ -258,7 +311,11 @@ describe('WebhooksService', () => {
 
       expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
         where: { deliveryId: 'd-8' },
-        data: { status: DeliveryStatus.FAILED, processedAt: expect.any(Date), error: 'database went away' },
+        data: {
+          status: DeliveryStatus.FAILED,
+          processedAt: expect.any(Date),
+          error: 'database went away',
+        },
       });
     });
   });

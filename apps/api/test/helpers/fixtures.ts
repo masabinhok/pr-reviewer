@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
  * raw-body entry in docs/decisions.md.
  */
 export function fixture(name: string): string {
-  return readFileSync(fileURLToPath(new URL(`../fixtures/${name}.json`, import.meta.url)), 'utf8');
+  return readFileSync(
+    fileURLToPath(new URL(`../fixtures/${name}.json`, import.meta.url)),
+    'utf8',
+  );
 }
 
 export function fixtureJson<T = Record<string, unknown>>(name: string): T {

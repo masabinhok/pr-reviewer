@@ -1,8 +1,15 @@
 import { Logger } from '@nestjs/common';
 import { StaleFindings } from './stale-findings.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { GithubApiService, ReviewThread } from '../github/github-api.service.js';
-import { FindingStatus, ResolvedBy, type Finding } from '../generated/prisma/client.js';
+import type {
+  GithubApiService,
+  ReviewThread,
+} from '../github/github-api.service.js';
+import {
+  FindingStatus,
+  ResolvedBy,
+  type Finding,
+} from '../generated/prisma/client.js';
 import type { ReviewTarget } from './review.processor.js';
 
 const target: ReviewTarget = {
@@ -14,9 +21,17 @@ const target: ReviewTarget = {
   headSha: 'head111',
 };
 
-const earlier = (id: string, commentId: bigint) => ({ id, githubCommentId: commentId, filePath: 'src/auth.ts', line: 23 });
+const earlier = (id: string, commentId: bigint) => ({
+  id,
+  githubCommentId: commentId,
+  filePath: 'src/auth.ts',
+  line: 23,
+});
 
-const thread = (commentId: bigint, over: Partial<ReviewThread> = {}): ReviewThread => ({
+const thread = (
+  commentId: bigint,
+  over: Partial<ReviewThread> = {},
+): ReviewThread => ({
   id: `PRRT_${commentId}`,
   isOutdated: true,
   isResolved: false,
@@ -27,11 +42,20 @@ const thread = (commentId: bigint, over: Partial<ReviewThread> = {}): ReviewThre
 });
 
 /** A finding of the current review; `repeatOfId` says it found an earlier one again. */
-const current = (repeatOfId: string | null) => ({ id: 'f-new', repeatOfId }) as Finding;
+const current = (repeatOfId: string | null) =>
+  ({ id: 'f-new', repeatOfId }) as Finding;
 
 describe('StaleFindings', () => {
-  let prisma: { finding: { findMany: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> } };
-  let github: { listReviewThreads: ReturnType<typeof vi.fn>; minimizeComment: ReturnType<typeof vi.fn> };
+  let prisma: {
+    finding: {
+      findMany: ReturnType<typeof vi.fn>;
+      updateMany: ReturnType<typeof vi.fn>;
+    };
+  };
+  let github: {
+    listReviewThreads: ReturnType<typeof vi.fn>;
+    minimizeComment: ReturnType<typeof vi.fn>;
+  };
   let stale: StaleFindings;
 
   beforeEach(() => {
@@ -45,8 +69,12 @@ describe('StaleFindings', () => {
       listReviewThreads: vi.fn().mockResolvedValue([thread(991n)]),
       minimizeComment: vi.fn().mockResolvedValue(undefined),
     };
-    stale = new StaleFindings(prisma as unknown as PrismaService, github as unknown as GithubApiService);
-    for (const level of ['log', 'warn'] as const) vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
+    stale = new StaleFindings(
+      prisma as unknown as PrismaService,
+      github as unknown as GithubApiService,
+    );
+    for (const level of ['log', 'warn'] as const)
+      vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -58,7 +86,11 @@ describe('StaleFindings', () => {
       expect(resolved).toBe(1);
       expect(prisma.finding.updateMany).toHaveBeenCalledWith({
         where: { id: { in: ['old-1'] } },
-        data: { status: FindingStatus.RESOLVED, resolvedAt: expect.any(Date), resolvedBy: ResolvedBy.APP },
+        data: {
+          status: FindingStatus.RESOLVED,
+          resolvedAt: expect.any(Date),
+          resolvedBy: ResolvedBy.APP,
+        },
       });
       expect(github.minimizeComment).toHaveBeenCalledWith(42n, 'PRRC_991');
     });
@@ -73,14 +105,18 @@ describe('StaleFindings', () => {
     });
 
     it('is left alone when the code it points at has not changed', async () => {
-      github.listReviewThreads.mockResolvedValue([thread(991n, { isOutdated: false })]);
+      github.listReviewThreads.mockResolvedValue([
+        thread(991n, { isOutdated: false }),
+      ]);
 
       expect(await stale.resolve(target, [current(null)])).toBe(0);
       expect(prisma.finding.updateMany).not.toHaveBeenCalled();
     });
 
     it('is not collapsed twice', async () => {
-      github.listReviewThreads.mockResolvedValue([thread(991n, { isMinimized: true })]);
+      github.listReviewThreads.mockResolvedValue([
+        thread(991n, { isMinimized: true }),
+      ]);
 
       expect(await stale.resolve(target, [current(null)])).toBe(1);
       expect(github.minimizeComment).not.toHaveBeenCalled();
@@ -119,7 +155,11 @@ describe('StaleFindings', () => {
 
       expect(prisma.finding.updateMany).toHaveBeenCalledWith({
         where: { githubCommentId: { in: [991n, 992n] } },
-        data: { status: FindingStatus.RESOLVED, resolvedAt: expect.any(Date), resolvedBy: ResolvedBy.PERSON },
+        data: {
+          status: FindingStatus.RESOLVED,
+          resolvedAt: expect.any(Date),
+          resolvedBy: ResolvedBy.PERSON,
+        },
       });
     });
 
@@ -128,7 +168,11 @@ describe('StaleFindings', () => {
 
       expect(prisma.finding.updateMany).toHaveBeenCalledWith({
         where: { githubCommentId: { in: [991n] } },
-        data: { status: FindingStatus.OPEN, resolvedAt: null, resolvedBy: null },
+        data: {
+          status: FindingStatus.OPEN,
+          resolvedAt: null,
+          resolvedBy: null,
+        },
       });
     });
 

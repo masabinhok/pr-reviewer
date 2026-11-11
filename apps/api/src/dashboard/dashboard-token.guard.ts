@@ -1,5 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { CanActivate, ExecutionContext, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -16,11 +22,22 @@ export class DashboardTokenGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const expected = this.config.get<string | null>('dashboard.token');
-    if (!expected) throw new ServiceUnavailableException('The dashboard is off: set DASHBOARD_TOKEN to turn it on.');
+    if (!expected)
+      throw new ServiceUnavailableException(
+        'The dashboard is off: set DASHBOARD_TOKEN to turn it on.',
+      );
 
-    const header = context.switchToHttp().getRequest<{ headers: Record<string, unknown> }>().headers.authorization;
-    const presented = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
-    if (presented === null || !timingSafeEqual(digest(presented), digest(expected))) {
+    const header = context
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, unknown> }>().headers.authorization;
+    const presented =
+      typeof header === 'string' && header.startsWith('Bearer ')
+        ? header.slice('Bearer '.length)
+        : null;
+    if (
+      presented === null ||
+      !timingSafeEqual(digest(presented), digest(expected))
+    ) {
       throw new UnauthorizedException('A valid dashboard token is required.');
     }
     return true;

@@ -35,16 +35,27 @@ function job(attemptsMade = 0, attempts = 3) {
     attemptsMade,
     opts: { attempts },
     moveToDelayed: vi.fn().mockResolvedValue(undefined),
-  } as unknown as Job<ReviewJobData> & { moveToDelayed: ReturnType<typeof vi.fn> };
+  } as unknown as Job<ReviewJobData> & {
+    moveToDelayed: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe('ReviewProcessor', () => {
   let prisma: {
-    review: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
-    finding: { findMany: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> };
+    review: {
+      findUnique: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+    };
+    finding: {
+      findMany: ReturnType<typeof vi.fn>;
+      createMany: ReturnType<typeof vi.fn>;
+    };
     $transaction: ReturnType<typeof vi.fn>;
   };
-  let github: { createCheckRun: ReturnType<typeof vi.fn>; completeCheckRun: ReturnType<typeof vi.fn> };
+  let github: {
+    createCheckRun: ReturnType<typeof vi.fn>;
+    completeCheckRun: ReturnType<typeof vi.fn>;
+  };
   let publisher: { publish: ReturnType<typeof vi.fn> };
   let lock: { acquire: ReturnType<typeof vi.fn> };
   let stale: { resolve: ReturnType<typeof vi.fn> };
@@ -54,8 +65,12 @@ describe('ReviewProcessor', () => {
   let run: ReturnType<typeof vi.spyOn>;
 
   /** Every `data` the row was updated with, in order. */
-  const updates = () => prisma.review.update.mock.calls.map(([arg]) => arg.data);
-  const statuses = () => updates().map((d) => d.status).filter(Boolean);
+  const updates = () =>
+    prisma.review.update.mock.calls.map(([arg]) => arg.data);
+  const statuses = () =>
+    updates()
+      .map((d) => d.status)
+      .filter(Boolean);
   const conclusion = () => github.completeCheckRun.mock.calls[0]?.[3];
 
   beforeEach(() => {
@@ -69,10 +84,19 @@ describe('ReviewProcessor', () => {
         createMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       // The callback form: the stub doubles as the transaction client.
-      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn(prisma),
+      ),
     };
     order = [];
-    publisher = { publish: vi.fn(async () => (order.push('publish'), { posted: 0, url: null, minSeverity: 'MEDIUM' as const, repeated: 0 })) };
+    publisher = {
+      publish: vi.fn(
+        async () => (
+          order.push('publish'),
+          { posted: 0, url: null, minSeverity: 'MEDIUM' as const, repeated: 0 }
+        ),
+      ),
+    };
     release = vi.fn(async () => void order.push('release'));
     lock = { acquire: vi.fn(async () => (order.push('lock'), release)) };
     stale = { resolve: vi.fn(async () => (order.push('resolve'), 0)) };
@@ -90,8 +114,18 @@ describe('ReviewProcessor', () => {
     );
     // `run` is the pipeline; here only what it returns or throws matters.
     run = vi
-      .spyOn(processor as unknown as { run: (t: ReviewTarget) => Promise<ReviewOutcome> }, 'run')
-      .mockResolvedValue({ kind: 'completed', reviewed: ['src/a.ts'], skipped: [], findings: [] });
+      .spyOn(
+        processor as unknown as {
+          run: (t: ReviewTarget) => Promise<ReviewOutcome>;
+        },
+        'run',
+      )
+      .mockResolvedValue({
+        kind: 'completed',
+        reviewed: ['src/a.ts'],
+        skipped: [],
+        findings: [],
+      });
     for (const level of ['log', 'warn', 'error'] as const) {
       vi.spyOn(Logger.prototype, level).mockImplementation(() => undefined);
     }
@@ -122,20 +156,43 @@ describe('ReviewProcessor', () => {
         externalId: 'rev-1',
       });
       expect(updates()).toContainEqual({ checkRunId: 777n });
-      expect(github.completeCheckRun).toHaveBeenCalledWith(42n, 'octo/widgets', 777n, expect.anything());
-      expect(conclusion()).toMatchObject({ conclusion: 'success', output: { title: 'No findings in 1 file' } });
-      expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.COMPLETED]);
+      expect(github.completeCheckRun).toHaveBeenCalledWith(
+        42n,
+        'octo/widgets',
+        777n,
+        expect.anything(),
+      );
+      expect(conclusion()).toMatchObject({
+        conclusion: 'success',
+        output: { title: 'No findings in 1 file' },
+      });
+      expect(statuses()).toEqual([
+        ReviewStatus.RUNNING,
+        ReviewStatus.COMPLETED,
+      ]);
     });
 
     // A spinner that stops before the row settles can only be fixed by the retry; a row
     // that settles first makes the retry skip, and the spinner never stops.
     it('completes the Check Run before settling the row', async () => {
-      github.completeCheckRun.mockImplementation(async () => void order.push('check'));
-      prisma.review.update.mockImplementation(async ({ data }) => void (data.status === ReviewStatus.COMPLETED && order.push('row')));
+      github.completeCheckRun.mockImplementation(
+        async () => void order.push('check'),
+      );
+      prisma.review.update.mockImplementation(
+        async ({ data }) =>
+          void (data.status === ReviewStatus.COMPLETED && order.push('row')),
+      );
 
       await processor.process(job());
 
-      expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check', 'row']);
+      expect(order).toEqual([
+        'lock',
+        'publish',
+        'resolve',
+        'release',
+        'check',
+        'row',
+      ]);
     });
 
     const found: ValidFinding = {
@@ -155,7 +212,12 @@ describe('ReviewProcessor', () => {
     };
 
     it('writes the findings the first time', async () => {
-      run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+      run.mockResolvedValue({
+        kind: 'completed',
+        reviewed: ['src/auth.ts'],
+        skipped: [],
+        findings: [found],
+      });
 
       await processor.process(job());
 
@@ -184,20 +246,38 @@ describe('ReviewProcessor', () => {
 
     describe('a finding already commented on in an earlier review of the PR', () => {
       // Windows: the line's own code and its neighbours'.
-      const anchored = { ...found, anchors: ['verify-decl', 'console-log', 'closing-call'] };
+      const anchored = {
+        ...found,
+        anchors: ['verify-decl', 'console-log', 'closing-call'],
+      };
       const fresh = { ...found, line: 30, anchors: ['something-new'] };
 
       it('is written as a repeat of the first comment on that code', async () => {
         prisma.finding.findMany
           .mockResolvedValueOnce([]) // this review has no rows yet
           // The earlier comment sat a line lower: its window overlaps on `console-log`.
-          .mockResolvedValueOnce([{ id: 'first-comment', anchors: ['console-log', 'closing-call', 'return'] }]);
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [anchored, fresh] });
+          .mockResolvedValueOnce([
+            {
+              id: 'first-comment',
+              anchors: ['console-log', 'closing-call', 'return'],
+            },
+          ]);
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [anchored, fresh],
+        });
 
         await processor.process(job());
 
         const [{ data }] = prisma.finding.createMany.mock.calls[0];
-        expect(data.map((d: { line: number; repeatOfId: string | null }) => [d.line, d.repeatOfId])).toEqual([
+        expect(
+          data.map((d: { line: number; repeatOfId: string | null }) => [
+            d.line,
+            d.repeatOfId,
+          ]),
+        ).toEqual([
           [26, 'first-comment'],
           [30, null],
         ]);
@@ -205,13 +285,25 @@ describe('ReviewProcessor', () => {
 
       // Only comments that are on the PR and still open count; the same PR, not another.
       it('looks only at posted, open findings from other reviews of this PR', async () => {
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [anchored, fresh] });
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [anchored, fresh],
+        });
 
         await processor.process(job());
 
         const [, [query]] = prisma.finding.findMany.mock.calls;
         expect(query.where).toEqual({
-          anchors: { hasSome: ['verify-decl', 'console-log', 'closing-call', 'something-new'] },
+          anchors: {
+            hasSome: [
+              'verify-decl',
+              'console-log',
+              'closing-call',
+              'something-new',
+            ],
+          },
           githubCommentId: { not: null },
           status: 'OPEN',
           reviewId: { not: 'rev-1' },
@@ -221,27 +313,52 @@ describe('ReviewProcessor', () => {
       });
 
       it('does not look at all when no finding has an anchor', async () => {
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [found],
+        });
 
         await processor.process(job());
 
-        expect(prisma.finding.findMany.mock.calls.some(([q]) => q.where?.anchors)).toBe(false);
+        expect(
+          prisma.finding.findMany.mock.calls.some(([q]) => q.where?.anchors),
+        ).toBe(false);
       });
     });
 
     describe('the pull request settle lock', () => {
       it('is held from storing the findings to posting them, then released', async () => {
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
-        github.completeCheckRun.mockImplementation(async () => void order.push('check'));
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [found],
+        });
+        github.completeCheckRun.mockImplementation(
+          async () => void order.push('check'),
+        );
 
         await processor.process(job());
 
         expect(lock.acquire).toHaveBeenCalledWith('octo/widgets', 3);
-        expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check']);
+        expect(order).toEqual([
+          'lock',
+          'publish',
+          'resolve',
+          'release',
+          'check',
+        ]);
       });
 
       it('is released when posting fails', async () => {
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [found],
+        });
         publisher.publish.mockRejectedValue(new Error('GitHub 502'));
 
         await expect(processor.process(job())).rejects.toThrow('GitHub 502');
@@ -252,12 +369,22 @@ describe('ReviewProcessor', () => {
       // Waiting for another review of the PR is not a failed attempt.
       it('when another review holds it, waits and retries without storing, posting or failing', async () => {
         lock.acquire.mockResolvedValue(null);
-        run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+        run.mockResolvedValue({
+          kind: 'completed',
+          reviewed: ['src/auth.ts'],
+          skipped: [],
+          findings: [found],
+        });
         const finalAttempt = job(2, 3);
 
-        await expect(processor.process(finalAttempt, 'job-token')).rejects.toBeInstanceOf(DelayedError);
+        await expect(
+          processor.process(finalAttempt, 'job-token'),
+        ).rejects.toBeInstanceOf(DelayedError);
 
-        expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(expect.any(Number), 'job-token');
+        expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(
+          expect.any(Number),
+          'job-token',
+        );
         expect(prisma.finding.createMany).not.toHaveBeenCalled();
         expect(publisher.publish).not.toHaveBeenCalled();
         expect(statuses()).not.toContain(ReviewStatus.FAILED);
@@ -268,28 +395,60 @@ describe('ReviewProcessor', () => {
     // On a retry the rows are already there — with the comment IDs recorded on them after
     // posting. Rewriting them would lose those IDs.
     it('keeps the findings a previous attempt wrote instead of rewriting them', async () => {
-      const stored = [{ id: 'f-1', filePath: 'src/auth.ts', githubCommentId: 99n }];
+      const stored = [
+        { id: 'f-1', filePath: 'src/auth.ts', githubCommentId: 99n },
+      ];
       prisma.finding.findMany.mockResolvedValue(stored);
-      run.mockResolvedValue({ kind: 'completed', reviewed: ['src/auth.ts'], skipped: [], findings: [found] });
+      run.mockResolvedValue({
+        kind: 'completed',
+        reviewed: ['src/auth.ts'],
+        skipped: [],
+        findings: [found],
+      });
 
       await processor.process(job(1));
 
       expect(prisma.finding.createMany).not.toHaveBeenCalled();
-      expect(publisher.publish).toHaveBeenCalledWith(expect.objectContaining({ reviewId: 'rev-1' }), stored);
+      expect(publisher.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ reviewId: 'rev-1' }),
+        stored,
+      );
     });
 
     it('posts the review, then completes the Check Run, then settles the row', async () => {
-      github.completeCheckRun.mockImplementation(async () => void order.push('check'));
-      prisma.review.update.mockImplementation(async ({ data }) => void (data.status === ReviewStatus.COMPLETED && order.push('row')));
+      github.completeCheckRun.mockImplementation(
+        async () => void order.push('check'),
+      );
+      prisma.review.update.mockImplementation(
+        async ({ data }) =>
+          void (data.status === ReviewStatus.COMPLETED && order.push('row')),
+      );
 
       await processor.process(job());
 
-      expect(order).toEqual(['lock', 'publish', 'resolve', 'release', 'check', 'row']);
+      expect(order).toEqual([
+        'lock',
+        'publish',
+        'resolve',
+        'release',
+        'check',
+        'row',
+      ]);
     });
 
     it('tells the Check Run what was posted', async () => {
-      publisher.publish.mockResolvedValue({ posted: 2, url: 'https://github.com/o/r/pull/3#pullrequestreview-1', minSeverity: 'MEDIUM' as const, repeated: 0 });
-      run.mockResolvedValue({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [found, found] });
+      publisher.publish.mockResolvedValue({
+        posted: 2,
+        url: 'https://github.com/o/r/pull/3#pullrequestreview-1',
+        minSeverity: 'MEDIUM' as const,
+        repeated: 0,
+      });
+      run.mockResolvedValue({
+        kind: 'completed',
+        reviewed: ['a.ts'],
+        skipped: [],
+        findings: [found, found],
+      });
 
       await processor.process(job());
 
@@ -299,17 +458,28 @@ describe('ReviewProcessor', () => {
     });
 
     it('reuses the Check Run a previous attempt created', async () => {
-      prisma.review.findUnique.mockResolvedValue(reviewRow({ status: ReviewStatus.RUNNING, checkRunId: 555n }));
+      prisma.review.findUnique.mockResolvedValue(
+        reviewRow({ status: ReviewStatus.RUNNING, checkRunId: 555n }),
+      );
 
       await processor.process(job(1));
 
       expect(github.createCheckRun).not.toHaveBeenCalled();
-      expect(github.completeCheckRun).toHaveBeenCalledWith(42n, 'octo/widgets', 555n, expect.anything());
+      expect(github.completeCheckRun).toHaveBeenCalledWith(
+        42n,
+        'octo/widgets',
+        555n,
+        expect.anything(),
+      );
     });
   });
 
   it('records a skipped review as SKIPPED with its reason, and a skipped Check Run', async () => {
-    run.mockResolvedValue({ kind: 'skipped', reason: '62 files to review, over the limit of 50', skipped: [] });
+    run.mockResolvedValue({
+      kind: 'skipped',
+      reason: '62 files to review, over the limit of 50',
+      skipped: [],
+    });
 
     await processor.process(job());
 
@@ -336,10 +506,16 @@ describe('ReviewProcessor', () => {
     it('completes the Check Run as failure and marks the row FAILED on the final attempt', async () => {
       await expect(processor.process(job(2, 3))).rejects.toThrow('GitHub 502');
 
-      expect(conclusion()).toMatchObject({ conclusion: 'failure', output: { title: 'Review failed' } });
+      expect(conclusion()).toMatchObject({
+        conclusion: 'failure',
+        output: { title: 'Review failed' },
+      });
       expect(conclusion().output.summary).toContain('GitHub 502');
       expect(conclusion().output.summary).toContain('after 3 attempts');
-      expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED, error: 'GitHub 502' });
+      expect(updates().at(-1)).toMatchObject({
+        status: ReviewStatus.FAILED,
+        error: 'GitHub 502',
+      });
     });
 
     // If GitHub is what's down, completing the check fails too — that must not hide the
@@ -355,18 +531,28 @@ describe('ReviewProcessor', () => {
     // BullMQ fails an UnrecoverableError at once, whatever attempts are left — so the row
     // and the spinner must settle on the first attempt, not wait for a retry that won't come.
     it('settles on the first attempt when the error is unrecoverable', async () => {
-      run.mockRejectedValue(new UnrecoverableError('agent answered 422: repository snapshot too large'));
+      run.mockRejectedValue(
+        new UnrecoverableError(
+          'agent answered 422: repository snapshot too large',
+        ),
+      );
 
-      await expect(processor.process(job(0, 3))).rejects.toBeInstanceOf(UnrecoverableError);
+      await expect(processor.process(job(0, 3))).rejects.toBeInstanceOf(
+        UnrecoverableError,
+      );
 
       expect(conclusion()).toMatchObject({ conclusion: 'failure' });
       expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
     });
 
     it('marks it FAILED without touching a Check Run that was never created', async () => {
-      github.createCheckRun.mockRejectedValue(new Error('Resource not accessible by integration'));
+      github.createCheckRun.mockRejectedValue(
+        new Error('Resource not accessible by integration'),
+      );
 
-      await expect(processor.process(job(2, 3))).rejects.toThrow('Resource not accessible');
+      await expect(processor.process(job(2, 3))).rejects.toThrow(
+        'Resource not accessible',
+      );
 
       expect(github.completeCheckRun).not.toHaveBeenCalled();
       expect(updates().at(-1)).toMatchObject({ status: ReviewStatus.FAILED });
@@ -376,12 +562,19 @@ describe('ReviewProcessor', () => {
   // Even on the last attempt: waiting for GitHub is not a failure of the review.
   it('reschedules a rate-limited attempt for the reset time, leaving the Check Run spinning', async () => {
     const retryAt = new Date(Date.now() + 30 * 60_000);
-    run.mockRejectedValue(new GithubRateLimitError('primary', retryAt, '/repos/o/r/pulls/1/files'));
+    run.mockRejectedValue(
+      new GithubRateLimitError('primary', retryAt, '/repos/o/r/pulls/1/files'),
+    );
     const finalAttempt = job(2, 3);
 
-    await expect(processor.process(finalAttempt, 'lock-token')).rejects.toBeInstanceOf(DelayedError);
+    await expect(
+      processor.process(finalAttempt, 'lock-token'),
+    ).rejects.toBeInstanceOf(DelayedError);
 
-    expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(retryAt.getTime(), 'lock-token');
+    expect(finalAttempt.moveToDelayed).toHaveBeenCalledWith(
+      retryAt.getTime(),
+      'lock-token',
+    );
     expect(github.completeCheckRun).not.toHaveBeenCalled();
     expect(statuses()).toEqual([ReviewStatus.RUNNING, ReviewStatus.PENDING]);
   });
@@ -396,16 +589,17 @@ describe('ReviewProcessor', () => {
       expect(github.createCheckRun).not.toHaveBeenCalled();
     });
 
-    it.each([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED])(
-      'skips a review that is already %s',
-      async (status) => {
-        prisma.review.findUnique.mockResolvedValue(reviewRow({ status }));
+    it.each([
+      ReviewStatus.COMPLETED,
+      ReviewStatus.FAILED,
+      ReviewStatus.SKIPPED,
+    ])('skips a review that is already %s', async (status) => {
+      prisma.review.findUnique.mockResolvedValue(reviewRow({ status }));
 
-        await processor.process(job());
+      await processor.process(job());
 
-        expect(run).not.toHaveBeenCalled();
-        expect(prisma.review.update).not.toHaveBeenCalled();
-      },
-    );
+      expect(run).not.toHaveBeenCalled();
+      expect(prisma.review.update).not.toHaveBeenCalled();
+    });
   });
 });

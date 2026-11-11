@@ -19,6 +19,8 @@ describe('configuration: posting.minSeverity', () => {
   it('refuses a value that is not a severity', () => {
     vi.stubEnv('POST_MIN_SEVERITY', 'hihg');
 
-    expect(() => configuration()).toThrow('POST_MIN_SEVERITY must be one of high, medium, low; got "hihg"');
+    expect(() => configuration()).toThrow(
+      'POST_MIN_SEVERITY must be one of high, medium, low; got "hihg"',
+    );
   });
 });

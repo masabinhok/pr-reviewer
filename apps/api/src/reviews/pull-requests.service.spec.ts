@@ -23,7 +23,9 @@ function prismaStub() {
     installation: { findUnique: vi.fn().mockResolvedValue({ id: 'inst-1' }) },
     repo: { upsert: vi.fn().mockResolvedValue({ id: 'repo-1' }) },
     review: {
-      create: vi.fn().mockResolvedValue({ id: 'rev-1', status: ReviewStatus.PENDING }),
+      create: vi
+        .fn()
+        .mockResolvedValue({ id: 'rev-1', status: ReviewStatus.PENDING }),
       findUniqueOrThrow: vi.fn(),
     },
   };
@@ -37,7 +39,10 @@ describe('PullRequestsService', () => {
   beforeEach(() => {
     prisma = prismaStub();
     queue = { add: vi.fn().mockResolvedValue({}) };
-    service = new PullRequestsService(prisma as unknown as PrismaService, queue as unknown as Queue);
+    service = new PullRequestsService(
+      prisma as unknown as PrismaService,
+      queue as unknown as Queue,
+    );
     vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
@@ -49,10 +54,20 @@ describe('PullRequestsService', () => {
 
     expect(outcome).toBe('enqueued');
     expect(prisma.review.create).toHaveBeenCalledWith({
-      data: { repoId: 'repo-1', prNumber: opened.number, baseSha: BASE, headSha: HEAD, status: ReviewStatus.PENDING },
+      data: {
+        repoId: 'repo-1',
+        prNumber: opened.number,
+        baseSha: BASE,
+        headSha: HEAD,
+        status: ReviewStatus.PENDING,
+      },
     });
     // The job carries the ID and nothing else; its ID is derived from the review's.
-    expect(queue.add).toHaveBeenCalledWith('review', { reviewId: 'rev-1' }, { jobId: 'review-rev-1' });
+    expect(queue.add).toHaveBeenCalledWith(
+      'review',
+      { reviewId: 'rev-1' },
+      { jobId: 'review-rev-1' },
+    );
   });
 
   it('upserts the repo and fills in its default branch', async () => {
@@ -61,11 +76,17 @@ describe('PullRequestsService', () => {
     const call = prisma.repo.upsert.mock.calls[0][0];
     expect(call.where).toEqual({ githubId: BigInt(opened.repository.id) });
     expect(call.create.defaultBranch).toBe(opened.repository.default_branch);
-    expect(call.update).toMatchObject({ defaultBranch: opened.repository.default_branch, deletedAt: null });
+    expect(call.update).toMatchObject({
+      defaultBranch: opened.repository.default_branch,
+      deletedAt: null,
+    });
   });
 
   it('does nothing for a draft PR', async () => {
-    const draft = { ...opened, pull_request: { ...opened.pull_request, draft: true } };
+    const draft = {
+      ...opened,
+      pull_request: { ...opened.pull_request, draft: true },
+    };
 
     const outcome = await service.handle(draft, 'd-2');
 
@@ -92,31 +113,44 @@ describe('PullRequestsService', () => {
     // The row exists but its job may not (the first enqueue failed). Re-adding with the
     // same job ID repairs that, and is ignored by BullMQ if the job is there.
     it('re-adds the job when the existing review is still PENDING', async () => {
-      prisma.review.findUniqueOrThrow.mockResolvedValue({ id: 'rev-old', status: ReviewStatus.PENDING });
+      prisma.review.findUniqueOrThrow.mockResolvedValue({
+        id: 'rev-old',
+        status: ReviewStatus.PENDING,
+      });
 
       const outcome = await service.handle(opened, 'd-4');
 
       expect(outcome).toBe('already-reviewing');
-      expect(queue.add).toHaveBeenCalledWith('review', { reviewId: 'rev-old' }, { jobId: 'review-rev-old' });
+      expect(queue.add).toHaveBeenCalledWith(
+        'review',
+        { reviewId: 'rev-old' },
+        { jobId: 'review-rev-old' },
+      );
     });
 
-    it.each([ReviewStatus.RUNNING, ReviewStatus.COMPLETED, ReviewStatus.FAILED])(
-      'does not enqueue again when it is %s',
-      async (status) => {
-        prisma.review.findUniqueOrThrow.mockResolvedValue({ id: 'rev-old', status });
+    it.each([
+      ReviewStatus.RUNNING,
+      ReviewStatus.COMPLETED,
+      ReviewStatus.FAILED,
+    ])('does not enqueue again when it is %s', async (status) => {
+      prisma.review.findUniqueOrThrow.mockResolvedValue({
+        id: 'rev-old',
+        status,
+      });
 
-        const outcome = await service.handle(opened, 'd-5');
+      const outcome = await service.handle(opened, 'd-5');
 
-        expect(outcome).toBe('already-reviewing');
-        expect(queue.add).not.toHaveBeenCalled();
-      },
-    );
+      expect(outcome).toBe('already-reviewing');
+      expect(queue.add).not.toHaveBeenCalled();
+    });
   });
 
   it('rethrows a database error that is not a unique violation, without enqueueing', async () => {
     prisma.review.create.mockRejectedValue(new Error('connection lost'));
 
-    await expect(service.handle(opened, 'd-6')).rejects.toThrow('connection lost');
+    await expect(service.handle(opened, 'd-6')).rejects.toThrow(
+      'connection lost',
+    );
     expect(queue.add).not.toHaveBeenCalled();
   });
 });

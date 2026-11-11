@@ -1,7 +1,8 @@
 /** Which version of the file a line belongs to, in GitHub's review-comment vocabulary. */
 export type Side = 'LEFT' | 'RIGHT';
 
-export type DiffFileStatus = 'added' | 'removed' | 'modified' | 'renamed' | 'copied';
+export type DiffFileStatus =
+  'added' | 'removed' | 'modified' | 'renamed' | 'copied';
 
 export interface DiffLine {
   kind: 'add' | 'del' | 'context';

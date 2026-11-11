@@ -1,29 +1,47 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { evalStamp, MIN_RUNS, runProblem, STAMPED, type RunOnDisk } from './stamp.js';
+import {
+  evalStamp,
+  MIN_RUNS,
+  runProblem,
+  STAMPED,
+  type RunOnDisk,
+} from './stamp.js';
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
-const files: Record<string, string> = Object.fromEntries(STAMPED.map((p) => [p, `contents of ${p}`]));
+const files: Record<string, string> = Object.fromEntries(
+  STAMPED.map((p) => [p, `contents of ${p}`]),
+);
 
 describe('evalStamp', () => {
   it('every stamped file exists: a rename must not quietly drop one from the stamp', () => {
-    for (const path of STAMPED) expect(existsSync(ROOT + path), path).toBe(true);
+    for (const path of STAMPED)
+      expect(existsSync(ROOT + path), path).toBe(true);
   });
 
   it('is the same for the same files and bar', () => {
-    expect(evalStamp((p) => files[p], 'HIGH')).toBe(evalStamp((p) => files[p], 'HIGH'));
-    expect(evalStamp((p) => readFileSync(ROOT + p, 'utf8'), 'HIGH')).toMatch(/^[0-9a-f]{16}$/);
+    expect(evalStamp((p) => files[p], 'HIGH')).toBe(
+      evalStamp((p) => files[p], 'HIGH'),
+    );
+    expect(evalStamp((p) => readFileSync(ROOT + p, 'utf8'), 'HIGH')).toMatch(
+      /^[0-9a-f]{16}$/,
+    );
   });
 
   it('changes when any stamped file does — one character of the prompt', () => {
     const before = evalStamp((p) => files[p], 'HIGH');
     for (const path of STAMPED) {
-      expect(evalStamp((p) => (p === path ? files[p] + ' ' : files[p]), 'HIGH'), path).not.toBe(before);
+      expect(
+        evalStamp((p) => (p === path ? files[p] + ' ' : files[p]), 'HIGH'),
+        path,
+      ).not.toBe(before);
     }
   });
 
   it('changes with the posting bar', () => {
-    expect(evalStamp((p) => files[p], 'MEDIUM')).not.toBe(evalStamp((p) => files[p], 'HIGH'));
+    expect(evalStamp((p) => files[p], 'MEDIUM')).not.toBe(
+      evalStamp((p) => files[p], 'HIGH'),
+    );
   });
 });
 
@@ -32,7 +50,9 @@ describe('runProblem: whether a run vouches for the reviewer', () => {
   const complete = (): RunOnDisk => ({
     dir: 'r',
     meta: { stamp: 's1', runs: MIN_RUNS, fixtures },
-    results: [1, 2, 3].flatMap((run) => fixtures.map((fixture) => ({ fixture, run }))),
+    results: [1, 2, 3].flatMap((run) =>
+      fixtures.map((fixture) => ({ fixture, run })),
+    ),
   });
 
   it('a complete run with the current stamp does', () => {
@@ -54,7 +74,9 @@ describe('runProblem: whether a run vouches for the reviewer', () => {
 
     const stopped = complete();
     stopped.results.pop();
-    expect(runProblem(stopped, 's1', fixtures)).toBe('stopped after 5 of 6 reviews');
+    expect(runProblem(stopped, 's1', fixtures)).toBe(
+      'stopped after 5 of 6 reviews',
+    );
   });
 
   it('a run that predates the stamp does not', () => {

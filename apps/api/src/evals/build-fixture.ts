@@ -17,8 +17,14 @@ export interface BuildInput {
 }
 
 /** Which two commits a fixture reviews: a bug fixture reviews the fix backwards. */
-export function commitsToReview(kind: 'bug' | 'clean', commit: string, parent: string): { base: string; head: string } {
-  return kind === 'bug' ? { base: commit, head: parent } : { base: parent, head: commit };
+export function commitsToReview(
+  kind: 'bug' | 'clean',
+  commit: string,
+  parent: string,
+): { base: string; head: string } {
+  return kind === 'bug'
+    ? { base: commit, head: parent }
+    : { base: parent, head: commit };
 }
 
 /**
@@ -27,26 +33,44 @@ export function commitsToReview(kind: 'bug' | 'clean', commit: string, parent: s
  * — a fix's own title would name the bug — and a drafted key for a person to finish.
  */
 export function buildFixture(input: BuildInput): Fixture {
-  const { base, head } = commitsToReview(input.kind, input.commit, input.parent);
+  const { base, head } = commitsToReview(
+    input.kind,
+    input.commit,
+    input.parent,
+  );
   const parsed = parseDiff(input.diff);
   const source = parsed.filter((f) => isReviewableSource(f.path));
   const changed = source.map((f) => ({
     filename: f.path,
     status: f.status,
-    additions: f.hunks.flatMap((h) => h.lines).filter((l) => l.kind === 'add').length,
-    deletions: f.hunks.flatMap((h) => h.lines).filter((l) => l.kind === 'del').length,
+    additions: f.hunks.flatMap((h) => h.lines).filter((l) => l.kind === 'add')
+      .length,
+    deletions: f.hunks.flatMap((h) => h.lines).filter((l) => l.kind === 'del')
+      .length,
   }));
   const listed = filterFileList(changed);
-  if (listed.tooLarge) throw new Error(`too large to review: ${listed.tooLarge}`);
-  const { kept } = filterDiffFiles(source, new Set(listed.kept.map((f) => f.filename)));
-  if (!kept.length) throw new Error('no reviewable source files left after dropping tests and docs');
+  if (listed.tooLarge)
+    throw new Error(`too large to review: ${listed.tooLarge}`);
+  const { kept } = filterDiffFiles(
+    source,
+    new Set(listed.kept.map((f) => f.filename)),
+  );
+  if (!kept.length)
+    throw new Error(
+      'no reviewable source files left after dropping tests and docs',
+    );
 
   const names = kept.map((f) => basename(f.path));
   return {
     id: input.id,
     kind: input.kind,
     split: input.split,
-    source: { repo: input.repo, commit: input.commit, url: `https://github.com/${input.repo}/commit/${input.commit}`, message: input.message },
+    source: {
+      repo: input.repo,
+      commit: input.commit,
+      url: `https://github.com/${input.repo}/commit/${input.commit}`,
+      message: input.message,
+    },
     reviewed: { base, head },
     request: {
       repo: input.repo,

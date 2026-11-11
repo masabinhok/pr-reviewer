@@ -21,12 +21,15 @@ export class LineMap {
 
   constructor(files: DiffFile[]) {
     for (const file of files) {
-      if (file.status === 'renamed' && file.oldPath !== file.path) this.aliases.set(file.oldPath, file.path);
+      if (file.status === 'renamed' && file.oldPath !== file.path)
+        this.aliases.set(file.oldPath, file.path);
 
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
-          if (line.newLine !== undefined) this.slot(file.path, 'RIGHT').set(line.newLine, line);
-          if (line.oldLine !== undefined) this.slot(file.path, 'LEFT').set(line.oldLine, line);
+          if (line.newLine !== undefined)
+            this.slot(file.path, 'RIGHT').set(line.newLine, line);
+          if (line.oldLine !== undefined)
+            this.slot(file.path, 'LEFT').set(line.oldLine, line);
         }
       }
     }

@@ -6,7 +6,11 @@ import { FeedbackPoller } from './feedback-poller.js';
 import { FEEDBACK_QUEUE, FeedbackProcessor } from './feedback.processor.js';
 
 @Module({
-  imports: [QueueModule, GithubModule, BullModule.registerQueue({ name: FEEDBACK_QUEUE })],
+  imports: [
+    QueueModule,
+    GithubModule,
+    BullModule.registerQueue({ name: FEEDBACK_QUEUE }),
+  ],
   providers: [FeedbackPoller, FeedbackProcessor],
   exports: [FeedbackPoller],
 })

@@ -9,14 +9,20 @@ import {
 } from './review-filter.js';
 import { parseDiff } from '../diff/parse-diff.js';
 
-const changed = (filename: string, status = 'modified', additions = 1, deletions = 0): ChangedFile => ({
+const changed = (
+  filename: string,
+  status = 'modified',
+  additions = 1,
+  deletions = 0,
+): ChangedFile => ({
   filename,
   status,
   additions,
   deletions,
 });
 
-const reasonFor = (path: string) => filterFileList([changed(path)]).skipped[0]?.reason;
+const reasonFor = (path: string) =>
+  filterFileList([changed(path)]).skipped[0]?.reason;
 
 describe('filterFileList — stage one, by path', () => {
   it.each([
@@ -59,13 +65,17 @@ describe('filterFileList — stage one, by path', () => {
   });
 
   it('skips a removed file — nothing left to review', () => {
-    expect(filterFileList([changed('src/old.ts', 'removed', 0, 40)]).skipped).toEqual([
-      { path: 'src/old.ts', reason: 'removed' },
-    ]);
+    expect(
+      filterFileList([changed('src/old.ts', 'removed', 0, 40)]).skipped,
+    ).toEqual([{ path: 'src/old.ts', reason: 'removed' }]);
   });
 
   it('keeps the files that survive, in order, with their original shape', () => {
-    const files = [changed('src/a.ts'), changed('yarn.lock'), changed('src/b.ts')];
+    const files = [
+      changed('src/a.ts'),
+      changed('yarn.lock'),
+      changed('src/b.ts'),
+    ];
 
     const { kept, skipped } = filterFileList(files);
 
@@ -75,24 +85,34 @@ describe('filterFileList — stage one, by path', () => {
 });
 
 describe('filterFileList — PR-level limits', () => {
-  const many = (n: number, lines = 1) => Array.from({ length: n }, (_, i) => changed(`src/f${i}.ts`, 'modified', lines, 0));
+  const many = (n: number, lines = 1) =>
+    Array.from({ length: n }, (_, i) =>
+      changed(`src/f${i}.ts`, 'modified', lines, 0),
+    );
 
   it('reviews a PR exactly at the file limit', () => {
     expect(filterFileList(many(50)).tooLarge).toBeUndefined();
   });
 
   it('refuses a PR one file over it', () => {
-    expect(filterFileList(many(51)).tooLarge).toBe('51 files to review, over the limit of 50');
+    expect(filterFileList(many(51)).tooLarge).toBe(
+      '51 files to review, over the limit of 50',
+    );
   });
 
   it('refuses a PR over the changed-line limit', () => {
-    expect(filterFileList(many(3, 700)).tooLarge).toBe('2100 changed lines to review, over the limit of 2000');
+    expect(filterFileList(many(3, 700)).tooLarge).toBe(
+      '2100 changed lines to review, over the limit of 2000',
+    );
   });
 
   // Limits count what would actually be reviewed: a 10,000-line lockfile bump alongside
   // a small fix is a small PR.
   it('applies the limits after per-file filtering', () => {
-    const files = [changed('package-lock.json', 'modified', 9000, 1000), ...many(40, 10)];
+    const files = [
+      changed('package-lock.json', 'modified', 9000, 1000),
+      ...many(40, 10),
+    ];
 
     expect(filterFileList(files).tooLarge).toBeUndefined();
   });
@@ -100,21 +120,39 @@ describe('filterFileList — PR-level limits', () => {
   it('takes its limits and rules from the config it is given', () => {
     const strict: FilterConfig = { ...DEFAULT_FILTER_CONFIG, maxFiles: 2 };
 
-    expect(filterFileList(many(3), strict).tooLarge).toBe('3 files to review, over the limit of 2');
+    expect(filterFileList(many(3), strict).tooLarge).toBe(
+      '3 files to review, over the limit of 2',
+    );
   });
 });
 
 describe('filterDiffFiles — stage two, on the parsed diff', () => {
-  const diff = readFileSync(fileURLToPath(new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url)), 'utf8');
+  const diff = readFileSync(
+    fileURLToPath(
+      new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url),
+    ),
+    'utf8',
+  );
   const parsed = parseDiff(diff);
 
   it('keeps only files with lines to review, naming why each other one was dropped', () => {
     // Everything that stage one would let through for the testbed PR.
-    const survivors = new Set(['assets/logo.png', 'docs/new name.md', 'src/auth.ts', 'src/config.ts', 'src/helpers.ts', 'src/new-feature.ts']);
+    const survivors = new Set([
+      'assets/logo.png',
+      'docs/new name.md',
+      'src/auth.ts',
+      'src/config.ts',
+      'src/helpers.ts',
+      'src/new-feature.ts',
+    ]);
 
     const { kept, skipped } = filterDiffFiles(parsed, survivors);
 
-    expect(kept.map((f) => f.path)).toEqual(['src/auth.ts', 'src/helpers.ts', 'src/new-feature.ts']);
+    expect(kept.map((f) => f.path)).toEqual([
+      'src/auth.ts',
+      'src/helpers.ts',
+      'src/new-feature.ts',
+    ]);
     expect(skipped).toEqual([
       { path: 'assets/logo.png', reason: 'binary' },
       { path: 'docs/new name.md', reason: 'no-changes' }, // pure rename

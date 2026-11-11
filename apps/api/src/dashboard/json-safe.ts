@@ -1,4 +1,9 @@
-import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common';
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Injectable,
+  type NestInterceptor,
+} from '@nestjs/common';
 import { map, type Observable } from 'rxjs';
 
 /**
@@ -12,14 +17,19 @@ export function jsonSafe(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(jsonSafe);
   if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, jsonSafe(v)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, jsonSafe(v)]),
+    );
   }
   return value;
 }
 
 @Injectable()
 export class JsonSafeInterceptor implements NestInterceptor {
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(
+    _context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<unknown> {
     return next.handle().pipe(map(jsonSafe));
   }
 }

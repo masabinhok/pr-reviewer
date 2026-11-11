@@ -6,7 +6,11 @@ import { FindingStatus, ReviewStatus } from '../generated/prisma/client.js';
 import { REVIEW_QUEUE, type ReviewJobData } from './review-queue.js';
 import { GithubRateLimitError } from '../github/github-api.errors.js';
 import { GithubApiService } from '../github/github-api.service.js';
-import { CHECK_RUN_NAME, renderCheck, type CheckResult } from './check-summary.js';
+import {
+  CHECK_RUN_NAME,
+  renderCheck,
+  type CheckResult,
+} from './check-summary.js';
 import type { ReviewOutcome } from './review-outcome.js';
 import { ReviewPipeline } from './review-pipeline.js';
 import { ReviewPublisher, type Publication } from './review-publisher.js';
@@ -83,7 +87,11 @@ export class ReviewProcessor extends WorkerHost {
 
     await this.prisma.review.update({
       where: { id: reviewId },
-      data: { status: ReviewStatus.RUNNING, startedAt: new Date(), error: null },
+      data: {
+        status: ReviewStatus.RUNNING,
+        startedAt: new Date(),
+        error: null,
+      },
     });
     this.logger.log(`review ${reviewId}: running (${attempt})`);
 
@@ -117,11 +125,19 @@ export class ReviewProcessor extends WorkerHost {
         });
         await this.prisma.review.update({
           where: { id: reviewId },
-          data: { status: ReviewStatus.FAILED, error: message, completedAt: new Date() },
+          data: {
+            status: ReviewStatus.FAILED,
+            error: message,
+            completedAt: new Date(),
+          },
         });
-        this.logger.error(`review ${reviewId}: failed for good (${attempt}): ${message}`);
+        this.logger.error(
+          `review ${reviewId}: failed for good (${attempt}): ${message}`,
+        );
       } else {
-        this.logger.warn(`review ${reviewId}: ${attempt} failed, will retry: ${message}`);
+        this.logger.warn(
+          `review ${reviewId}: ${attempt} failed, will retry: ${message}`,
+        );
       }
       throw e;
     }
@@ -133,13 +149,20 @@ export class ReviewProcessor extends WorkerHost {
   }
 
   private async startCheckRun(target: ReviewTarget): Promise<bigint> {
-    const { id } = await this.github.createCheckRun(target.installationId, target.repo, {
-      name: CHECK_RUN_NAME,
-      headSha: target.headSha,
-      externalId: target.reviewId,
-    });
+    const { id } = await this.github.createCheckRun(
+      target.installationId,
+      target.repo,
+      {
+        name: CHECK_RUN_NAME,
+        headSha: target.headSha,
+        externalId: target.reviewId,
+      },
+    );
     const checkRunId = BigInt(id);
-    await this.prisma.review.update({ where: { id: target.reviewId }, data: { checkRunId } });
+    await this.prisma.review.update({
+      where: { id: target.reviewId },
+      data: { checkRunId },
+    });
     return checkRunId;
   }
 
@@ -159,19 +182,35 @@ export class ReviewProcessor extends WorkerHost {
    * Steps 1 to 3 hold the PR's settle lock (PullRequestLock), so two reviews of one PR never
    * decide what is a repeat, or what is stale, at the same moment.
    */
-  private async settle(target: ReviewTarget, checkRunId: bigint, outcome: ReviewOutcome): Promise<void> {
+  private async settle(
+    target: ReviewTarget,
+    checkRunId: bigint,
+    outcome: ReviewOutcome,
+  ): Promise<void> {
     if (outcome.kind === 'skipped') {
-      await this.github.completeCheckRun(target.installationId, target.repo, checkRunId, renderCheck(outcome, target.headSha));
+      await this.github.completeCheckRun(
+        target.installationId,
+        target.repo,
+        checkRunId,
+        renderCheck(outcome, target.headSha),
+      );
       await this.prisma.review.update({
         where: { id: target.reviewId },
-        data: { status: ReviewStatus.SKIPPED, skipReason: outcome.reason, completedAt: new Date() },
+        data: {
+          status: ReviewStatus.SKIPPED,
+          skipReason: outcome.reason,
+          completedAt: new Date(),
+        },
       });
       this.logger.log(`review ${target.reviewId}: skipped — ${outcome.reason}`);
       return;
     }
 
     const release = await this.lock.acquire(target.repo, target.prNumber);
-    if (!release) throw new PullRequestBusyError(`${target.repo}#${target.prNumber} is being settled by another review`);
+    if (!release)
+      throw new PullRequestBusyError(
+        `${target.repo}#${target.prNumber} is being settled by another review`,
+      );
     let publication: Publication;
     let findings: Finding[];
     let resolved = 0;
@@ -206,10 +245,16 @@ export class ReviewProcessor extends WorkerHost {
    * publisher skips it. A resolved finding that comes back is not a match: it is new again,
    * and is posted.
    */
-  private storeFindings(target: ReviewTarget, findings: ValidFinding[]): Promise<Finding[]> {
+  private storeFindings(
+    target: ReviewTarget,
+    findings: ValidFinding[],
+  ): Promise<Finding[]> {
     const { reviewId } = target;
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });
+      const existing = await tx.finding.findMany({
+        where: { reviewId },
+        orderBy: [{ filePath: 'asc' }, { line: 'asc' }],
+      });
       if (existing.length > 0) return existing;
 
       const anchors = [...new Set(findings.flatMap((f) => f.anchors))];
@@ -220,14 +265,19 @@ export class ReviewProcessor extends WorkerHost {
               githubCommentId: { not: null },
               status: FindingStatus.OPEN,
               reviewId: { not: reviewId },
-              review: { prNumber: target.prNumber, repo: { fullName: target.repo } },
+              review: {
+                prNumber: target.prNumber,
+                repo: { fullName: target.repo },
+              },
             },
             orderBy: { review: { startedAt: 'asc' } },
             select: { id: true, anchors: true },
           })
         : [];
       // The first comment near that code is the one a repeat points at.
-      const repeatOf = (f: ValidFinding) => commented.find((c) => c.anchors.some((a) => f.anchors.includes(a)))?.id ?? null;
+      const repeatOf = (f: ValidFinding) =>
+        commented.find((c) => c.anchors.some((a) => f.anchors.includes(a)))
+          ?.id ?? null;
 
       await tx.finding.createMany({
         data: findings.map((f) => ({
@@ -248,7 +298,10 @@ export class ReviewProcessor extends WorkerHost {
           repeatOfId: repeatOf(f),
         })),
       });
-      return tx.finding.findMany({ where: { reviewId }, orderBy: [{ filePath: 'asc' }, { line: 'asc' }] });
+      return tx.finding.findMany({
+        where: { reviewId },
+        orderBy: [{ filePath: 'asc' }, { line: 'asc' }],
+      });
     });
   }
 
@@ -256,12 +309,23 @@ export class ReviewProcessor extends WorkerHost {
    * Completing the Check Run on the failure path must not mask the error that got us
    * here: if GitHub is the thing that's down, log it and move on to recording FAILED.
    */
-  private async completeCheckRunQuietly(target: ReviewTarget, checkRunId: bigint | null, result: CheckResult): Promise<void> {
+  private async completeCheckRunQuietly(
+    target: ReviewTarget,
+    checkRunId: bigint | null,
+    result: CheckResult,
+  ): Promise<void> {
     if (checkRunId === null) return; // creating it was what failed
     try {
-      await this.github.completeCheckRun(target.installationId, target.repo, checkRunId, renderCheck(result, target.headSha));
+      await this.github.completeCheckRun(
+        target.installationId,
+        target.repo,
+        checkRunId,
+        renderCheck(result, target.headSha),
+      );
     } catch (e) {
-      this.logger.error(`review ${target.reviewId}: could not complete Check Run ${checkRunId}: ${e instanceof Error ? e.message : e}`);
+      this.logger.error(
+        `review ${target.reviewId}: could not complete Check Run ${checkRunId}: ${e instanceof Error ? e.message : e}`,
+      );
     }
   }
 
@@ -272,13 +336,22 @@ export class ReviewProcessor extends WorkerHost {
    * review goes back to PENDING — it is waiting, not running.
    */
   /** Another review of this PR is storing or posting: try again shortly, spending no attempt. */
-  private async waitForPullRequest(job: Job<ReviewJobData>, token: string | undefined): Promise<never> {
+  private async waitForPullRequest(
+    job: Job<ReviewJobData>,
+    token: string | undefined,
+  ): Promise<never> {
     await job.moveToDelayed(Date.now() + BUSY_RETRY_MS, token);
-    this.logger.log(`review ${job.data.reviewId}: another review of this PR is settling — waiting`);
+    this.logger.log(
+      `review ${job.data.reviewId}: another review of this PR is settling — waiting`,
+    );
     throw new DelayedError();
   }
 
-  private async waitForRateLimit(job: Job<ReviewJobData>, token: string | undefined, error: GithubRateLimitError): Promise<never> {
+  private async waitForRateLimit(
+    job: Job<ReviewJobData>,
+    token: string | undefined,
+    error: GithubRateLimitError,
+  ): Promise<never> {
     // Never schedule into the past (clock skew), and never busy-loop on a reset "now".
     const until = Math.max(error.retryAt.getTime(), Date.now() + 1000);
 
@@ -295,7 +368,11 @@ export class ReviewProcessor extends WorkerHost {
 }
 
 /** A review in one of these states is finished; a stray job for it does nothing. */
-const SETTLED = new Set<ReviewStatus>([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED]);
+const SETTLED = new Set<ReviewStatus>([
+  ReviewStatus.COMPLETED,
+  ReviewStatus.FAILED,
+  ReviewStatus.SKIPPED,
+]);
 
 function isFinalAttempt(job: Job): boolean {
   return job.attemptsMade + 1 >= (job.opts.attempts ?? 1);

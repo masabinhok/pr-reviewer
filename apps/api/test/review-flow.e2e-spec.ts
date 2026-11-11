@@ -20,7 +20,11 @@ import { fakeGithub } from './helpers/github-fake.js';
  * responses captured from the testbed (see helpers/github-fake.ts).
  */
 
-const diffs = (name: string) => readFileSync(fileURLToPath(new URL(`./fixtures/diffs/${name}`, import.meta.url)), 'utf8');
+const diffs = (name: string) =>
+  readFileSync(
+    fileURLToPath(new URL(`./fixtures/diffs/${name}`, import.meta.url)),
+    'utf8',
+  );
 
 // Real deliveries: a push to the diff-shapes PR (#3), and the opening of a 60-file PR (#5).
 const SYNC = fixture('pull_request.synchronize');
@@ -33,7 +37,11 @@ const sync = fixtureJson<{
 const OPENED_LARGE = fixture('pull_request.opened');
 const REPO = sync.repository.full_name;
 
-async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms = 10_000): Promise<T> {
+async function until<T>(
+  read: () => Promise<T>,
+  done: (value: T) => boolean,
+  ms = 10_000,
+): Promise<T> {
   const deadline = Date.now() + ms;
   for (;;) {
     const value = await read();
@@ -61,12 +69,26 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
 
   const settledReview = (headSha: string) =>
     until(
-      () => prisma.review.findFirst({ where: { headSha }, include: { findings: true } }),
-      (r) => r !== null && ([ReviewStatus.COMPLETED, ReviewStatus.FAILED, ReviewStatus.SKIPPED] as ReviewStatus[]).includes(r.status),
+      () =>
+        prisma.review.findFirst({
+          where: { headSha },
+          include: { findings: true },
+        }),
+      (r) =>
+        r !== null &&
+        (
+          [
+            ReviewStatus.COMPLETED,
+            ReviewStatus.FAILED,
+            ReviewStatus.SKIPPED,
+          ] as ReviewStatus[]
+        ).includes(r.status),
     );
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication({ rawBody: true });
     await app.init();
     prisma = app.get(PrismaService);
@@ -87,27 +109,44 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     github = fakeGithub({
       outdated: (id) => outdated.has(id),
       pulls: {
-        [`${REPO}#3`]: { files: JSON.parse(diffs('pr3-synchronize.files.json')), diff: diffs('pr3-synchronize.diff'), title: 'Diff shapes' },
-        [`${REPO}#5`]: { files: JSON.parse(diffs('pr5-too-large.files.json')), diff: diffs('pr5-too-large.diff') },
+        [`${REPO}#3`]: {
+          files: JSON.parse(diffs('pr3-synchronize.files.json')),
+          diff: diffs('pr3-synchronize.diff'),
+          title: 'Diff shapes',
+        },
+        [`${REPO}#5`]: {
+          files: JSON.parse(diffs('pr5-too-large.files.json')),
+          diff: diffs('pr5-too-large.diff'),
+        },
       },
     });
     vi.stubGlobal('fetch', github.fetch);
 
     await truncateAll(prisma);
     await prisma.installation.create({
-      data: { githubId: BigInt(sync.installation.id), accountLogin: 'masabinhok', accountType: 'User' },
+      data: {
+        githubId: BigInt(sync.installation.id),
+        accountLogin: 'masabinhok',
+        accountType: 'User',
+      },
     });
   });
 
   it('answers the webhook fast, then reviews the push and stores its findings', async () => {
     const started = Date.now();
-    await deliver('pull_request', SYNC).expect(200).expect({ ok: true, handled: true });
+    await deliver('pull_request', SYNC)
+      .expect(200)
+      .expect({ ok: true, handled: true });
     // The webhook only records and enqueues; the review happens after the response.
     expect(Date.now() - started).toBeLessThan(1000);
 
     const review = await settledReview(sync.pull_request.head.sha);
     expect(review?.status).toBe(ReviewStatus.COMPLETED);
-    expect(review!.findings.map((f) => [f.filePath, f.line, f.side, f.severity]).sort()).toEqual([
+    expect(
+      review!.findings
+        .map((f) => [f.filePath, f.line, f.side, f.severity])
+        .sort(),
+    ).toEqual([
       ['src/auth.ts', 26, 'RIGHT', 'LOW'],
       ['src/auth.ts', 32, 'RIGHT', 'LOW'],
       ['src/helpers.ts', 10, 'RIGHT', 'LOW'],
@@ -124,12 +163,18 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     expect(posted.event).toBe('COMMENT');
     expect(posted.commitId).toBe(sync.pull_request.head.sha);
     // The stub's four findings are three low and one medium: only the medium is posted.
-    expect(posted.comments.map((c) => [c.path, c.line, c.side])).toEqual([['src/new-feature.ts', 2, 'RIGHT']]);
-    expect(posted.body).toContain('3 lower-severity notes are in the pr-reviewer check');
+    expect(posted.comments.map((c) => [c.path, c.line, c.side])).toEqual([
+      ['src/new-feature.ts', 2, 'RIGHT'],
+    ]);
+    expect(posted.body).toContain(
+      '3 lower-severity notes are in the pr-reviewer check',
+    );
 
     const medium = review!.findings.find((f) => f.severity === 'MEDIUM');
     expect(medium?.githubCommentId).toBe(BigInt(posted.comments[0].id));
-    expect(review!.findings.filter((f) => f.githubCommentId !== null)).toHaveLength(1);
+    expect(
+      review!.findings.filter((f) => f.githubCommentId !== null),
+    ).toHaveLength(1);
   });
 
   // Posting is the visible step. A job that fails after it — here, GitHub refusing the
@@ -137,13 +182,22 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
   it('does not post a second review when the job is retried after posting', async () => {
     const fetchWithOneCheckRunFailure = github.fetch;
     let failed = false;
-    vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
-      if (!failed && (init.method ?? 'GET') === 'PATCH' && String(input).includes('/check-runs/')) {
-        failed = true;
-        return new Response(JSON.stringify({ message: 'Bad Gateway' }), { status: 502 });
-      }
-      return fetchWithOneCheckRunFailure(input, init);
-    });
+    vi.stubGlobal(
+      'fetch',
+      async (input: string | URL | Request, init: RequestInit = {}) => {
+        if (
+          !failed &&
+          (init.method ?? 'GET') === 'PATCH' &&
+          String(input).includes('/check-runs/')
+        ) {
+          failed = true;
+          return new Response(JSON.stringify({ message: 'Bad Gateway' }), {
+            status: 502,
+          });
+        }
+        return fetchWithOneCheckRunFailure(input, init);
+      },
+    );
 
     await deliver('pull_request', SYNC).expect(200);
     const review = await settledReview(sync.pull_request.head.sha);
@@ -158,19 +212,33 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     await deliver('pull_request', SYNC).expect(200);
     await settledReview(sync.pull_request.head.sha);
 
-    expect(github.createdCheckRuns()).toEqual([expect.objectContaining({ name: 'pr-reviewer', head_sha: sync.pull_request.head.sha, status: 'in_progress' })]);
+    expect(github.createdCheckRuns()).toEqual([
+      expect.objectContaining({
+        name: 'pr-reviewer',
+        head_sha: sync.pull_request.head.sha,
+        status: 'in_progress',
+      }),
+    ]);
     const [completed] = github.completedCheckRuns();
     expect(completed.conclusion).toBe('success');
     expect(completed.output.title).toBe('4 findings in 3 files');
-    expect(completed.output.summary).toContain('Posted 1 comment on the pull request');
-    expect(completed.output.summary).toContain('| `package-lock.json` | lockfile |');
+    expect(completed.output.summary).toContain(
+      'Posted 1 comment on the pull request',
+    );
+    expect(completed.output.summary).toContain(
+      '| `package-lock.json` | lockfile |',
+    );
   });
 
   it('fetches the diff by the pushed commit’s SHAs', async () => {
     await deliver('pull_request', SYNC).expect(200);
     await settledReview(sync.pull_request.head.sha);
 
-    expect(github.calls.filter((c) => c.path.includes('/compare/')).map((c) => c.path)).toEqual([
+    expect(
+      github.calls
+        .filter((c) => c.path.includes('/compare/'))
+        .map((c) => c.path),
+    ).toEqual([
       `/repos/${REPO}/compare/${fixtureJson<{ pull_request: { base: { sha: string } } }>('pull_request.synchronize').pull_request.base.sha}...${sync.pull_request.head.sha}`,
     ]);
   });
@@ -180,7 +248,9 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     await deliver('pull_request', SYNC, deliveryId).expect(200);
     await settledReview(sync.pull_request.head.sha);
 
-    await deliver('pull_request', SYNC, deliveryId).expect(200).expect({ ok: true, duplicate: true });
+    await deliver('pull_request', SYNC, deliveryId)
+      .expect(200)
+      .expect({ ok: true, duplicate: true });
 
     expect(await prisma.review.count()).toBe(1);
     expect(github.createdCheckRuns()).toHaveLength(1);
@@ -196,7 +266,9 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     await settledReview(next.pull_request.head.sha);
 
     const heads = (await prisma.review.findMany()).map((r) => r.headSha).sort();
-    expect(heads).toEqual([next.pull_request.head.sha, sync.pull_request.head.sha].sort());
+    expect(heads).toEqual(
+      [next.pull_request.head.sha, sync.pull_request.head.sha].sort(),
+    );
   });
 
   // M24: a push reviews the new head from scratch; what was already commented on stays put.
@@ -219,14 +291,23 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
 
       expect(second?.status).toBe(ReviewStatus.COMPLETED);
       expect(github.reviews).toHaveLength(1); // the first push's review, and no other
-      const first = await prisma.review.findFirst({ where: { headSha: sync.pull_request.head.sha }, include: { findings: true } });
-      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
-      const repeat = second!.findings.find((f) => f.filePath === commented.filePath && f.line === commented.line)!;
+      const first = await prisma.review.findFirst({
+        where: { headSha: sync.pull_request.head.sha },
+        include: { findings: true },
+      });
+      const commented = first!.findings.find(
+        (f) => f.githubCommentId !== null,
+      )!;
+      const repeat = second!.findings.find(
+        (f) => f.filePath === commented.filePath && f.line === commented.line,
+      )!;
       expect(repeat.repeatOfId).toBe(commented.id);
       expect(repeat.githubCommentId).toBeNull();
 
       const checks = github.completedCheckRuns();
-      expect(checks.at(-1)!.output.summary).toContain('Nothing new to post. 1 was already commented on in an earlier review');
+      expect(checks.at(-1)!.output.summary).toContain(
+        'Nothing new to post. 1 was already commented on in an earlier review',
+      );
     });
 
     // The window: a finding on or beside code already commented on is that comment, even
@@ -234,7 +315,12 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     it('treats an edit to the commented line as the same comment', async () => {
       const original = diffs('pr3-synchronize.diff');
       github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
-        head === SECOND ? original.replace('+  debugger;', '+  debugger; // left in on purpose') : original;
+        head === SECOND
+          ? original.replace(
+              '+  debugger;',
+              '+  debugger; // left in on purpose',
+            )
+          : original;
 
       await pushTwice();
 
@@ -244,15 +330,24 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
     it('posts a finding on code that was rewritten around it', async () => {
       const original = diffs('pr3-synchronize.diff');
       const rewritten = original
-        .replace('+export function greet(name: string): string {', '+export function farewell(person: string): string {')
+        .replace(
+          '+export function greet(name: string): string {',
+          '+export function farewell(person: string): string {',
+        )
         .replace('+  debugger;', '+  debugger; // again')
-        .replace('+  return `hello ${name}`;', '+  return `goodbye ${person}`;');
-      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) => (head === SECOND ? rewritten : original);
+        .replace(
+          '+  return `hello ${name}`;',
+          '+  return `goodbye ${person}`;',
+        );
+      github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
+        head === SECOND ? rewritten : original;
 
       await pushTwice();
 
       expect(github.reviews).toHaveLength(2);
-      expect(github.reviews[1].comments.map((c) => [c.path, c.line])).toEqual([['src/new-feature.ts', 2]]);
+      expect(github.reviews[1].comments.map((c) => [c.path, c.line])).toEqual([
+        ['src/new-feature.ts', 2],
+      ]);
     });
 
     // M25: the comment's code is gone and this review didn't find the problem again.
@@ -260,40 +355,57 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
       const original = diffs('pr3-synchronize.diff');
       // The second push replaces the flagged line, so nothing is found there again.
       github.pulls[`${REPO}#3`].diff = (_base: string, head: string) =>
-        head === SECOND ? original.replace('+  debugger;', '+  const ready = true;') : original;
+        head === SECOND
+          ? original.replace('+  debugger;', '+  const ready = true;')
+          : original;
       await deliver('pull_request', SYNC).expect(200);
       const first = await settledReview(sync.pull_request.head.sha);
-      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
+      const commented = first!.findings.find(
+        (f) => f.githubCommentId !== null,
+      )!;
       outdated.add(Number(commented.githubCommentId));
 
       await deliver('pull_request', secondPush()).expect(200);
       await settledReview(SECOND);
 
-      const after = await prisma.finding.findUnique({ where: { id: commented.id } });
+      const after = await prisma.finding.findUnique({
+        where: { id: commented.id },
+      });
       expect(after).toMatchObject({ status: 'RESOLVED', resolvedBy: 'APP' });
       expect(after!.resolvedAt).not.toBeNull();
-      expect(github.minimized.has(Number(commented.githubCommentId))).toBe(true);
-      expect(github.completedCheckRuns().at(-1)!.output.summary).toContain('Resolved 1 earlier comment');
+      expect(github.minimized.has(Number(commented.githubCommentId))).toBe(
+        true,
+      );
+      expect(github.completedCheckRuns().at(-1)!.output.summary).toContain(
+        'Resolved 1 earlier comment',
+      );
     });
 
     // Outdated code is not a fix while the review still finds the problem.
     it('leaves a comment open when the review finds the problem again', async () => {
       await deliver('pull_request', SYNC).expect(200);
       const first = await settledReview(sync.pull_request.head.sha);
-      const commented = first!.findings.find((f) => f.githubCommentId !== null)!;
+      const commented = first!.findings.find(
+        (f) => f.githubCommentId !== null,
+      )!;
       outdated.add(Number(commented.githubCommentId));
 
       await deliver('pull_request', secondPush()).expect(200);
       await settledReview(SECOND);
 
-      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'OPEN', resolvedBy: null });
+      expect(
+        await prisma.finding.findUnique({ where: { id: commented.id } }),
+      ).toMatchObject({ status: 'OPEN', resolvedBy: null });
       expect(github.minimized.size).toBe(0);
     });
 
     it('posts again a finding that had been resolved and came back', async () => {
       await deliver('pull_request', SYNC).expect(200);
       const first = await settledReview(sync.pull_request.head.sha);
-      await prisma.finding.updateMany({ where: { reviewId: first!.id }, data: { status: 'RESOLVED' } });
+      await prisma.finding.updateMany({
+        where: { reviewId: first!.id },
+        data: { status: 'RESOLVED' },
+      });
 
       await deliver('pull_request', secondPush()).expect(200);
       await settledReview(SECOND);
@@ -305,35 +417,61 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
   // A person's decision about a comment outranks the App's.
   describe('someone resolves the thread on GitHub', () => {
     const threadEvent = (action: string, commentId: bigint) =>
-      JSON.stringify({ action, thread: { comments: [{ id: Number(commentId) }] }, installation: { id: sync.installation.id } });
+      JSON.stringify({
+        action,
+        thread: { comments: [{ id: Number(commentId) }] },
+        installation: { id: sync.installation.id },
+      });
 
     it('resolves the finding behind it, and reopens it when the thread is reopened', async () => {
       await deliver('pull_request', SYNC).expect(200);
       const review = await settledReview(sync.pull_request.head.sha);
-      const commented = review!.findings.find((f) => f.githubCommentId !== null)!;
+      const commented = review!.findings.find(
+        (f) => f.githubCommentId !== null,
+      )!;
 
-      await deliver('pull_request_review_thread', threadEvent('resolved', commented.githubCommentId!)).expect(200);
-      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'RESOLVED', resolvedBy: 'PERSON' });
+      await deliver(
+        'pull_request_review_thread',
+        threadEvent('resolved', commented.githubCommentId!),
+      ).expect(200);
+      expect(
+        await prisma.finding.findUnique({ where: { id: commented.id } }),
+      ).toMatchObject({ status: 'RESOLVED', resolvedBy: 'PERSON' });
 
-      await deliver('pull_request_review_thread', threadEvent('unresolved', commented.githubCommentId!)).expect(200);
-      expect(await prisma.finding.findUnique({ where: { id: commented.id } })).toMatchObject({ status: 'OPEN', resolvedBy: null, resolvedAt: null });
+      await deliver(
+        'pull_request_review_thread',
+        threadEvent('unresolved', commented.githubCommentId!),
+      ).expect(200);
+      expect(
+        await prisma.finding.findUnique({ where: { id: commented.id } }),
+      ).toMatchObject({ status: 'OPEN', resolvedBy: null, resolvedAt: null });
     });
   });
 
   it('skips a PR over the size limit, with a skipped Check Run and no diff fetched', async () => {
-    const opened = JSON.parse(OPENED_LARGE) as { pull_request: { head: { sha: string } } };
+    const opened = JSON.parse(OPENED_LARGE) as {
+      pull_request: { head: { sha: string } };
+    };
 
     await deliver('pull_request', OPENED_LARGE).expect(200);
     const review = await settledReview(opened.pull_request.head.sha);
 
-    expect(review).toMatchObject({ status: ReviewStatus.SKIPPED, skipReason: '60 files to review, over the limit of 50' });
+    expect(review).toMatchObject({
+      status: ReviewStatus.SKIPPED,
+      skipReason: '60 files to review, over the limit of 50',
+    });
     expect(github.completedCheckRuns()[0].conclusion).toBe('skipped');
     expect(github.calls.some((c) => c.path.includes('/compare/'))).toBe(false);
   });
 
   it('retries a review that keeps failing, then records FAILED and a failure Check Run', async () => {
     github = fakeGithub({
-      pulls: { [`${REPO}#3`]: { files: JSON.parse(diffs('pr3-synchronize.files.json')), diff: '' } },
+      pulls: {
+        [`${REPO}#3`]: {
+          files: JSON.parse(diffs('pr3-synchronize.files.json')),
+          diff: '',
+        },
+      },
       failCompare: { status: 502, message: 'Bad Gateway' },
     });
     vi.stubGlobal('fetch', github.fetch);
@@ -343,8 +481,12 @@ describe('Review flow: webhook → queue → worker → rows and Check Run (e2e)
 
     expect(review?.status).toBe(ReviewStatus.FAILED);
     expect(review?.error).toContain('GitHub 502');
-    expect(github.calls.filter((c) => c.path.includes('/compare/'))).toHaveLength(3); // every attempt
+    expect(
+      github.calls.filter((c) => c.path.includes('/compare/')),
+    ).toHaveLength(3); // every attempt
     expect(github.createdCheckRuns()).toHaveLength(1); // one spinner, reused by the retries
-    expect(github.completedCheckRuns()).toEqual([expect.objectContaining({ conclusion: 'failure' })]);
+    expect(github.completedCheckRuns()).toEqual([
+      expect.objectContaining({ conclusion: 'failure' }),
+    ]);
   });
 });

@@ -4,7 +4,9 @@ const SEVERITIES = ['high', 'medium', 'low'] as const;
 function postMinSeverity(): 'HIGH' | 'MEDIUM' | 'LOW' {
   const value = (process.env.POST_MIN_SEVERITY ?? 'high').toLowerCase();
   if (!(SEVERITIES as readonly string[]).includes(value)) {
-    throw new Error(`POST_MIN_SEVERITY must be one of ${SEVERITIES.join(', ')}; got "${process.env.POST_MIN_SEVERITY}"`);
+    throw new Error(
+      `POST_MIN_SEVERITY must be one of ${SEVERITIES.join(', ')}; got "${process.env.POST_MIN_SEVERITY}"`,
+    );
   }
   return value.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW';
 }
@@ -45,7 +47,8 @@ export default () => ({
   agent: {
     // Which Reviewer runs: the agent when it is configured, the stub otherwise. REVIEWER
     // overrides either way (the e2e suite pins it to the stub).
-    reviewer: process.env.REVIEWER ?? (process.env.AGENT_URL ? 'agent' : 'stub'),
+    reviewer:
+      process.env.REVIEWER ?? (process.env.AGENT_URL ? 'agent' : 'stub'),
     url: process.env.AGENT_URL,
     sharedSecret: process.env.AGENT_SHARED_SECRET,
     // A review is many model turns — minutes. Past this the job gives up and retries.

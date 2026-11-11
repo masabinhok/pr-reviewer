@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { DashboardService } from './dashboard.service.js';
 import { DashboardTokenGuard } from './dashboard-token.guard.js';
 import { JsonSafeInterceptor } from './json-safe.js';
@@ -31,7 +38,12 @@ export class DashboardController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.dashboard.reviews({ repo, status, cursor, limit: limit ? Number(limit) || undefined : undefined });
+    return this.dashboard.reviews({
+      repo,
+      status,
+      cursor,
+      limit: limit ? Number(limit) || undefined : undefined,
+    });
   }
 
   @Get('reviews/:id')

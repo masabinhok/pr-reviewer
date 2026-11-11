@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fixtureProblems } from '../evals/fixture.js';
@@ -33,7 +39,12 @@ function args(): Record<string, string | true> {
   return out;
 }
 
-const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trimEnd();
+const git = (cwd: string, ...a: string[]) =>
+  execFileSync('git', a, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  }).trimEnd();
 
 function main() {
   const a = args();
@@ -41,27 +52,71 @@ function main() {
   const commit = String(a.commit ?? '');
   const kind = a.kind === 'clean' ? 'clean' : a.kind === 'bug' ? 'bug' : null;
   const id = String(a.id ?? '');
-  const split = a.split === 'heldout' ? 'heldout' : a.split === 'tune' ? 'tune' : null;
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !/^[0-9a-f]{7,40}$/.test(commit) || !kind || !/^[a-z0-9-]+$/.test(id) || !split) {
-    throw new Error('usage: --repo owner/name --commit <sha> --kind bug|clean --id <kebab-id> --split tune|heldout [--force]');
+  const split =
+    a.split === 'heldout' ? 'heldout' : a.split === 'tune' ? 'tune' : null;
+  if (
+    !/^[\w.-]+\/[\w.-]+$/.test(repo) ||
+    !/^[0-9a-f]{7,40}$/.test(commit) ||
+    !kind ||
+    !/^[a-z0-9-]+$/.test(id) ||
+    !split
+  ) {
+    throw new Error(
+      'usage: --repo owner/name --commit <sha> --kind bug|clean --id <kebab-id> --split tune|heldout [--force]',
+    );
   }
   const out = join(EVALS, `${id}.json`);
-  if (existsSync(out) && !a.force) throw new Error(`${out} exists — its key may be hand-edited; pass --force to replace it`);
+  if (existsSync(out) && !a.force)
+    throw new Error(
+      `${out} exists — its key may be hand-edited; pass --force to replace it`,
+    );
 
   // git fetches by full SHA only; ask GitHub for it when given a short one.
-  const full = commit.length === 40 ? commit : execFileSync('gh', ['api', `repos/${repo}/commits/${commit}`, '--jq', '.sha'], { encoding: 'utf8' }).trim();
+  const full =
+    commit.length === 40
+      ? commit
+      : execFileSync(
+          'gh',
+          ['api', `repos/${repo}/commits/${commit}`, '--jq', '.sha'],
+          { encoding: 'utf8' },
+        ).trim();
 
   const dir = mkdtempSync(join(tmpdir(), 'eval-fixture-'));
   try {
     git(dir, 'init', '-q');
-    git(dir, 'fetch', '-q', '--depth=2', `https://github.com/${repo}.git`, full);
-    const [sha, ...parents] = git(dir, 'rev-list', '--parents', '-n1', 'FETCH_HEAD').split(' ');
-    if (parents.length !== 1) throw new Error(`${sha} has ${parents.length} parents; use a commit with exactly one`);
+    git(
+      dir,
+      'fetch',
+      '-q',
+      '--depth=2',
+      `https://github.com/${repo}.git`,
+      full,
+    );
+    const [sha, ...parents] = git(
+      dir,
+      'rev-list',
+      '--parents',
+      '-n1',
+      'FETCH_HEAD',
+    ).split(' ');
+    if (parents.length !== 1)
+      throw new Error(
+        `${sha} has ${parents.length} parents; use a commit with exactly one`,
+      );
     const parent = parents[0];
     const message = git(dir, 'log', '-1', '--format=%s', sha);
 
     const { base, head } = commitsToReview(kind, sha, parent);
-    const fixture = buildFixture({ id, kind, split, repo, commit: sha, parent, message, diff: git(dir, 'diff', '--no-color', '--no-ext-diff', '-M', base, head) });
+    const fixture = buildFixture({
+      id,
+      kind,
+      split,
+      repo,
+      commit: sha,
+      parent,
+      message,
+      diff: git(dir, 'diff', '--no-color', '--no-ext-diff', '-M', base, head),
+    });
     const kept = fixture.request.files;
 
     mkdirSync(EVALS, { recursive: true });
@@ -69,16 +124,25 @@ function main() {
 
     console.log(`wrote ${out}`);
     console.log(`${kind} · ${repo}@${sha.slice(0, 7)} "${message}"`);
-    console.log(`reviews ${base.slice(0, 7)} → ${head.slice(0, 7)}: ${kept.length} source file(s) kept`);
+    console.log(
+      `reviews ${base.slice(0, 7)} → ${head.slice(0, 7)}: ${kept.length} source file(s) kept`,
+    );
     for (const f of kept) {
       console.log(`\n=== ${f.path}`);
       for (const h of f.hunks) {
-        console.log(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@ ${h.section}`);
-        for (const l of h.lines) console.log(`${l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' '}${String(l.newLine ?? l.oldLine).padStart(4)} ${l.content}`);
+        console.log(
+          `@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@ ${h.section}`,
+        );
+        for (const l of h.lines)
+          console.log(
+            `${l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' '}${String(l.newLine ?? l.oldLine).padStart(4)} ${l.content}`,
+          );
       }
     }
     const problems = fixtureProblems(fixture);
-    console.log(`\nstill to do before it validates: ${problems.length ? `\n  ${problems.join('\n  ')}` : 'nothing'}`);
+    console.log(
+      `\nstill to do before it validates: ${problems.length ? `\n  ${problems.join('\n  ')}` : 'nothing'}`,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -10,14 +10,17 @@ import type { Request } from 'express';
  * headers below — the guard has already checked rawBody by the time it runs.
  * Omit `event` to simulate a POST with no x-github-event header at all.
  */
-function requestFor(event?: string){
+function requestFor(event?: string) {
   const headers: Record<string, string> = {
     'x-github-delivery': 'test-delivery-id',
   };
 
   if (event) headers['x-github-event'] = event;
 
-  return {headers, body: { action: 'opened' }} as unknown as RawBodyRequest<Request>;
+  return {
+    headers,
+    body: { action: 'opened' },
+  } as unknown as RawBodyRequest<Request>;
 }
 
 describe('WebhooksController', () => {
@@ -44,24 +47,32 @@ describe('WebhooksController', () => {
     controller = module.get<WebhooksController>(WebhooksController);
   });
 
-  it('passes the delivery id, event and parsed body through to the service', async ()=> {
-    await controller.handleWebhook(requestFor('pull_request'))
+  it('passes the delivery id, event and parsed body through to the service', async () => {
+    await controller.handleWebhook(requestFor('pull_request'));
 
-    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'pull_request', { action: 'opened' })
-  })
+    expect(handleWebhook).toHaveBeenCalledWith(
+      'test-delivery-id',
+      'pull_request',
+      { action: 'opened' },
+    );
+  });
 
-  it('returns whatever the service returns', async ()=> {
-    handleWebhook.mockResolvedValue({ ok: true, duplicate: true })
+  it('returns whatever the service returns', async () => {
+    handleWebhook.mockResolvedValue({ ok: true, duplicate: true });
 
-    await expect(controller.handleWebhook(requestFor('pull_request'))).resolves.toEqual({
+    await expect(
+      controller.handleWebhook(requestFor('pull_request')),
+    ).resolves.toEqual({
       ok: true,
-      duplicate: true
-    })
-  })
+      duplicate: true,
+    });
+  });
 
-  it('falls back to "unknown" when the event header is missing', async ()=> {
-    await controller.handleWebhook(requestFor())
+  it('falls back to "unknown" when the event header is missing', async () => {
+    await controller.handleWebhook(requestFor());
 
-    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'unknown', { action: 'opened' })
-  })
+    expect(handleWebhook).toHaveBeenCalledWith('test-delivery-id', 'unknown', {
+      action: 'opened',
+    });
+  });
 });

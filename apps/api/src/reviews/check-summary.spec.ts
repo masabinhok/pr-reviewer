@@ -4,7 +4,12 @@ import type { ValidFinding } from '../reviewer/validate-findings.js';
 
 const HEAD = 'bc26a45357e0d8886c7aab3f2aa409fce73f8e43';
 
-const finding = (severity: Severity, path = 'src/auth.ts', line = 26, summary = 'debug output left in'): ValidFinding => ({
+const finding = (
+  severity: Severity,
+  path = 'src/auth.ts',
+  line = 26,
+  summary = 'debug output left in',
+): ValidFinding => ({
   severity,
   path,
   line,
@@ -24,7 +29,12 @@ describe('renderCheck', () => {
   describe('a completed review', () => {
     it('is a success titled by its findings, even when it has some', () => {
       const { conclusion, output } = renderCheck(
-        { kind: 'completed', reviewed: ['src/auth.ts', 'src/new-feature.ts'], skipped: [], findings: [finding(Severity.MEDIUM)] },
+        {
+          kind: 'completed',
+          reviewed: ['src/auth.ts', 'src/new-feature.ts'],
+          skipped: [],
+          findings: [finding(Severity.MEDIUM)],
+        },
         HEAD,
       );
 
@@ -34,7 +44,10 @@ describe('renderCheck', () => {
     });
 
     it('says so plainly when there is nothing to report', () => {
-      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [] }, HEAD);
+      const { output } = renderCheck(
+        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [] },
+        HEAD,
+      );
 
       expect(output.title).toBe('No findings in 1 file');
       expect(output.summary).toContain('No findings.');
@@ -46,13 +59,20 @@ describe('renderCheck', () => {
           kind: 'completed',
           reviewed: ['a.ts'],
           skipped: [],
-          findings: [finding(Severity.LOW, 'a.ts', 3, 'low one'), finding(Severity.HIGH, 'a.ts', 9, 'high one')],
+          findings: [
+            finding(Severity.LOW, 'a.ts', 3, 'low one'),
+            finding(Severity.HIGH, 'a.ts', 9, 'high one'),
+          ],
         },
         HEAD,
       );
 
-      expect(output.summary).toContain('**Findings:** 1 high · 0 medium · 1 low');
-      expect(output.summary.indexOf('high one')).toBeLessThan(output.summary.indexOf('low one'));
+      expect(output.summary).toContain(
+        '**Findings:** 1 high · 0 medium · 1 low',
+      );
+      expect(output.summary.indexOf('high one')).toBeLessThan(
+        output.summary.indexOf('low one'),
+      );
       expect(output.summary).toContain('| high | `a.ts:9` | high one |');
     });
 
@@ -70,14 +90,23 @@ describe('renderCheck', () => {
         HEAD,
       );
 
-      expect(output.summary).toContain('<summary>2 files not reviewed</summary>');
+      expect(output.summary).toContain(
+        '<summary>2 files not reviewed</summary>',
+      );
       expect(output.summary).toContain('| `package-lock.json` | lockfile |');
     });
 
     // A pipe in a finding would end its table cell; a newline would end the row.
     it('keeps finding text from breaking the table', () => {
       const { output } = renderCheck(
-        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.LOW, 'a.ts', 1, 'a || b\nis always truthy')] },
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [
+            finding(Severity.LOW, 'a.ts', 1, 'a || b\nis always truthy'),
+          ],
+        },
         HEAD,
       );
 
@@ -87,63 +116,144 @@ describe('renderCheck', () => {
     it('lists what the second look dropped, with the checker’s reasons, folded away', () => {
       const dropped = [
         {
-          finding: { file: 'src/auth.ts', line: 20, side: 'RIGHT' as const, severity: 'high' as const, category: 'security', summary: 'sign() is unchecked | maybe', whyItBreaks: 'x' },
+          finding: {
+            file: 'src/auth.ts',
+            line: 20,
+            side: 'RIGHT' as const,
+            severity: 'high' as const,
+            category: 'security',
+            summary: 'sign() is unchecked | maybe',
+            whyItBreaks: 'x',
+          },
           reason: 'Line 19 throws on an empty payload.',
         },
       ];
 
-      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], dropped }, HEAD);
+      const { output } = renderCheck(
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [],
+          dropped,
+        },
+        HEAD,
+      );
 
-      expect(output.summary).toContain('<details><summary>1 finding dropped on a second look</summary>');
-      expect(output.summary).toContain('| `src/auth.ts:20` | sign() is unchecked \\| maybe | Line 19 throws on an empty payload. |');
+      expect(output.summary).toContain(
+        '<details><summary>1 finding dropped on a second look</summary>',
+      );
+      expect(output.summary).toContain(
+        '| `src/auth.ts:20` | sign() is unchecked \\| maybe | Line 19 throws on an empty payload. |',
+      );
     });
 
     it('marks a finding the second look could not confirm, with its severity before', () => {
       const demoted = { ...finding(Severity.LOW), demotedFrom: Severity.HIGH };
 
-      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [demoted] }, HEAD);
+      const { output } = renderCheck(
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [demoted],
+        },
+        HEAD,
+      );
 
-      expect(output.summary).toContain('| low (was high, not confirmed) | `src/auth.ts:26` |');
+      expect(output.summary).toContain(
+        '| low (was high, not confirmed) | `src/auth.ts:26` |',
+      );
     });
 
     it('says which severities the posted review covered', () => {
-      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.MEDIUM)] };
+      const completed = {
+        kind: 'completed' as const,
+        reviewed: ['a.ts'],
+        skipped: [],
+        findings: [finding(Severity.MEDIUM)],
+      };
 
-      const high = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH, repeated: 0 });
-      const medium = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.MEDIUM, repeated: 0 });
+      const high = renderCheck(completed, HEAD, {
+        posted: 0,
+        url: null,
+        minSeverity: Severity.HIGH,
+        repeated: 0,
+      });
+      const medium = renderCheck(completed, HEAD, {
+        posted: 1,
+        url: 'https://x/r',
+        minSeverity: Severity.MEDIUM,
+        repeated: 0,
+      });
 
-      expect(high.output.summary).toContain('None of these met the bar for a comment on the pull request (high severity).');
-      expect(medium.output.summary).toContain('Posted 1 comment on the pull request in [a review](https://x/r); high and medium severity only.');
+      expect(high.output.summary).toContain(
+        'None of these met the bar for a comment on the pull request (high severity).',
+      );
+      expect(medium.output.summary).toContain(
+        'Posted 1 comment on the pull request in [a review](https://x/r); high and medium severity only.',
+      );
     });
 
     it('says what was not posted again because an earlier review already commented on it', () => {
-      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.HIGH), finding(Severity.HIGH, 'b.ts')] };
+      const completed = {
+        kind: 'completed' as const,
+        reviewed: ['a.ts'],
+        skipped: [],
+        findings: [finding(Severity.HIGH), finding(Severity.HIGH, 'b.ts')],
+      };
 
-      const some = renderCheck(completed, HEAD, { posted: 1, url: 'https://x/r', minSeverity: Severity.HIGH, repeated: 1 });
-      const none = renderCheck(completed, HEAD, { posted: 0, url: null, minSeverity: Severity.HIGH, repeated: 2 });
+      const some = renderCheck(completed, HEAD, {
+        posted: 1,
+        url: 'https://x/r',
+        minSeverity: Severity.HIGH,
+        repeated: 1,
+      });
+      const none = renderCheck(completed, HEAD, {
+        posted: 0,
+        url: null,
+        minSeverity: Severity.HIGH,
+        repeated: 2,
+      });
 
       expect(some.output.summary).toContain(
         'Posted 1 comment on the pull request in [a review](https://x/r); high severity only. 1 was already commented on in an earlier review, so it was not posted again.',
       );
-      expect(none.output.summary).toContain('Nothing new to post. 2 were already commented on in an earlier review, so they were not posted again.');
+      expect(none.output.summary).toContain(
+        'Nothing new to post. 2 were already commented on in an earlier review, so they were not posted again.',
+      );
     });
 
     it('says how many earlier comments the review retired', () => {
-      const completed = { kind: 'completed' as const, reviewed: ['a.ts'], skipped: [], findings: [finding(Severity.HIGH)] };
+      const completed = {
+        kind: 'completed' as const,
+        reviewed: ['a.ts'],
+        skipped: [],
+        findings: [finding(Severity.HIGH)],
+      };
 
       const one = renderCheck(completed, HEAD, undefined, 1);
       const several = renderCheck(completed, HEAD, undefined, 3);
       const none = renderCheck(completed, HEAD, undefined, 0);
 
-      expect(one.output.summary).toContain('Resolved 1 earlier comment: the code it pointed at has changed and this review did not find the problem again.');
-      expect(several.output.summary).toContain('Resolved 3 earlier comments: the code they pointed at has changed');
+      expect(one.output.summary).toContain(
+        'Resolved 1 earlier comment: the code it pointed at has changed and this review did not find the problem again.',
+      );
+      expect(several.output.summary).toContain(
+        'Resolved 3 earlier comments: the code they pointed at has changed',
+      );
       expect(none.output.summary).not.toContain('Resolved');
     });
 
     it('shows at most 50 findings and says how many more there are', () => {
-      const findings = Array.from({ length: 60 }, (_, i) => finding(Severity.LOW, 'a.ts', i + 1, `finding ${i + 1}`));
+      const findings = Array.from({ length: 60 }, (_, i) =>
+        finding(Severity.LOW, 'a.ts', i + 1, `finding ${i + 1}`),
+      );
 
-      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings }, HEAD);
+      const { output } = renderCheck(
+        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings },
+        HEAD,
+      );
 
       expect(output.summary).toContain('finding 50 |');
       expect(output.summary).not.toContain('finding 51 |');
@@ -151,9 +261,15 @@ describe('renderCheck', () => {
     });
 
     it('stays under GitHub’s summary limit however much there is to say', () => {
-      const skipped = Array.from({ length: 3000 }, (_, i) => ({ path: `vendor/${'x'.repeat(40)}/${i}.go`, reason: 'vendored' as const }));
+      const skipped = Array.from({ length: 3000 }, (_, i) => ({
+        path: `vendor/${'x'.repeat(40)}/${i}.go`,
+        reason: 'vendored' as const,
+      }));
 
-      const { output } = renderCheck({ kind: 'completed', reviewed: [], skipped, findings: [] }, HEAD);
+      const { output } = renderCheck(
+        { kind: 'completed', reviewed: [], skipped, findings: [] },
+        HEAD,
+      );
 
       expect(output.summary.length).toBeLessThan(65_535);
       expect(output.summary).toMatch(/summary truncated\.$/);
@@ -166,11 +282,26 @@ describe('renderCheck', () => {
       outcome,
       turns: 4,
       toolCalls: 3,
-      usage: { inputTokens: 1200, outputTokens: 800, cacheReadInputTokens: 9000, cacheCreationInputTokens: 3000, costUsd: 0.0507 },
+      usage: {
+        inputTokens: 1200,
+        outputTokens: 800,
+        cacheReadInputTokens: 9000,
+        cacheCreationInputTokens: 3000,
+        costUsd: 0.0507,
+      },
     });
 
     it('credits the model and says what the review cost', () => {
-      const { output } = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run() }, HEAD);
+      const { output } = renderCheck(
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [],
+          reviewer: run(),
+        },
+        HEAD,
+      );
 
       expect(output.summary).toContain(
         '<sub>Reviewed by `claude-opus-5` in 4 turns, 3 tool calls · 13,200 in / 800 out tokens · $0.05</sub>',
@@ -179,7 +310,13 @@ describe('renderCheck', () => {
 
     it('counts the second look’s checks in the footer', () => {
       const { output } = renderCheck(
-        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: { ...run(), verifyCalls: 2 } },
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [],
+          reviewer: { ...run(), verifyCalls: 2 },
+        },
         HEAD,
       );
 
@@ -192,7 +329,13 @@ describe('renderCheck', () => {
       ['no-submission', 'stopped without submitting'],
     ])('explains an agent that ended %s', (outcome, words) => {
       const { output } = renderCheck(
-        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run(outcome) },
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [],
+          reviewer: run(outcome),
+        },
         HEAD,
       );
 
@@ -200,8 +343,20 @@ describe('renderCheck', () => {
     });
 
     it('adds no note when the agent submitted normally, and no footer for the stub', () => {
-      const withAgent = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [], reviewer: run() }, HEAD);
-      const stub = renderCheck({ kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [] }, HEAD);
+      const withAgent = renderCheck(
+        {
+          kind: 'completed',
+          reviewed: ['a.ts'],
+          skipped: [],
+          findings: [],
+          reviewer: run(),
+        },
+        HEAD,
+      );
+      const stub = renderCheck(
+        { kind: 'completed', reviewed: ['a.ts'], skipped: [], findings: [] },
+        HEAD,
+      );
 
       expect(withAgent.output.summary).not.toContain('> ');
       expect(stub.output.summary).not.toContain('Reviewed by');
@@ -210,16 +365,29 @@ describe('renderCheck', () => {
 
   it('marks a too-large PR as skipped, with the limit it hit', () => {
     const { conclusion, output } = renderCheck(
-      { kind: 'skipped', reason: '62 files to review, over the limit of 50', skipped: [] },
+      {
+        kind: 'skipped',
+        reason: '62 files to review, over the limit of 50',
+        skipped: [],
+      },
       HEAD,
     );
 
     expect(conclusion).toBe('skipped');
-    expect(output.title).toBe('Not reviewed: 62 files to review, over the limit of 50');
+    expect(output.title).toBe(
+      'Not reviewed: 62 files to review, over the limit of 50',
+    );
   });
 
   it('marks a failed review as failure, with the error and the attempts it took', () => {
-    const { conclusion, output } = renderCheck({ kind: 'failed', error: 'GitHub 502 on /repos/o/r/compare', attempts: 3 }, HEAD);
+    const { conclusion, output } = renderCheck(
+      {
+        kind: 'failed',
+        error: 'GitHub 502 on /repos/o/r/compare',
+        attempts: 3,
+      },
+      HEAD,
+    );
 
     expect(conclusion).toBe('failure');
     expect(output.title).toBe('Review failed');

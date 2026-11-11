@@ -32,7 +32,9 @@ import { InstallationTokenService } from '../github/installation-token.service.j
       provide: REVIEWER,
       inject: [ConfigService, InstallationTokenService],
       useFactory: (config: ConfigService, tokens: InstallationTokenService) =>
-        config.get<string>('agent.reviewer') === 'agent' ? new AgentReviewer(config, tokens) : new StubReviewer(),
+        config.get<string>('agent.reviewer') === 'agent'
+          ? new AgentReviewer(config, tokens)
+          : new StubReviewer(),
     },
   ],
   exports: [PullRequestsService, StaleFindings],

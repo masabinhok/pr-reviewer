@@ -28,7 +28,8 @@ export const STAMPED = [
  */
 export function evalStamp(read: (path: string) => string, bar: string): string {
   const hash = createHash('sha256');
-  for (const path of [...STAMPED].sort()) hash.update(`${path}\0${read(path)}\0`);
+  for (const path of [...STAMPED].sort())
+    hash.update(`${path}\0${read(path)}\0`);
   hash.update(`posting bar\0${bar}`);
   return hash.digest('hex').slice(0, 16);
 }
@@ -44,13 +45,21 @@ export interface RunOnDisk {
 export const MIN_RUNS = 3;
 
 /** Why a run can't vouch for the current reviewer; null when it can. */
-export function runProblem(run: RunOnDisk, stamp: string, fixtures: string[]): string | null {
-  if (run.meta.stamp !== stamp) return `made with stamp ${run.meta.stamp ?? '(none)'}`;
-  if (run.meta.runs < MIN_RUNS) return `${run.meta.runs} run(s), fewer than ${MIN_RUNS}`;
+export function runProblem(
+  run: RunOnDisk,
+  stamp: string,
+  fixtures: string[],
+): string | null {
+  if (run.meta.stamp !== stamp)
+    return `made with stamp ${run.meta.stamp ?? '(none)'}`;
+  if (run.meta.runs < MIN_RUNS)
+    return `${run.meta.runs} run(s), fewer than ${MIN_RUNS}`;
   const missing = fixtures.filter((f) => !run.meta.fixtures.includes(f));
-  if (missing.length) return `leaves out ${missing.length} fixture(s): ${missing.slice(0, 3).join(', ')}`;
+  if (missing.length)
+    return `leaves out ${missing.length} fixture(s): ${missing.slice(0, 3).join(', ')}`;
   const done = new Set(run.results.map((r) => `${r.fixture}#${r.run}`));
   const expected = run.meta.runs * run.meta.fixtures.length;
-  if (done.size < expected) return `stopped after ${done.size} of ${expected} reviews`;
+  if (done.size < expected)
+    return `stopped after ${done.size} of ${expected} reviews`;
   return null;
 }

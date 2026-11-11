@@ -27,27 +27,50 @@ export class ReviewPipeline {
   ) {}
 
   async run(target: ReviewTarget): Promise<ReviewOutcome> {
-    const { installationId, repo, prNumber, baseSha, headSha, reviewId } = target;
+    const { installationId, repo, prNumber, baseSha, headSha, reviewId } =
+      target;
 
     // Stage one filters on the file list, before the diff is fetched: GitHub refuses a
     // very large diff outright, so the size check has to come first.
-    const files = await this.github.listPullRequestFiles(installationId, repo, prNumber);
+    const files = await this.github.listPullRequestFiles(
+      installationId,
+      repo,
+      prNumber,
+    );
     const listed = filterFileList(files);
     if (listed.tooLarge) {
-      return { kind: 'skipped', reason: listed.tooLarge, skipped: listed.skipped };
+      return {
+        kind: 'skipped',
+        reason: listed.tooLarge,
+        skipped: listed.skipped,
+      };
     }
 
     // By SHA, never by PR number: the PR may have moved on since this review was queued.
-    const diff = await this.github.getDiff(installationId, repo, baseSha, headSha);
-    const parsed = filterDiffFiles(parseDiff(diff), new Set(listed.kept.map((f) => f.filename)));
+    const diff = await this.github.getDiff(
+      installationId,
+      repo,
+      baseSha,
+      headSha,
+    );
+    const parsed = filterDiffFiles(
+      parseDiff(diff),
+      new Set(listed.kept.map((f) => f.filename)),
+    );
     const lines = new LineMap(parsed.kept);
 
     // Never pay twice: a retry after the reviewer already answered reuses that answer.
     let answer = await this.results.load(reviewId);
     if (answer) {
-      this.logger.log(`review ${reviewId}: reusing the reviewer's stored answer`);
+      this.logger.log(
+        `review ${reviewId}: reusing the reviewer's stored answer`,
+      );
     } else {
-      const pr = await this.github.getPullRequest(installationId, repo, prNumber);
+      const pr = await this.github.getPullRequest(
+        installationId,
+        repo,
+        prNumber,
+      );
       answer = await this.reviewer.review({
         installationId,
         repo,
@@ -66,7 +89,9 @@ export class ReviewPipeline {
     const { accepted, dropped } = validateFindings(answer.findings, lines);
     for (const { finding, reason } of dropped) {
       // Not an error in the review, but a bug in the reviewer worth seeing.
-      this.logger.warn(`review ${reviewId}: dropped a finding at ${finding.file}:${finding.line} ${finding.side} (${reason})`);
+      this.logger.warn(
+        `review ${reviewId}: dropped a finding at ${finding.file}:${finding.line} ${finding.side} (${reason})`,
+      );
     }
 
     return {

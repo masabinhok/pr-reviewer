@@ -31,31 +31,53 @@ import { validateFindings } from '../reviewer/validate-findings.js';
  * Usage: npm run try:review <owner/repo> <pr-number> [path-substring]
  */
 
-const [repo = 'masabinhok/pr-reviewer-testbed', prArg, only] = process.argv.slice(2);
+const [repo = 'masabinhok/pr-reviewer-testbed', prArg, only] =
+  process.argv.slice(2);
 
 function table(rows: string[][]): string {
-  const widths = rows[0].map((_, i) => Math.max(...rows.map((r) => (r[i] ?? '').length)));
-  return rows.map((r) => r.map((cell, i) => (cell ?? '').padEnd(widths[i])).join('  ').trimEnd()).join('\n');
+  const widths = rows[0].map((_, i) =>
+    Math.max(...rows.map((r) => (r[i] ?? '').length)),
+  );
+  return rows
+    .map((r) =>
+      r
+        .map((cell, i) => (cell ?? '').padEnd(widths[i]))
+        .join('  ')
+        .trimEnd(),
+    )
+    .join('\n');
 }
 
-async function installationFor(jwt: AppJwtService, fullName: string): Promise<bigint> {
-  const response = await fetch(`https://api.github.com/repos/${fullName}/installation`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${jwt.mint()}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'pr-reviewer',
+async function installationFor(
+  jwt: AppJwtService,
+  fullName: string,
+): Promise<bigint> {
+  const response = await fetch(
+    `https://api.github.com/repos/${fullName}/installation`,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${jwt.mint()}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'pr-reviewer',
+      },
     },
-  });
-  if (!response.ok) throw new Error(`the App is not installed on ${fullName} (GitHub answered ${response.status})`);
+  );
+  if (!response.ok)
+    throw new Error(
+      `the App is not installed on ${fullName} (GitHub answered ${response.status})`,
+    );
   return BigInt(((await response.json()) as { id: number }).id);
 }
 
 async function main() {
   const number = Number(prArg);
-  if (!Number.isInteger(number) || number < 1) throw new Error('usage: npm run try:review <owner/repo> <pr-number>');
+  if (!Number.isInteger(number) || number < 1)
+    throw new Error('usage: npm run try:review <owner/repo> <pr-number>');
 
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
+  const app = await NestFactory.createApplicationContext(AppModule, {
+    logger: ['error', 'warn'],
+  });
 
   try {
     const github = app.get(GithubApiService);
@@ -67,17 +89,34 @@ async function main() {
     const installationId = await installationFor(app.get(AppJwtService), repo);
 
     const pr = await github.getPullRequest(installationId, repo, number);
-    const files = await github.listPullRequestFiles(installationId, repo, number);
+    const files = await github.listPullRequestFiles(
+      installationId,
+      repo,
+      number,
+    );
     const listed = filterFileList(files);
-    if (listed.tooLarge) throw new Error(`too large to review: ${listed.tooLarge}`);
+    if (listed.tooLarge)
+      throw new Error(`too large to review: ${listed.tooLarge}`);
 
-    const diff = await github.getDiff(installationId, repo, pr.base.sha, pr.head.sha);
-    const parsed = filterDiffFiles(parseDiff(diff), new Set(listed.kept.map((f) => f.filename)));
+    const diff = await github.getDiff(
+      installationId,
+      repo,
+      pr.base.sha,
+      pr.head.sha,
+    );
+    const parsed = filterDiffFiles(
+      parseDiff(diff),
+      new Set(listed.kept.map((f) => f.filename)),
+    );
     if (only) parsed.kept = parsed.kept.filter((f) => f.path.includes(only));
     const lines = new LineMap(parsed.kept);
 
-    console.log(`\n${repo}#${number} "${pr.title}" at ${pr.head.sha.slice(0, 7)}`);
-    console.log(`${parsed.kept.length} file(s) reviewed, ${listed.skipped.length + parsed.skipped.length} skipped\n`);
+    console.log(
+      `\n${repo}#${number} "${pr.title}" at ${pr.head.sha.slice(0, 7)}`,
+    );
+    console.log(
+      `${parsed.kept.length} file(s) reviewed, ${listed.skipped.length + parsed.skipped.length} skipped\n`,
+    );
 
     // DUMP_REQUEST=path writes the agent's request (minus the token, which is a secret) and
     // stops: that file replays this pull request offline, with the diff edited however you
@@ -93,8 +132,13 @@ async function main() {
         headSha: pr.head.sha,
         files: parsed.kept,
       };
-      writeFileSync(process.env.DUMP_REQUEST, JSON.stringify(body, null, 2) + '\n');
-      console.log(`wrote ${process.env.DUMP_REQUEST} (no installation token in it)`);
+      writeFileSync(
+        process.env.DUMP_REQUEST,
+        JSON.stringify(body, null, 2) + '\n',
+      );
+      console.log(
+        `wrote ${process.env.DUMP_REQUEST} (no installation token in it)`,
+      );
       return;
     }
 
@@ -116,17 +160,22 @@ async function main() {
     const run = answer.run;
     if (run) {
       const u = run.usage;
-      const cached = u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens;
+      const cached =
+        u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens;
       console.log(
         `${run.model} — ${run.outcome} in ${seconds}s, ${run.turns} turn(s), ${run.toolCalls} tool call(s), ` +
           `${cached.toLocaleString()} in / ${u.outputTokens.toLocaleString()} out` +
           (u.costUsd === null ? '' : `, $${u.costUsd.toFixed(4)}`),
       );
     } else {
-      console.log(`the reviewer answered in ${seconds}s (no run details: this is the stub)`);
+      console.log(
+        `the reviewer answered in ${seconds}s (no run details: this is the stub)`,
+      );
     }
 
-    const bar = app.get(ConfigService).getOrThrow<Severity>('posting.minSeverity');
+    const bar = app
+      .get(ConfigService)
+      .getOrThrow<Severity>('posting.minSeverity');
     const secondLook = answer.dropped ?? [];
     console.log(
       `\n${accepted.length} finding(s) kept, ${secondLook.length} dropped on a second look, ` +
@@ -146,13 +195,18 @@ async function main() {
         ]),
       );
       console.log();
-      for (const f of accepted) console.log(`${f.path}:${f.line} — ${f.whyItBreaks}`);
+      for (const f of accepted)
+        console.log(`${f.path}:${f.line} — ${f.whyItBreaks}`);
     }
     for (const { finding, reason } of secondLook) {
-      console.log(`refuted ${finding.file}:${finding.line} ${finding.severity}: ${finding.summary}\n  because ${reason}`);
+      console.log(
+        `refuted ${finding.file}:${finding.line} ${finding.severity}: ${finding.summary}\n  because ${reason}`,
+      );
     }
     for (const { finding, reason } of dropped) {
-      console.log(`dropped ${finding.file}:${finding.line} ${finding.side} (${reason}): ${finding.summary}`);
+      console.log(
+        `dropped ${finding.file}:${finding.line} ${finding.side} (${reason}): ${finding.summary}`,
+      );
     }
     console.log();
   } finally {

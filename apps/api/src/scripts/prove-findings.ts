@@ -23,9 +23,12 @@ const [repo = 'masabinhok/pr-reviewer-testbed', prArg] = process.argv.slice(2);
 
 async function main() {
   const number = Number(prArg);
-  if (!Number.isInteger(number) || number < 1) throw new Error('usage: npm run prove:findings <owner/repo> <pr-number>');
+  if (!Number.isInteger(number) || number < 1)
+    throw new Error('usage: npm run prove:findings <owner/repo> <pr-number>');
 
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error'] });
+  const app = await NestFactory.createApplicationContext(AppModule, {
+    logger: ['error'],
+  });
 
   try {
     const prisma = app.get(PrismaService);
@@ -34,40 +37,73 @@ async function main() {
     const review = await prisma.review.findFirst({
       where: { repo: { fullName: repo }, prNumber: number },
       orderBy: { startedAt: 'desc' },
-      include: { findings: { orderBy: [{ filePath: 'asc' }, { line: 'asc' }] }, repo: { include: { installation: true } } },
+      include: {
+        findings: { orderBy: [{ filePath: 'asc' }, { line: 'asc' }] },
+        repo: { include: { installation: true } },
+      },
     });
     if (!review) throw new Error(`no review recorded for ${repo}#${number}`);
 
     const installationId = review.repo.installation.githubId;
-    const lines = new LineMap(parseDiff(await github.getDiff(installationId, repo, review.baseSha, review.headSha)));
+    const lines = new LineMap(
+      parseDiff(
+        await github.getDiff(
+          installationId,
+          repo,
+          review.baseSha,
+          review.headSha,
+        ),
+      ),
+    );
 
-    console.log(`\nreview ${review.id}  ${review.status}  ${review.headSha.slice(0, 7)}  ${review.findings.length} finding(s)\n`);
+    console.log(
+      `\nreview ${review.id}  ${review.status}  ${review.headSha.slice(0, 7)}  ${review.findings.length} finding(s)\n`,
+    );
 
     let mismatches = 0;
     for (const f of review.findings) {
       const ours = lines.lineAt(f.filePath, f.line, f.side)?.content;
-      const created = await github.json<{ id: number }>(installationId, `/repos/${repo}/pulls/${number}/reviews`, {
-        method: 'POST',
-        body: {
-          commit_id: review.headSha,
-          comments: [{ path: f.filePath, line: f.line, side: f.side, body: 'finding probe (deleted immediately)' }],
+      const created = await github.json<{ id: number }>(
+        installationId,
+        `/repos/${repo}/pulls/${number}/reviews`,
+        {
+          method: 'POST',
+          body: {
+            commit_id: review.headSha,
+            comments: [
+              {
+                path: f.filePath,
+                line: f.line,
+                side: f.side,
+                body: 'finding probe (deleted immediately)',
+              },
+            ],
+          },
         },
-      });
+      );
       const [comment] = await github.json<{ diff_hunk: string }[]>(
         installationId,
         `/repos/${repo}/pulls/${number}/reviews/${created.id}/comments`,
       );
-      await github.request(installationId, `/repos/${repo}/pulls/${number}/reviews/${created.id}`, { method: 'DELETE' });
+      await github.request(
+        installationId,
+        `/repos/${repo}/pulls/${number}/reviews/${created.id}`,
+        { method: 'DELETE' },
+      );
 
       // The hunk GitHub shows ends at the commented line; strip its +/-/space prefix.
       const theirs = comment.diff_hunk.split('\n').at(-1)!.slice(1);
       const same = ours === theirs;
       if (!same) mismatches++;
-      console.log(`${same ? 'same line' : 'MISMATCH '}  ${f.severity.padEnd(6)} ${`${f.filePath}:${f.line} ${f.side}`.padEnd(28)} ${theirs.trim()}`);
+      console.log(
+        `${same ? 'same line' : 'MISMATCH '}  ${f.severity.padEnd(6)} ${`${f.filePath}:${f.line} ${f.side}`.padEnd(28)} ${theirs.trim()}`,
+      );
       if (!same) console.log(`           ours: ${ours ?? '(not in the diff)'}`);
     }
 
-    console.log(`\n${mismatches === 0 ? 'every finding lands on the line it describes' : `${mismatches} mismatch(es)`}\n`);
+    console.log(
+      `\n${mismatches === 0 ? 'every finding lands on the line it describes' : `${mismatches} mismatch(es)`}\n`,
+    );
     if (mismatches > 0) process.exitCode = 1;
   } finally {
     await app.close();

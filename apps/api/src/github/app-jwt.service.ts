@@ -23,7 +23,10 @@ export class AppJwtService {
 
     // Stored base64-encoded so a multi-line PEM fits on one .env line. Parsing it here,
     // once, means a malformed key fails at boot rather than on the first review.
-    const pem = Buffer.from(config.getOrThrow<string>('github.privateKeyBase64'), 'base64').toString('utf8');
+    const pem = Buffer.from(
+      config.getOrThrow<string>('github.privateKeyBase64'),
+      'base64',
+    ).toString('utf8');
     this.privateKey = createPrivateKey(pem);
   }
 
@@ -44,7 +47,11 @@ export class AppJwtService {
     // A JWT is three base64url segments: header.payload.signature, where the signature
     // covers exactly the first two segments as they appear in the token.
     const signingInput = `${base64url(header)}.${base64url(payload)}`;
-    const signature = sign('sha256', Buffer.from(signingInput), this.privateKey);
+    const signature = sign(
+      'sha256',
+      Buffer.from(signingInput),
+      this.privateKey,
+    );
 
     return `${signingInput}.${signature.toString('base64url')}`;
   }

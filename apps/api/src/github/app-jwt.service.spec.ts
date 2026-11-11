@@ -4,7 +4,9 @@ import { AppJwtService } from './app-jwt.service.js';
 
 // A throwaway key pair, generated once for the file. The real App key never goes near a
 // test — and with our own pair we hold the public half, so we can check the signature.
-const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+});
 const PRIVATE_KEY_BASE64 = Buffer.from(
   privateKey.export({ type: 'pkcs1', format: 'pem' }), // GitHub issues PKCS#1 keys too
 ).toString('base64');
@@ -42,7 +44,10 @@ describe('AppJwtService', () => {
     vi.setSystemTime(NOW);
 
     service = new AppJwtService(
-      configWith({ 'github.appId': APP_ID, 'github.privateKeyBase64': PRIVATE_KEY_BASE64 }),
+      configWith({
+        'github.appId': APP_ID,
+        'github.privateKeyBase64': PRIVATE_KEY_BASE64,
+      }),
     );
   });
 
@@ -72,15 +77,21 @@ describe('AppJwtService', () => {
   it('is signed by the configured private key', () => {
     const { signingInput, signature } = decode(service.mint());
 
-    expect(verify('sha256', Buffer.from(signingInput), publicKey, signature)).toBe(true);
+    expect(
+      verify('sha256', Buffer.from(signingInput), publicKey, signature),
+    ).toBe(true);
   });
 
   // And the converse, so the test above cannot pass by accident.
   it('does not verify against a different key', () => {
-    const { publicKey: otherPublicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const { publicKey: otherPublicKey } = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+    });
     const { signingInput, signature } = decode(service.mint());
 
-    expect(verify('sha256', Buffer.from(signingInput), otherPublicKey, signature)).toBe(false);
+    expect(
+      verify('sha256', Buffer.from(signingInput), otherPublicKey, signature),
+    ).toBe(false);
   });
 
   it('mints a fresh token on every call rather than reusing one', () => {

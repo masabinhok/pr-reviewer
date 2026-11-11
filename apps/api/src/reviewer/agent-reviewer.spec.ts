@@ -9,7 +9,12 @@ import { parseDiff } from '../diff/parse-diff.js';
 import { LineMap } from '../diff/line-map.js';
 import type { ReviewContext } from './reviewer.js';
 
-const diff = readFileSync(fileURLToPath(new URL('../../test/fixtures/diffs/pr3-synchronize.diff', import.meta.url)), 'utf8');
+const diff = readFileSync(
+  fileURLToPath(
+    new URL('../../test/fixtures/diffs/pr3-synchronize.diff', import.meta.url),
+  ),
+  'utf8',
+);
 const files = parseDiff(diff).filter((f) => f.hunks.length > 0);
 
 const context: ReviewContext = {
@@ -56,11 +61,20 @@ const agentAnswer = {
   outcome: 'submitted',
   turns: 4,
   toolCalls: 3,
-  usage: { inputTokens: 1200, outputTokens: 800, cacheReadInputTokens: 9000, cacheCreationInputTokens: 3000, costUsd: 0.0507 },
+  usage: {
+    inputTokens: 1200,
+    outputTokens: 800,
+    cacheReadInputTokens: 9000,
+    cacheCreationInputTokens: 3000,
+    costUsd: 0.0507,
+  },
 };
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 describe('AgentReviewer', () => {
@@ -72,7 +86,10 @@ describe('AgentReviewer', () => {
     fetchMock = vi.fn().mockImplementation(async () => json(agentAnswer));
     vi.stubGlobal('fetch', fetchMock);
     tokens = { getToken: vi.fn().mockResolvedValue('ghs_installation_token') };
-    reviewer = new AgentReviewer(config(), tokens as unknown as InstallationTokenService);
+    reviewer = new AgentReviewer(
+      config(),
+      tokens as unknown as InstallationTokenService,
+    );
     vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
@@ -87,15 +104,29 @@ describe('AgentReviewer', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://localhost:8000/reviews');
     expect(init.method).toBe('POST');
-    expect(init.headers).toMatchObject({ 'X-Agent-Secret': 'agent-secret', 'Content-Type': 'application/json' });
+    expect(init.headers).toMatchObject({
+      'X-Agent-Secret': 'agent-secret',
+      'Content-Type': 'application/json',
+    });
     expect(tokens.getToken).toHaveBeenCalledWith(160831076n);
 
     const body = JSON.parse(init.body);
     expect(Object.keys(body).sort()).toEqual(
-      ['baseSha', 'body', 'files', 'headSha', 'installationToken', 'prNumber', 'repo', 'title'].sort(),
+      [
+        'baseSha',
+        'body',
+        'files',
+        'headSha',
+        'installationToken',
+        'prNumber',
+        'repo',
+        'title',
+      ].sort(),
     );
     expect(body.installationToken).toBe('ghs_installation_token');
-    expect(body.files.map((f: { path: string }) => f.path)).toEqual(files.map((f) => f.path));
+    expect(body.files.map((f: { path: string }) => f.path)).toEqual(
+      files.map((f) => f.path),
+    );
     // The parsed diff goes over as-is: the agent's models mirror these field names.
     expect(body.files[0].hunks[0].lines[0]).toEqual(files[0].hunks[0].lines[0]);
   });
@@ -104,7 +135,9 @@ describe('AgentReviewer', () => {
     await reviewer.review({ ...context, installationId: null });
 
     expect(tokens.getToken).not.toHaveBeenCalled();
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('installationToken');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      'installationToken',
+    );
   });
 
   it('returns the findings and how the run went', async () => {
@@ -132,13 +165,24 @@ describe('AgentReviewer', () => {
   });
 
   it('returns what the second look decided: verdicts on kept findings, and what it dropped', async () => {
-    const verification = { verdict: 'unsure', reason: 'Line 25 may guard it.', demotedFrom: 'high' };
-    const refuted = { ...agentAnswer.findings[0], line: 20, summary: 'sign() is unchecked.', verification: null };
+    const verification = {
+      verdict: 'unsure',
+      reason: 'Line 25 may guard it.',
+      demotedFrom: 'high',
+    };
+    const refuted = {
+      ...agentAnswer.findings[0],
+      line: 20,
+      summary: 'sign() is unchecked.',
+      verification: null,
+    };
     fetchMock.mockResolvedValue(
       json({
         ...agentAnswer,
         findings: [{ ...agentAnswer.findings[0], verification }],
-        dropped: [{ finding: refuted, reason: 'Line 19 throws on an empty payload.' }],
+        dropped: [
+          { finding: refuted, reason: 'Line 19 throws on an empty payload.' },
+        ],
         verifyCalls: 2,
       }),
     );
@@ -147,7 +191,14 @@ describe('AgentReviewer', () => {
 
     expect(result.findings[0].verification).toEqual(verification);
     expect(result.dropped).toEqual([
-      { finding: expect.objectContaining({ line: 20, suggestedFix: undefined, verification: undefined }), reason: 'Line 19 throws on an empty payload.' },
+      {
+        finding: expect.objectContaining({
+          line: 20,
+          suggestedFix: undefined,
+          verification: undefined,
+        }),
+        reason: 'Line 19 throws on an empty payload.',
+      },
     ]);
     expect(result.run?.verifyCalls).toBe(2);
   });
@@ -161,24 +212,37 @@ describe('AgentReviewer', () => {
   });
 
   describe('errors, sorted by whether a retry could help', () => {
-    it.each([503, 502, 500])('retries when the agent answers %s', async (status) => {
-      fetchMock.mockResolvedValue(json({ detail: 'Anthropic API unavailable, retry later' }, status));
+    it.each([503, 502, 500])(
+      'retries when the agent answers %s',
+      async (status) => {
+        fetchMock.mockResolvedValue(
+          json({ detail: 'Anthropic API unavailable, retry later' }, status),
+        );
 
-      const error = await reviewer.review(context).catch((e) => e);
+        const error = await reviewer.review(context).catch((e) => e);
 
-      expect(error).toBeInstanceOf(Error);
-      expect(error).not.toBeInstanceOf(UnrecoverableError);
-      expect(error.message).toContain(`agent answered ${status}`);
-    });
+        expect(error).toBeInstanceOf(Error);
+        expect(error).not.toBeInstanceOf(UnrecoverableError);
+        expect(error.message).toContain(`agent answered ${status}`);
+      },
+    );
 
-    it.each([422, 401, 400])('does not retry when the agent answers %s', async (status) => {
-      fetchMock.mockResolvedValue(json({ detail: 'repository snapshot: over 50 MB compressed' }, status));
+    it.each([422, 401, 400])(
+      'does not retry when the agent answers %s',
+      async (status) => {
+        fetchMock.mockResolvedValue(
+          json(
+            { detail: 'repository snapshot: over 50 MB compressed' },
+            status,
+          ),
+        );
 
-      const error = await reviewer.review(context).catch((e) => e);
+        const error = await reviewer.review(context).catch((e) => e);
 
-      expect(error).toBeInstanceOf(UnrecoverableError);
-      expect(error.message).toContain('over 50 MB compressed');
-    });
+        expect(error).toBeInstanceOf(UnrecoverableError);
+        expect(error.message).toContain('over 50 MB compressed');
+      },
+    );
 
     it('retries when the agent cannot be reached at all', async () => {
       fetchMock.mockRejectedValue(new TypeError('fetch failed'));
@@ -186,11 +250,15 @@ describe('AgentReviewer', () => {
       const error = await reviewer.review(context).catch((e) => e);
 
       expect(error).not.toBeInstanceOf(UnrecoverableError);
-      expect(error.message).toBe(`agent unreachable for masabinhok/pr-reviewer-testbed#3@6ac523c: TypeError`);
+      expect(error.message).toBe(
+        `agent unreachable for masabinhok/pr-reviewer-testbed#3@6ac523c: TypeError`,
+      );
     });
 
     it('never puts the installation token in an error', async () => {
-      fetchMock.mockResolvedValue(json({ detail: [{ msg: 'field required' }] }, 422));
+      fetchMock.mockResolvedValue(
+        json({ detail: [{ msg: 'field required' }] }, 422),
+      );
 
       const error = await reviewer.review(context).catch((e) => e);
 
@@ -199,9 +267,19 @@ describe('AgentReviewer', () => {
   });
 
   it('refuses to start without the agent’s URL or secret', () => {
-    expect(() => new AgentReviewer(config({ ...settings, 'agent.url': undefined }), tokens as never)).toThrow('agent.url');
-    expect(() => new AgentReviewer(config({ ...settings, 'agent.sharedSecret': undefined }), tokens as never)).toThrow(
-      'agent.sharedSecret',
-    );
+    expect(
+      () =>
+        new AgentReviewer(
+          config({ ...settings, 'agent.url': undefined }),
+          tokens as never,
+        ),
+    ).toThrow('agent.url');
+    expect(
+      () =>
+        new AgentReviewer(
+          config({ ...settings, 'agent.sharedSecret': undefined }),
+          tokens as never,
+        ),
+    ).toThrow('agent.sharedSecret');
   });
 });

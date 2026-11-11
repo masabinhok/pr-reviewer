@@ -5,13 +5,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, ReviewStatus } from '../generated/prisma/client.js';
 import type { PullRequestPayload } from './pull-request-payload.js';
 import { retryOnUniqueViolation } from '../prisma/unique-violation.js';
-import { REVIEW_QUEUE, reviewJobId, type ReviewJobData } from './review-queue.js';
+import {
+  REVIEW_QUEUE,
+  reviewJobId,
+  type ReviewJobData,
+} from './review-queue.js';
 
 export type PullRequestOutcome =
-  | 'enqueued'
-  | 'already-reviewing'
-  | 'draft'
-  | 'unknown-installation';
+  'enqueued' | 'already-reviewing' | 'draft' | 'unknown-installation';
 
 /**
  * Turns a `pull_request` webhook into a queued review. Everything slow happens in the
@@ -27,7 +28,10 @@ export class PullRequestsService {
     @InjectQueue(REVIEW_QUEUE) private readonly queue: Queue<ReviewJobData>,
   ) {}
 
-  async handle(payload: PullRequestPayload, deliveryId: string): Promise<PullRequestOutcome> {
+  async handle(
+    payload: PullRequestPayload,
+    deliveryId: string,
+  ): Promise<PullRequestOutcome> {
     const { number: prNumber, pull_request: pr, repository } = payload;
     const where = `[${deliveryId}] ${repository.full_name}#${prNumber}`;
 
@@ -53,36 +57,49 @@ export class PullRequestsService {
     }
 
     // Two deliveries for a repo the app has never seen can race here; see the helper.
-    const repo = await retryOnUniqueViolation(() => this.prisma.repo.upsert({
-      where: { githubId: BigInt(repository.id) },
-      create: {
-        githubId: BigInt(repository.id),
-        installationId: installation.id,
-        fullName: repository.full_name,
-        private: repository.private,
-        defaultBranch: repository.default_branch,
-      },
-      // The first place the app learns a repo's default branch: installation payloads
-      // don't carry it (see the Repo.defaultBranch entry in docs/decisions.md).
-      update: {
-        installationId: installation.id,
-        fullName: repository.full_name,
-        private: repository.private,
-        defaultBranch: repository.default_branch,
-        deletedAt: null,
-      },
-    }));
+    const repo = await retryOnUniqueViolation(() =>
+      this.prisma.repo.upsert({
+        where: { githubId: BigInt(repository.id) },
+        create: {
+          githubId: BigInt(repository.id),
+          installationId: installation.id,
+          fullName: repository.full_name,
+          private: repository.private,
+          defaultBranch: repository.default_branch,
+        },
+        // The first place the app learns a repo's default branch: installation payloads
+        // don't carry it (see the Repo.defaultBranch entry in docs/decisions.md).
+        update: {
+          installationId: installation.id,
+          fullName: repository.full_name,
+          private: repository.private,
+          defaultBranch: repository.default_branch,
+          deletedAt: null,
+        },
+      }),
+    );
 
-    const review = await this.createReview(repo.id, prNumber, pr.base.sha, pr.head.sha);
+    const review = await this.createReview(
+      repo.id,
+      prNumber,
+      pr.base.sha,
+      pr.head.sha,
+    );
     if (review.existing && review.status !== ReviewStatus.PENDING) {
-      this.logger.log(`${where}: ${short(pr.head.sha)} already reviewed (${review.status})`);
+      this.logger.log(
+        `${where}: ${short(pr.head.sha)} already reviewed (${review.status})`,
+      );
       return 'already-reviewing';
     }
 
     // Also runs for an existing PENDING review: if an earlier attempt wrote the row but
     // failed to enqueue, this repairs it — and if the job does exist, BullMQ ignores the
     // add, because the job ID is derived from the review.
-    await this.queue.add('review', { reviewId: review.id }, { jobId: reviewJobId(review.id) });
+    await this.queue.add(
+      'review',
+      { reviewId: review.id },
+      { jobId: reviewJobId(review.id) },
+    );
 
     this.logger.log(
       `${where}: ${review.existing ? 're-enqueued pending' : 'enqueued'} review ${review.id} for ${short(pr.head.sha)}`,
@@ -95,14 +112,28 @@ export class PullRequestsService {
    * whether this commit is already being reviewed, so two deliveries about the same push
    * (say `opened` and `synchronize` racing) can't both create a review.
    */
-  private async createReview(repoId: string, prNumber: number, baseSha: string, headSha: string) {
+  private async createReview(
+    repoId: string,
+    prNumber: number,
+    baseSha: string,
+    headSha: string,
+  ) {
     try {
       const created = await this.prisma.review.create({
-        data: { repoId, prNumber, baseSha, headSha, status: ReviewStatus.PENDING },
+        data: {
+          repoId,
+          prNumber,
+          baseSha,
+          headSha,
+          status: ReviewStatus.PENDING,
+        },
       });
       return { id: created.id, status: created.status, existing: false };
     } catch (e) {
-      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;
+      if (!(
+        e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'
+      ))
+        throw e;
 
       const found = await this.prisma.review.findUniqueOrThrow({
         where: { repoId_prNumber_headSha: { repoId, prNumber, headSha } },

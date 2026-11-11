@@ -1,4 +1,8 @@
-import { ExecutionContext, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
 import { GithubSignatureGuard } from './signature.guard.js';
@@ -7,7 +11,10 @@ const WEBHOOK_SECRET = 'test-webhook-secret';
 
 /** Computes the signature GitHub would send for this body. */
 function sign(body: string, secret = WEBHOOK_SECRET): string {
-  return 'sha256=' + createHmac('sha256', secret).update(Buffer.from(body)).digest('hex');
+  return (
+    'sha256=' +
+    createHmac('sha256', secret).update(Buffer.from(body)).digest('hex')
+  );
 }
 
 /**
@@ -15,8 +22,13 @@ function sign(body: string, secret = WEBHOOK_SECRET): string {
  * `switchToHttp().getRequest()`, so that is all we fake — the cast says
  * "this is enough for the code under test", not "this is a real ExecutionContext".
  */
-function contextFor(options: { body?: string; signature?: unknown }): ExecutionContext {
-  const headers: Record<string, unknown> = { 'x-github-delivery': 'test-delivery-id' };
+function contextFor(options: {
+  body?: string;
+  signature?: unknown;
+}): ExecutionContext {
+  const headers: Record<string, unknown> = {
+    'x-github-delivery': 'test-delivery-id',
+  };
 
   if (options.signature !== undefined) {
     headers['x-hub-signature-256'] = options.signature;
@@ -37,7 +49,9 @@ describe('GithubSignatureGuard', () => {
 
   beforeEach(() => {
     // Fresh guard per test so no state leaks between them.
-    const config = { getOrThrow: () => WEBHOOK_SECRET } as unknown as ConfigService;
+    const config = {
+      getOrThrow: () => WEBHOOK_SECRET,
+    } as unknown as ConfigService;
     guard = new GithubSignatureGuard(config);
 
     // The guard warns on every rejection; keep the expected noise out of the output.
@@ -64,96 +78,92 @@ describe('GithubSignatureGuard', () => {
     expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
-  it('rejects a signature computed with the wrong secret', ()=> {
+  it('rejects a signature computed with the wrong secret', () => {
     const body = '{"action": "opened"}';
-    const signature = sign(body, 'wrongsecret')
+    const signature = sign(body, 'wrongsecret');
 
     const context = contextFor({
-      body: body, 
-      signature: signature
-    })
+      body: body,
+      signature: signature,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
-
-  })
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+  });
 
   // Catches someone verifying against JSON.stringify(req.body) instead of rawBody.
-  it('rejects a body that was tampered with after signing', ()=> {
+  it('rejects a body that was tampered with after signing', () => {
     const body = '{"action": "opened"}';
-    const signature = sign(body, WEBHOOK_SECRET)
+    const signature = sign(body, WEBHOOK_SECRET);
 
     const newBody = '{"fakeBody": "false"}';
     const context = contextFor({
-      body: newBody, 
-      signature: signature
-    })
+      body: newBody,
+      signature: signature,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
-  })
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+  });
 
   // Dropping the prefix changes the length, so timingSafeEqual would throw RangeError
   // unless the guard length-checks first. UnauthorizedException here is the
   // difference between a 401 and a 500.
-  it('rejects a malformed header with no sha256= prefix', ()=> {
+  it('rejects a malformed header with no sha256= prefix', () => {
     const body = '{"action": "opened"}';
-    const signature = sign(body)
-    const strippedSign = signature.slice('sha256='.length)
-    
+    const signature = sign(body);
+    const strippedSign = signature.slice('sha256='.length);
+
     const context = contextFor({
-      body: body, 
-      signature: strippedSign
-    })
+      body: body,
+      signature: strippedSign,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
-
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
   // Same trap as above.
-  it('rejects a wrong-length signature with 401 rather than crashing', ()=> {
+  it('rejects a wrong-length signature with 401 rather than crashing', () => {
     const body = '{"action": "opened"}';
-    const signature = 'sha256=abc'
-    
+    const signature = 'sha256=abc';
+
     const context = contextFor({
-      body: body, 
-      signature: signature
-    })
+      body: body,
+      signature: signature,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
-  })
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+  });
 
-  it('rejects an empty raw body', ()=> {
-    const body = ""
-    const signature = sign('')
+  it('rejects an empty raw body', () => {
+    const body = '';
+    const signature = sign('');
 
     const context = contextFor({
       body,
-      signature
-    })
+      signature,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
-
-  it('rejects a missing raw body', ()=> {
-    const signature = sign('')
+  it('rejects a missing raw body', () => {
+    const signature = sign('');
 
     const context = contextFor({
-      signature
-    })
+      signature,
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
   // A valid body, so the repeated header is the only thing wrong.
-  it('rejects a request with array as the header', ()=> {
+  it('rejects a request with array as the header', () => {
     const body = '{"action": "opened"}';
 
     const context = contextFor({
       body,
-      signature: ['sha256=a', 'sha256=b']
-    })
+      signature: ['sha256=a', 'sha256=b'],
+    });
 
-    expect(()=> guard.canActivate(context)).toThrow(UnauthorizedException)
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
-
 });

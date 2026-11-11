@@ -27,11 +27,21 @@ import { truncateAll } from './helpers/db.js';
  */
 const opened = fixtureJson<PullRequestPayload>('pull_request.opened');
 
-function withHead(sha: string, overrides: Partial<PullRequestPayload['pull_request']> = {}): PullRequestPayload {
-  return { ...opened, pull_request: { ...opened.pull_request, head: { sha }, ...overrides } };
+function withHead(
+  sha: string,
+  overrides: Partial<PullRequestPayload['pull_request']> = {},
+): PullRequestPayload {
+  return {
+    ...opened,
+    pull_request: { ...opened.pull_request, head: { sha }, ...overrides },
+  };
 }
 
-async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms = 5000): Promise<T> {
+async function until<T>(
+  read: () => Promise<T>,
+  done: (value: T) => boolean,
+  ms = 5000,
+): Promise<T> {
   const deadline = Date.now() + ms;
   for (;;) {
     const value = await read();
@@ -43,20 +53,32 @@ async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms 
 // GitHub is replaced with the real testbed PR's captured files and diff, so the worker runs
 // the whole pipeline — filters, parser, stub reviewer, validation — and stores real findings.
 const diffFixture = (name: string) =>
-  readFileSync(fileURLToPath(new URL(`./fixtures/diffs/${name}`, import.meta.url)), 'utf8');
+  readFileSync(
+    fileURLToPath(new URL(`./fixtures/diffs/${name}`, import.meta.url)),
+    'utf8',
+  );
 const github = {
   createCheckRun: vi.fn().mockResolvedValue({ id: 4242 }),
   completeCheckRun: vi.fn().mockResolvedValue(undefined),
-  listPullRequestFiles: vi.fn().mockResolvedValue(JSON.parse(diffFixture('diff-shapes.files.json'))),
+  listPullRequestFiles: vi
+    .fn()
+    .mockResolvedValue(JSON.parse(diffFixture('diff-shapes.files.json'))),
   getDiff: vi.fn().mockResolvedValue(diffFixture('diff-shapes.diff')),
-  getPullRequest: vi.fn().mockResolvedValue({ title: 'Diff shapes', body: null }),
+  getPullRequest: vi
+    .fn()
+    .mockResolvedValue({ title: 'Diff shapes', body: null }),
   listReviews: vi.fn().mockResolvedValue([]),
-  createReview: vi.fn().mockResolvedValue({ id: 7001, html_url: 'https://github.com/o/r/pull/1#pullrequestreview-7001' }),
+  createReview: vi.fn().mockResolvedValue({
+    id: 7001,
+    html_url: 'https://github.com/o/r/pull/1#pullrequestreview-7001',
+  }),
   listReviewComments: vi.fn().mockResolvedValue([]),
 };
 
 const stub = new StubReviewer();
-const reviewer = { review: vi.fn((context: ReviewContext) => stub.review(context)) };
+const reviewer = {
+  review: vi.fn((context: ReviewContext) => stub.review(context)),
+};
 
 describe('Review queue (real Postgres, Redis and worker)', () => {
   let module: TestingModule;
@@ -67,7 +89,11 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   beforeAll(async () => {
     module = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true, load: [configuration], envFilePath: '../../.env' }),
+        ConfigModule.forRoot({
+          isGlobal: true,
+          load: [configuration],
+          envFilePath: '../../.env',
+        }),
         PrismaModule,
         ReviewsModule,
       ],
@@ -98,11 +124,20 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   });
 
   beforeEach(async () => {
-    for (const fn of [github.createCheckRun, github.completeCheckRun, reviewer.review]) fn.mockClear();
+    for (const fn of [
+      github.createCheckRun,
+      github.completeCheckRun,
+      reviewer.review,
+    ])
+      fn.mockClear();
     await queue.obliterate({ force: true });
     await truncateAll(prisma);
     await prisma.installation.create({
-      data: { githubId: BigInt(opened.installation!.id), accountLogin: 'masabinhok', accountType: 'User' },
+      data: {
+        githubId: BigInt(opened.installation!.id),
+        accountLogin: 'masabinhok',
+        accountType: 'User',
+      },
     });
   });
 
@@ -128,8 +163,13 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
     expect(settled.checkRunId).toBe(4242n);
 
     // The stub reviewer's three planted findings, stored against this review.
-    const findings = await prisma.finding.findMany({ where: { reviewId: review.id }, orderBy: { filePath: 'asc' } });
-    expect(findings.map((f) => [f.filePath, f.line, f.side, f.severity])).toEqual([
+    const findings = await prisma.finding.findMany({
+      where: { reviewId: review.id },
+      orderBy: { filePath: 'asc' },
+    });
+    expect(
+      findings.map((f) => [f.filePath, f.line, f.side, f.severity]),
+    ).toEqual([
       ['src/auth.ts', 26, 'RIGHT', 'LOW'],
       ['src/helpers.ts', 10, 'RIGHT', 'LOW'],
       ['src/new-feature.ts', 2, 'RIGHT', 'MEDIUM'],
@@ -145,46 +185,71 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   // Two different deliveries about the same commit — e.g. `opened` and a `synchronize`
   // for the same head racing each other.
   it('creates one review and one job when two deliveries race about the same commit', async () => {
-    const results = await Promise.all([service.handle(opened, 'd-2'), service.handle(opened, 'd-3')]);
+    const results = await Promise.all([
+      service.handle(opened, 'd-2'),
+      service.handle(opened, 'd-3'),
+    ]);
 
     expect(results.sort()).toEqual(['already-reviewing', 'enqueued']);
     expect(await prisma.review.count()).toBe(1);
-    expect((await queue.getJobs(['waiting', 'active', 'completed', 'delayed'])).length).toBe(1);
+    expect(
+      (await queue.getJobs(['waiting', 'active', 'completed', 'delayed']))
+        .length,
+    ).toBe(1);
   });
 
   it('creates a second review when a push moves the head to a new commit', async () => {
     await service.handle(opened, 'd-4');
-    await service.handle(withHead('1111111111111111111111111111111111111111'), 'd-5');
+    await service.handle(
+      withHead('1111111111111111111111111111111111111111'),
+      'd-5',
+    );
 
     const heads = (await prisma.review.findMany()).map((r) => r.headSha).sort();
-    expect(heads).toEqual(['1111111111111111111111111111111111111111', opened.pull_request.head.sha].sort());
+    expect(heads).toEqual(
+      [
+        '1111111111111111111111111111111111111111',
+        opened.pull_request.head.sha,
+      ].sort(),
+    );
   });
 
   it('records the default branch the installation payload never had', async () => {
     await service.handle(opened, 'd-6');
 
-    const repo = await prisma.repo.findUniqueOrThrow({ where: { githubId: BigInt(opened.repository.id) } });
+    const repo = await prisma.repo.findUniqueOrThrow({
+      where: { githubId: BigInt(opened.repository.id) },
+    });
     expect(repo.defaultBranch).toBe(opened.repository.default_branch);
   });
 
   // The job has 3 attempts. Being rate limited 3 times and still completing proves the
   // waits did not spend them — against real BullMQ, not a mocked job.
   it('waits out rate limits without spending the job’s attempts', async () => {
-    const processor = module.get(ReviewProcessor) as unknown as { run: () => Promise<unknown> };
-    const limited = () => new GithubRateLimitError('secondary', new Date(Date.now() + 200), '/x');
+    const processor = module.get(ReviewProcessor) as unknown as {
+      run: () => Promise<unknown>;
+    };
+    const limited = () =>
+      new GithubRateLimitError('secondary', new Date(Date.now() + 200), '/x');
     const run = vi
       .spyOn(processor, 'run')
       .mockRejectedValueOnce(limited())
       .mockRejectedValueOnce(limited())
       .mockRejectedValueOnce(limited())
-      .mockResolvedValueOnce({ kind: 'completed', reviewed: [], skipped: [], findings: [] });
+      .mockResolvedValueOnce({
+        kind: 'completed',
+        reviewed: [],
+        skipped: [],
+        findings: [],
+      });
 
     await service.handle(opened, 'd-8');
     const review = await prisma.review.findFirstOrThrow();
 
     const settled = await until(
       () => prisma.review.findUniqueOrThrow({ where: { id: review.id } }),
-      (r) => r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
+      (r) =>
+        r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
       10_000,
     );
     expect(settled.status).toBe(ReviewStatus.COMPLETED);
@@ -195,13 +260,16 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   // The reviewer is the step that costs money. A job that fails after it answered —
   // here, GitHub refusing the Check Run update once — must not pay for it again on retry.
   it('does not call the reviewer again when a job is retried after it answered', async () => {
-    github.completeCheckRun.mockRejectedValueOnce(new Error('GitHub 502 on /check-runs'));
+    github.completeCheckRun.mockRejectedValueOnce(
+      new Error('GitHub 502 on /check-runs'),
+    );
 
     await service.handle(opened, 'd-9');
     const review = await prisma.review.findFirstOrThrow();
     const settled = await until(
       () => prisma.review.findUniqueOrThrow({ where: { id: review.id } }),
-      (r) => r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
+      (r) =>
+        r.status === ReviewStatus.COMPLETED || r.status === ReviewStatus.FAILED,
     );
 
     expect(settled.status).toBe(ReviewStatus.COMPLETED);
@@ -211,7 +279,10 @@ describe('Review queue (real Postgres, Redis and worker)', () => {
   });
 
   it('does not create a review for a draft', async () => {
-    await service.handle(withHead(opened.pull_request.head.sha, { draft: true }), 'd-7');
+    await service.handle(
+      withHead(opened.pull_request.head.sha, { draft: true }),
+      'd-7',
+    );
 
     expect(await prisma.review.count()).toBe(0);
   });

@@ -3,7 +3,11 @@ import type { ValidFinding } from '../reviewer/validate-findings.js';
 import type { DroppedFinding, ReviewerRun } from '../reviewer/reviewer.js';
 
 /** The part of a finding the Check Run summary shows. */
-export type FindingSummary = Pick<ValidFinding, 'path' | 'line' | 'severity' | 'summary'> & Partial<Pick<ValidFinding, 'demotedFrom'>>;
+export type FindingSummary = Pick<
+  ValidFinding,
+  'path' | 'line' | 'severity' | 'summary'
+> &
+  Partial<Pick<ValidFinding, 'demotedFrom'>>;
 
 /**
  * What the pipeline hands back to the worker when it finishes without throwing. A thrown

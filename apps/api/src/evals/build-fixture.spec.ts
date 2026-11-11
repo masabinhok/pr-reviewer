@@ -45,12 +45,27 @@ index 5555555..6666666 100644
 -  * Fix for maxAge == 0
 `;
 
-const input = { id: 'cookie-maxage-zero', kind: 'bug' as const, split: 'tune' as const, repo: 'jshttp/cookie', commit: FIX, parent: PARENT, message: 'Fix for maxAge == 0', diff: REVERSED };
+const input = {
+  id: 'cookie-maxage-zero',
+  kind: 'bug' as const,
+  split: 'tune' as const,
+  repo: 'jshttp/cookie',
+  commit: FIX,
+  parent: PARENT,
+  message: 'Fix for maxAge == 0',
+  diff: REVERSED,
+};
 
 describe('buildFixture', () => {
   it('reviews a fix backwards: from the fixed code to the code before it', () => {
-    expect(commitsToReview('bug', FIX, PARENT)).toEqual({ base: FIX, head: PARENT });
-    expect(commitsToReview('clean', FIX, PARENT)).toEqual({ base: PARENT, head: FIX });
+    expect(commitsToReview('bug', FIX, PARENT)).toEqual({
+      base: FIX,
+      head: PARENT,
+    });
+    expect(commitsToReview('clean', FIX, PARENT)).toEqual({
+      base: PARENT,
+      head: FIX,
+    });
   });
 
   // The regression test and the changelog entry would hand the reviewer the answer.
@@ -71,15 +86,27 @@ describe('buildFixture', () => {
   it('drafts the key at the lines the fix changed, for a person to describe', () => {
     const [bug] = buildFixture(input).bugs;
 
-    expect(bug).toMatchObject({ file: 'index.js', head: [17, 17], base: [17, 22] });
+    expect(bug).toMatchObject({
+      file: 'index.js',
+      head: [17, 17],
+      base: [17, 22],
+    });
     expect(bug.description).toContain('TODO');
   });
 
   it('records where it came from, and reviews the right commits', () => {
     const fixture = buildFixture(input);
 
-    expect(fixture.source).toEqual({ repo: 'jshttp/cookie', commit: FIX, url: `https://github.com/jshttp/cookie/commit/${FIX}`, message: 'Fix for maxAge == 0' });
-    expect([fixture.request.baseSha, fixture.request.headSha]).toEqual([FIX, PARENT]);
+    expect(fixture.source).toEqual({
+      repo: 'jshttp/cookie',
+      commit: FIX,
+      url: `https://github.com/jshttp/cookie/commit/${FIX}`,
+      message: 'Fix for maxAge == 0',
+    });
+    expect([fixture.request.baseSha, fixture.request.headSha]).toEqual([
+      FIX,
+      PARENT,
+    ]);
   });
 
   it('makes a clean fixture with no bugs', () => {
@@ -89,7 +116,9 @@ describe('buildFixture', () => {
   it('refuses a change with nothing left to review', () => {
     const docsOnly = REVERSED.slice(REVERSED.indexOf('diff --git a/test/'));
 
-    expect(() => buildFixture({ ...input, diff: docsOnly })).toThrow('no reviewable source files');
+    expect(() => buildFixture({ ...input, diff: docsOnly })).toThrow(
+      'no reviewable source files',
+    );
   });
 });
 
@@ -107,7 +136,9 @@ describe('draftBugs', () => {
      return x
 `);
 
-    expect(draftBugs(deletion)).toEqual([expect.objectContaining({ file: 'a.py', head: [11, 11], base: [12, 13] })]);
+    expect(draftBugs(deletion)).toEqual([
+      expect.objectContaining({ file: 'a.py', head: [11, 11], base: [12, 13] }),
+    ]);
   });
 });
 

@@ -1,5 +1,15 @@
 import type { Fixture } from './fixture.js';
-import { bugAt, matchKey, scoreResult, scoreRun, spread, type FixtureResult, type Judgments, type Level, type Spread } from './score.js';
+import {
+  bugAt,
+  matchKey,
+  scoreResult,
+  scoreRun,
+  spread,
+  type FixtureResult,
+  type Judgments,
+  type Level,
+  type Spread,
+} from './score.js';
 
 /** What a run was made with, written when it starts (`meta.json`). */
 export interface RunMeta {
@@ -31,12 +41,18 @@ const num = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
 function show(s: Spread | null, format: (v: number) => string): string {
   if (!s) return '—';
   if (s.runs === 1) return `${format(s.mean)} (1 run)`;
-  return s.min === s.max ? format(s.mean) : `${format(s.mean)} (${format(s.min)}–${format(s.max)})`;
+  return s.min === s.max
+    ? format(s.mean)
+    : `${format(s.mean)} (${format(s.min)}–${format(s.max)})`;
 }
 
 function table(rows: string[][]): string {
   const [head, ...body] = rows;
-  return [`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...body.map((r) => `| ${r.join(' | ')} |`)].join('\n');
+  return [
+    `| ${head.join(' | ')} |`,
+    `|${head.map(() => '---').join('|')}|`,
+    ...body.map((r) => `| ${r.join(' | ')} |`),
+  ].join('\n');
 }
 
 /**
@@ -53,9 +69,12 @@ export function renderReport(
 ): string {
   const judgments = options.judgments ?? {};
   const runs = [...new Set(results.map((r) => r.run))].sort((a, b) => a - b);
-  const models = [...new Set(results.map((r) => r.model).filter((m) => m !== null))];
+  const models = [
+    ...new Set(results.map((r) => r.model).filter((m) => m !== null)),
+  ];
   const inRun = fixtures.filter((f) => meta.fixtures.includes(f.id));
-  const count = (k: Fixture['kind']) => inRun.filter((f) => f.kind === k).length;
+  const count = (k: Fixture['kind']) =>
+    inRun.filter((f) => f.kind === k).length;
 
   const out: string[] = [];
   out.push(`# Evaluation, ${meta.started.slice(0, 16).replace('T', ' ')}`);
@@ -72,7 +91,9 @@ export function renderReport(
   }
   if (meta.rescoredFrom) {
     out.push('');
-    out.push(`Scored again from \`${meta.rescoredFrom}\` at this posting bar. No model ran: the findings are that run's.`);
+    out.push(
+      `Scored again from \`${meta.rescoredFrom}\` at this posting bar. No model ran: the findings are that run's.`,
+    );
   }
   out.push('');
   out.push(
@@ -86,11 +107,15 @@ export function renderReport(
     ['tune', (f) => f.split === 'tune'],
     ['all', () => true],
   ];
-  const rows: string[][] = [['split', 'level', 'recall', 'precision', 'false positives per clean PR']];
+  const rows: string[][] = [
+    ['split', 'level', 'recall', 'precision', 'false positives per clean PR'],
+  ];
   for (const [name, keep] of splits) {
     const subset = new Map(inRun.filter(keep).map((f) => [f.id, f]));
     for (const level of ['kept', 'posted'] as Level[]) {
-      const scores = runs.map((r) => scoreRun(r, results, subset, level, judgments));
+      const scores = runs.map((r) =>
+        scoreRun(r, results, subset, level, judgments),
+      );
       rows.push([
         name,
         level,
@@ -111,25 +136,42 @@ export function renderReport(
   out.push(
     table([
       ['', 'mean', 'range'],
-      secondsRow('seconds per review', done.map((r) => r.seconds)),
-      secondsRow('tokens in per review', done.map((r) => r.tokensIn)),
-      secondsRow('tokens out per review', done.map((r) => r.tokensOut)),
+      secondsRow(
+        'seconds per review',
+        done.map((r) => r.seconds),
+      ),
+      secondsRow(
+        'tokens in per review',
+        done.map((r) => r.tokensIn),
+      ),
+      secondsRow(
+        'tokens out per review',
+        done.map((r) => r.tokensOut),
+      ),
     ]),
   );
   out.push('');
   out.push(
     `${results.length} review(s), ${errors.length} failed` +
-      (errors.length ? ` (${[...new Set(errors.map((e) => e.error))].slice(0, 3).join('; ')})` : '') +
+      (errors.length
+        ? ` (${[...new Set(errors.map((e) => e.error))].slice(0, 3).join('; ')})`
+        : '') +
       '. A failed review finds nothing: its bugs count as missed.',
   );
   if (unread > 0) {
-    out.push('', `**${unread} location match(es) not read yet** — they count as found until judged (trap 6).`);
+    out.push(
+      '',
+      `**${unread} location match(es) not read yet** — they count as found until judged (trap 6).`,
+    );
   }
 
   const shown = inRun.filter((f) => f.split === 'tune' || options.showHeldout);
   out.push('', '## Fixtures', '');
   if (!options.showHeldout) {
-    out.push('Held-out fixtures are left out: they decide, and are not looked at one by one (trap 3).', '');
+    out.push(
+      'Held-out fixtures are left out: they decide, and are not looked at one by one (trap 3).',
+      '',
+    );
   }
   out.push(
     table([
@@ -138,12 +180,15 @@ export function renderReport(
         f.id,
         f.split,
         ...runs.map((run) => {
-          const result = results.find((r) => r.fixture === f.id && r.run === run);
+          const result = results.find(
+            (r) => r.fixture === f.id && r.run === run,
+          );
           if (!result) return 'not run';
           if (result.error !== null) return 'failed';
           const kept = scoreResult(result, f, 'kept', judgments);
           const posted = scoreResult(result, f, 'posted', judgments);
-          const found = f.kind === 'bug' ? `${kept.found}/${kept.bugs} found · ` : '';
+          const found =
+            f.kind === 'bug' ? `${kept.found}/${kept.bugs} found · ` : '';
           return `${found}${kept.findings} kept, ${posted.findings} posted, ${result.refuted} refuted`;
         }),
       ]),
@@ -153,8 +198,12 @@ export function renderReport(
   const matches = matchesToRead(results, shown, judgments);
   if (matches.length > 0) {
     out.push('', '## Matches to read', '');
-    out.push('Mark each in `judgments.json` as `right` (it describes the bug) or `wrong` (it describes something else):', '');
-    for (const m of matches) out.push(`- \`${m.key}\` — **${m.summary}**  \n  the bug: ${m.bug}`);
+    out.push(
+      'Mark each in `judgments.json` as `right` (it describes the bug) or `wrong` (it describes something else):',
+      '',
+    );
+    for (const m of matches)
+      out.push(`- \`${m.key}\` — **${m.summary}**  \n  the bug: ${m.bug}`);
   }
 
   return out.join('\n') + '\n';
@@ -163,17 +212,26 @@ export function renderReport(
 function secondsRow(label: string, values: number[]): string[] {
   if (values.length === 0) return [label, '—', '—'];
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return [label, Math.round(mean).toLocaleString('en'), `${Math.round(Math.min(...values)).toLocaleString('en')}–${Math.round(Math.max(...values)).toLocaleString('en')}`];
+  return [
+    label,
+    Math.round(mean).toLocaleString('en'),
+    `${Math.round(Math.min(...values)).toLocaleString('en')}–${Math.round(Math.max(...values)).toLocaleString('en')}`,
+  ];
 }
 
-function matchesToRead(results: FixtureResult[], fixtures: Fixture[], judgments: Judgments) {
+function matchesToRead(
+  results: FixtureResult[],
+  fixtures: Fixture[],
+  judgments: Judgments,
+) {
   const out: { key: string; summary: string; bug: string }[] = [];
   for (const f of fixtures) {
     for (const result of results.filter((r) => r.fixture === f.id)) {
       for (const finding of result.findings) {
         const key = matchKey(result, finding);
         const bug = bugAt(finding, f.bugs);
-        if (bug && judgments[key] === undefined) out.push({ key, summary: finding.summary, bug: bug.description });
+        if (bug && judgments[key] === undefined)
+          out.push({ key, summary: finding.summary, bug: bug.description });
       }
     }
   }

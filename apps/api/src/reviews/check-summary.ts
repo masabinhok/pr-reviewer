@@ -1,4 +1,7 @@
-import type { CheckConclusion, CheckRunOutput } from '../github/github-api.service.js';
+import type {
+  CheckConclusion,
+  CheckRunOutput,
+} from '../github/github-api.service.js';
 import type { FindingSummary, ReviewOutcome } from './review-outcome.js';
 import type { DroppedFinding, ReviewerRun } from '../reviewer/reviewer.js';
 import type { Publication } from './review-publisher.js';
@@ -10,11 +13,14 @@ export const CHECK_RUN_NAME = 'pr-reviewer';
 const MAX_SUMMARY = 60_000;
 const MAX_FINDING_ROWS = 50;
 
-const SEVERITY_ORDER: Severity[] = [Severity.HIGH, Severity.MEDIUM, Severity.LOW];
+const SEVERITY_ORDER: Severity[] = [
+  Severity.HIGH,
+  Severity.MEDIUM,
+  Severity.LOW,
+];
 
 export type CheckResult =
-  | ReviewOutcome
-  | { kind: 'failed'; error: string; attempts: number };
+  ReviewOutcome | { kind: 'failed'; error: string; attempts: number };
 
 /**
  * Turns how a review ended into the Check Run GitHub shows on the PR:
@@ -69,7 +75,9 @@ export function renderCheck(
   return {
     conclusion: 'success',
     output: {
-      title: findings.length ? `${count} in ${files}` : `No findings in ${files}`,
+      title: findings.length
+        ? `${count} in ${files}`
+        : `No findings in ${files}`,
       summary: cap(
         `Reviewed ${files} at ${at}.\n\n` +
           reviewerNote(reviewer) +
@@ -87,10 +95,14 @@ export function renderCheck(
 // When an agent run ended some way other than submitting, the findings may be partial or
 // absent for reasons the author should know — say so above them.
 const OUTCOME_NOTES: Record<string, string> = {
-  refused: 'The reviewer declined to review this change, so there are no findings.',
-  budget: 'The reviewer ran out of its turn budget before finishing; the findings may be incomplete.',
-  'no-submission': 'The reviewer stopped without submitting a review, so there are no findings.',
-  truncated: 'The reviewer hit its output limit before submitting a review, so there are no findings.',
+  refused:
+    'The reviewer declined to review this change, so there are no findings.',
+  budget:
+    'The reviewer ran out of its turn budget before finishing; the findings may be incomplete.',
+  'no-submission':
+    'The reviewer stopped without submitting a review, so there are no findings.',
+  truncated:
+    'The reviewer hit its output limit before submitting a review, so there are no findings.',
 };
 
 function reviewerNote(run: ReviewerRun | undefined): string {
@@ -104,7 +116,10 @@ const BARS: Record<Publication['minSeverity'], string> = {
   LOW: 'every severity',
 };
 
-function publicationNote(publication: Publication | undefined, total: number): string {
+function publicationNote(
+  publication: Publication | undefined,
+  total: number,
+): string {
   if (!publication || total === 0) return '';
   const bar = BARS[publication.minSeverity];
   const { repeated } = publication;
@@ -133,7 +148,9 @@ function reviewerFooter(run: ReviewerRun | undefined): string {
   const { usage } = run;
   const tokens = `${(usage.inputTokens + usage.cacheReadInputTokens + usage.cacheCreationInputTokens).toLocaleString('en-US')} in / ${usage.outputTokens.toLocaleString('en-US')} out`;
   const cost = usage.costUsd === null ? '' : ` · $${usage.costUsd.toFixed(2)}`;
-  const checks = run.verifyCalls ? `, ${run.verifyCalls} check${run.verifyCalls === 1 ? '' : 's'}` : '';
+  const checks = run.verifyCalls
+    ? `, ${run.verifyCalls} check${run.verifyCalls === 1 ? '' : 's'}`
+    : '';
   const turns = `${run.turns} turn${run.turns === 1 ? '' : 's'}, ${run.toolCalls} tool call${run.toolCalls === 1 ? '' : 's'}${checks}`;
   return `\n\n<sub>Reviewed by \`${run.model}\` in ${turns} · ${tokens} tokens${cost}</sub>`;
 }
@@ -141,12 +158,24 @@ function reviewerFooter(run: ReviewerRun | undefined): string {
 function findingsSection(findings: FindingSummary[]): string {
   if (findings.length === 0) return 'No findings.';
 
-  const tally = SEVERITY_ORDER.map((s) => `${findings.filter((f) => f.severity === s).length} ${s.toLowerCase()}`).join(' · ');
-  const sorted = [...findings].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
+  const tally = SEVERITY_ORDER.map(
+    (s) =>
+      `${findings.filter((f) => f.severity === s).length} ${s.toLowerCase()}`,
+  ).join(' · ');
+  const sorted = [...findings].sort(
+    (a, b) =>
+      SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+  );
   const rows = sorted
     .slice(0, MAX_FINDING_ROWS)
-    .map((f) => `| ${severityCell(f)} | ${code(`${f.path}:${f.line}`)} | ${cell(f.summary)} |`);
-  const more = sorted.length > MAX_FINDING_ROWS ? `\n\n…and ${sorted.length - MAX_FINDING_ROWS} more.` : '';
+    .map(
+      (f) =>
+        `| ${severityCell(f)} | ${code(`${f.path}:${f.line}`)} | ${cell(f.summary)} |`,
+    );
+  const more =
+    sorted.length > MAX_FINDING_ROWS
+      ? `\n\n…and ${sorted.length - MAX_FINDING_ROWS} more.`
+      : '';
 
   return `**Findings:** ${tally}\n\n| Severity | Where | Finding |\n|---|---|---|\n${rows.join('\n')}${more}`;
 }
@@ -154,14 +183,19 @@ function findingsSection(findings: FindingSummary[]): string {
 /** A finding the second look couldn't confirm was demoted; say what it was before. */
 function severityCell(f: FindingSummary): string {
   const severity = f.severity.toLowerCase();
-  return f.demotedFrom ? `${severity} (was ${f.demotedFrom.toLowerCase()}, not confirmed)` : severity;
+  return f.demotedFrom
+    ? `${severity} (was ${f.demotedFrom.toLowerCase()}, not confirmed)`
+    : severity;
 }
 
 function droppedSection(dropped: DroppedFinding[]): string {
   if (dropped.length === 0) return '';
   const rows = dropped
     .slice(0, MAX_FINDING_ROWS)
-    .map(({ finding, reason }) => `| ${code(`${finding.file}:${finding.line}`)} | ${cell(finding.summary)} | ${cell(reason)} |`)
+    .map(
+      ({ finding, reason }) =>
+        `| ${code(`${finding.file}:${finding.line}`)} | ${cell(finding.summary)} | ${cell(reason)} |`,
+    )
     .join('\n');
   const label = `${dropped.length} finding${dropped.length === 1 ? '' : 's'} dropped on a second look`;
   return `\n\n<details><summary>${label}</summary>\n\nThe reviewer proposed these; a separate check of each against the code refuted them.\n\n| Where | Finding | Why it was dropped |\n|---|---|---|\n${rows}\n\n</details>`;
@@ -169,7 +203,9 @@ function droppedSection(dropped: DroppedFinding[]): string {
 
 function skippedSection(skipped: { path: string; reason: string }[]): string {
   if (skipped.length === 0) return '';
-  const rows = skipped.map((s) => `| ${code(s.path)} | ${s.reason} |`).join('\n');
+  const rows = skipped
+    .map((s) => `| ${code(s.path)} | ${s.reason} |`)
+    .join('\n');
   const label = `${skipped.length} file${skipped.length === 1 ? '' : 's'} not reviewed`;
   return `\n\n<details><summary>${label}</summary>\n\n| File | Why |\n|---|---|\n${rows}\n\n</details>`;
 }
@@ -186,5 +222,7 @@ function code(text: string): string {
 }
 
 function cap(summary: string): string {
-  return summary.length <= MAX_SUMMARY ? summary : `${summary.slice(0, MAX_SUMMARY)}\n\n…summary truncated.`;
+  return summary.length <= MAX_SUMMARY
+    ? summary
+    : `${summary.slice(0, MAX_SUMMARY)}\n\n…summary truncated.`;
 }

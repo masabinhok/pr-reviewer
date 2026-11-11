@@ -30,9 +30,14 @@ export class ReviewerResultStore {
       data: {
         agentResult: JSON.parse(JSON.stringify(result)),
         // Everything the model read, cached or not, is prompt; cost is in whole cents.
-        promptTokens: usage ? usage.inputTokens + usage.cacheReadInputTokens + usage.cacheCreationInputTokens : null,
+        promptTokens: usage
+          ? usage.inputTokens +
+            usage.cacheReadInputTokens +
+            usage.cacheCreationInputTokens
+          : null,
         completionTokens: usage?.outputTokens ?? null,
-        costCents: usage?.costUsd == null ? null : Math.round(usage.costUsd * 100),
+        costCents:
+          usage?.costUsd == null ? null : Math.round(usage.costUsd * 100),
       },
     });
   }

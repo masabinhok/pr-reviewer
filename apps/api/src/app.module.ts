@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import {z} from 'zod';
+import { z } from 'zod';
 import { HealthModule } from './health/health.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { GithubModule } from './github/github.module.js';
@@ -9,22 +9,29 @@ import configuration from './config/configuration.js';
 import { FeedbackModule } from './feedback/feedback.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 @Module({
-  imports: [ConfigModule.forRoot({
-    load: [configuration],
-    validationSchema: z.object({
-      POSTGRES_USER: z.string(),
-      POSTGRES_PASSWORD: z.string(),
-      POSTGRES_DB: z.string(),
-      PORT: z.coerce.number().default(3333),
-      DATABASE_URL: z.url(),
-      REDIS_URL: z.url(),
-      GITHUB_APP_ID: z.string(),
-      GITHUB_APP_CLIENT_ID: z.string(),
-      GITHUB_WEBHOOK_SECRET: z.string(),
-      GITHUB_APP_PRIVATE_KEY_BASE64: z.string(),
+  imports: [
+    ConfigModule.forRoot({
+      load: [configuration],
+      validationSchema: z.object({
+        POSTGRES_USER: z.string(),
+        POSTGRES_PASSWORD: z.string(),
+        POSTGRES_DB: z.string(),
+        PORT: z.coerce.number().default(3333),
+        DATABASE_URL: z.url(),
+        REDIS_URL: z.url(),
+        GITHUB_APP_ID: z.string(),
+        GITHUB_APP_CLIENT_ID: z.string(),
+        GITHUB_WEBHOOK_SECRET: z.string(),
+        GITHUB_APP_PRIVATE_KEY_BASE64: z.string(),
+      }),
+      envFilePath: '../../.env',
+      isGlobal: true,
     }),
-    envFilePath: '../../.env',
-    isGlobal: true
-  }), HealthModule, WebhooksModule, GithubModule, FeedbackModule, DashboardModule],
+    HealthModule,
+    WebhooksModule,
+    GithubModule,
+    FeedbackModule,
+    DashboardModule,
+  ],
 })
 export class AppModule {}

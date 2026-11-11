@@ -30,7 +30,10 @@ describe('HealthService', () => {
 
     const result = await service.check();
 
-    expect(result).toEqual({ healthy: true, checks: { db: 'up', redis: 'up' } });
+    expect(result).toEqual({
+      healthy: true,
+      checks: { db: 'up', redis: 'up' },
+    });
   });
 
   it('reports unhealthy when a check fails', async () => {
@@ -39,6 +42,9 @@ describe('HealthService', () => {
 
     const result = await service.check();
 
-    expect(result).toEqual({ healthy: false, checks: { db: 'down', redis: 'up' } });
+    expect(result).toEqual({
+      healthy: false,
+      checks: { db: 'down', redis: 'up' },
+    });
   });
 });

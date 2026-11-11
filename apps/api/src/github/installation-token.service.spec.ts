@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
-import { InstallationTokenService, installationTokenCacheKey } from './installation-token.service.js';
+import {
+  InstallationTokenService,
+  installationTokenCacheKey,
+} from './installation-token.service.js';
 import { AppJwtService } from './app-jwt.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { redactToken } from './redact.js';
@@ -15,7 +18,10 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
  * near-expiry test advance time and watch the key disappear the way Redis would.
  */
 class FakeRedis {
-  private readonly store = new Map<string, { value: string; expiresAt: number }>();
+  private readonly store = new Map<
+    string,
+    { value: string; expiresAt: number }
+  >();
 
   async get(key: string): Promise<string | null> {
     const entry = this.store.get(key);
@@ -23,7 +29,12 @@ class FakeRedis {
     return entry.value;
   }
 
-  async set(key: string, value: string, _mode: 'EX', seconds: number): Promise<'OK'> {
+  async set(
+    key: string,
+    value: string,
+    _mode: 'EX',
+    seconds: number,
+  ): Promise<'OK'> {
     this.store.set(key, { value, expiresAt: Date.now() + seconds * 1000 });
     return 'OK';
   }
@@ -43,7 +54,10 @@ class FakeRedis {
 /** What GitHub's POST /app/installations/{id}/access_tokens returns. */
 function githubTokenResponse(token: string, expiresInMs = ONE_HOUR_MS) {
   return new Response(
-    JSON.stringify({ token, expires_at: new Date(Date.now() + expiresInMs).toISOString() }),
+    JSON.stringify({
+      token,
+      expires_at: new Date(Date.now() + expiresInMs).toISOString(),
+    }),
     { status: 201, headers: { 'Content-Type': 'application/json' } },
   );
 }
@@ -60,11 +74,18 @@ describe('InstallationTokenService', () => {
 
     redis = new FakeRedis();
     const appJwt = { mint: () => APP_JWT } as unknown as AppJwtService;
-    service = new InstallationTokenService(appJwt, redis as unknown as RedisService);
+    service = new InstallationTokenService(
+      appJwt,
+      redis as unknown as RedisService,
+    );
 
     // `fetch` is the network. Replacing the global is how "no network call" becomes
     // something a test can count.
-    fetchMock = vi.fn().mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_first')));
+    fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(githubTokenResponse('ghs_first')),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     // Capture every log line instead of printing it, so the redaction test can read them.
@@ -88,7 +109,9 @@ describe('InstallationTokenService', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
       const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toBe(`https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens`);
+      expect(url).toBe(
+        `https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens`,
+      );
       expect(init.method).toBe('POST');
       expect(init.headers.Authorization).toBe(`Bearer ${APP_JWT}`);
     });
@@ -101,7 +124,9 @@ describe('InstallationTokenService', () => {
     });
 
     it('does not cache a token that expires inside the skew window', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_dying', 30_000)));
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(githubTokenResponse('ghs_dying', 30_000)),
+      );
 
       const token = await service.getToken(INSTALLATION_ID);
 
@@ -123,7 +148,9 @@ describe('InstallationTokenService', () => {
 
     it('keys the cache per installation', async () => {
       await service.getToken(INSTALLATION_ID);
-      fetchMock.mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_other')));
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(githubTokenResponse('ghs_other')),
+      );
 
       const other = await service.getToken(99);
 
@@ -148,7 +175,9 @@ describe('InstallationTokenService', () => {
 
     it('mints a fresh token once inside the last 60 seconds of the old one', async () => {
       await service.getToken(INSTALLATION_ID);
-      fetchMock.mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_second')));
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(githubTokenResponse('ghs_second')),
+      );
 
       // 3541s in: GitHub would still accept ghs_first for another 59s, but we don't risk it.
       vi.setSystemTime(new Date(NOW.getTime() + 3541 * 1000));
@@ -164,7 +193,9 @@ describe('InstallationTokenService', () => {
   describe('invalidate', () => {
     it('drops the cached token so the next call mints a fresh one', async () => {
       await service.getToken(INSTALLATION_ID);
-      fetchMock.mockImplementation(() => Promise.resolve(githubTokenResponse('ghs_second')));
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(githubTokenResponse('ghs_second')),
+      );
 
       await service.invalidate(INSTALLATION_ID);
       const token = await service.getToken(INSTALLATION_ID);
@@ -187,7 +218,9 @@ describe('InstallationTokenService', () => {
     it('reports a GitHub refusal without leaking the App JWT', async () => {
       fetchMock.mockImplementation(() =>
         Promise.resolve(
-          new Response(JSON.stringify({ message: 'Bad credentials' }), { status: 401 }),
+          new Response(JSON.stringify({ message: 'Bad credentials' }), {
+            status: 401,
+          }),
         ),
       );
 

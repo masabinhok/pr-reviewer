@@ -7,7 +7,13 @@ import type { FeedbackRate } from '../feedback/feedback-rate.js';
  */
 
 export interface Overview {
-  reviews: { total: number; completed: number; failed: number; skipped: number; inProgress: number };
+  reviews: {
+    total: number;
+    completed: number;
+    failed: number;
+    skipped: number;
+    inProgress: number;
+  };
   findings: {
     total: number;
     bySeverity: { high: number; medium: number; low: number };
@@ -40,7 +46,14 @@ export interface InstallationSummary {
   accountType: string;
   suspendedAt: Date | null;
   deletedAt: Date | null;
-  repos: { id: string; fullName: string; private: boolean; deletedAt: Date | null; reviews: number; lastReviewAt: Date | null }[];
+  repos: {
+    id: string;
+    fullName: string;
+    private: boolean;
+    deletedAt: Date | null;
+    reviews: number;
+    lastReviewAt: Date | null;
+  }[];
 }
 
 export interface ReviewSummary {
@@ -103,5 +116,11 @@ export type ReviewDetail = Omit<ReviewSummary, 'findings'> & {
   checkRunUrl: string | null;
   findings: FindingDetail[];
   /** What the agent's second look refuted, with the checker's reasons. */
-  dropped: { path: string; line: number; severity: string; summary: string; reason: string }[];
+  dropped: {
+    path: string;
+    line: number;
+    severity: string;
+    summary: string;
+    reason: string;
+  }[];
 };

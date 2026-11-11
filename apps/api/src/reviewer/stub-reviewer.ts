@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import type { ProposedFinding, ReviewContext, Reviewer, ReviewerResult } from './reviewer.js';
+import type {
+  ProposedFinding,
+  ReviewContext,
+  Reviewer,
+  ReviewerResult,
+} from './reviewer.js';
 
 interface Rule {
   test: RegExp;
@@ -32,7 +37,8 @@ const RULES: Rule[] = [
     summary: '`console.log` is left in.',
     whyItBreaks:
       'Every call writes to stdout in production, adding noise to the logs and possibly printing values that should not be logged.',
-    suggestedFix: 'Remove it, or use the application logger at an appropriate level.',
+    suggestedFix:
+      'Remove it, or use the application logger at an appropriate level.',
   },
   {
     test: /\/\/\s*TODO\b|\/\*\s*TODO\b|#\s*TODO\b/,
@@ -41,7 +47,8 @@ const RULES: Rule[] = [
     summary: 'A new TODO is added.',
     whyItBreaks:
       'The TODO marks work this change leaves undone; once merged it is easy to forget, and the behaviour it describes stays missing.',
-    suggestedFix: 'Do the work in this PR, or track it in an issue and link it here.',
+    suggestedFix:
+      'Do the work in this PR, or track it in an issue and link it here.',
   },
 ];
 

@@ -7,16 +7,33 @@ import type { ReviewContext } from './reviewer.js';
 
 function context(diff: string): ReviewContext {
   const files = parseDiff(diff);
-  return { installationId: 1n, repo: 'o/r', prNumber: 1, title: '', body: '', baseSha: 'b', headSha: 'h', files, lines: new LineMap(files) };
+  return {
+    installationId: 1n,
+    repo: 'o/r',
+    prNumber: 1,
+    title: '',
+    body: '',
+    baseSha: 'b',
+    headSha: 'h',
+    files,
+    lines: new LineMap(files),
+  };
 }
 
 describe('StubReviewer', () => {
   it('finds the three planted problems in the real testbed PR, on the lines they were added', async () => {
-    const diff = readFileSync(fileURLToPath(new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url)), 'utf8');
+    const diff = readFileSync(
+      fileURLToPath(
+        new URL('../../test/fixtures/diffs/diff-shapes.diff', import.meta.url),
+      ),
+      'utf8',
+    );
 
     const { findings } = await new StubReviewer().review(context(diff));
 
-    expect(findings.map((f) => [f.file, f.line, f.side, f.severity, f.category])).toEqual([
+    expect(
+      findings.map((f) => [f.file, f.line, f.side, f.severity, f.category]),
+    ).toEqual([
       ['src/auth.ts', 26, 'RIGHT', 'low', 'debugging'],
       ['src/helpers.ts', 10, 'RIGHT', 'low', 'maintainability'],
       ['src/new-feature.ts', 2, 'RIGHT', 'medium', 'correctness'],
@@ -38,6 +55,8 @@ describe('StubReviewer', () => {
       '',
     ].join('\n');
 
-    expect(await new StubReviewer().review(context(diff))).toEqual({ findings: [] });
+    expect(await new StubReviewer().review(context(diff))).toEqual({
+      findings: [],
+    });
   });
 });

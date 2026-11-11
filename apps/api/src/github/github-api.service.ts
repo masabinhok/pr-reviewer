@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InstallationTokenService, type InstallationId } from './installation-token.service.js';
+import {
+  InstallationTokenService,
+  type InstallationId,
+} from './installation-token.service.js';
 import { GithubApiError, GithubRateLimitError } from './github-api.errors.js';
 
 const GITHUB_API = 'https://api.github.com';
@@ -16,7 +19,14 @@ export const MAX_PULL_REQUEST_FILES = 3000;
 export interface PullRequestFile {
   filename: string;
   previous_filename?: string;
-  status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+  status:
+    | 'added'
+    | 'removed'
+    | 'modified'
+    | 'renamed'
+    | 'copied'
+    | 'changed'
+    | 'unchanged';
   additions: number;
   deletions: number;
   changes: number;
@@ -36,7 +46,14 @@ export interface PullRequest {
   user: { login: string };
 }
 
-export type CheckConclusion = 'success' | 'failure' | 'neutral' | 'skipped' | 'cancelled' | 'timed_out' | 'action_required';
+export type CheckConclusion =
+  | 'success'
+  | 'failure'
+  | 'neutral'
+  | 'skipped'
+  | 'cancelled'
+  | 'timed_out'
+  | 'action_required';
 
 export interface CheckRunOutput {
   title: string;
@@ -67,7 +84,9 @@ interface RawThread {
   id: string;
   isOutdated: boolean;
   isResolved: boolean;
-  comments: { nodes: { id: string; databaseId: number; isMinimized: boolean }[] };
+  comments: {
+    nodes: { id: string; databaseId: number; isMinimized: boolean }[];
+  };
 }
 
 export interface PostedReviewComment {
@@ -111,15 +130,30 @@ export class GithubApiService {
 
   constructor(private readonly tokens: InstallationTokenService) {}
 
-  getPullRequest(installationId: InstallationId, repo: string, number: number): Promise<PullRequest> {
-    return this.json<PullRequest>(installationId, `/repos/${repo}/pulls/${number}`);
+  getPullRequest(
+    installationId: InstallationId,
+    repo: string,
+    number: number,
+  ): Promise<PullRequest> {
+    return this.json<PullRequest>(
+      installationId,
+      `/repos/${repo}/pulls/${number}`,
+    );
   }
 
   /** Every changed file, across pages, up to GitHub's 3000-file cap. */
-  listPullRequestFiles(installationId: InstallationId, repo: string, number: number): Promise<PullRequestFile[]> {
-    return this.paginate<PullRequestFile>(installationId, `/repos/${repo}/pulls/${number}/files?per_page=100`, {
-      max: MAX_PULL_REQUEST_FILES,
-    });
+  listPullRequestFiles(
+    installationId: InstallationId,
+    repo: string,
+    number: number,
+  ): Promise<PullRequestFile[]> {
+    return this.paginate<PullRequestFile>(
+      installationId,
+      `/repos/${repo}/pulls/${number}/files?per_page=100`,
+      {
+        max: MAX_PULL_REQUEST_FILES,
+      },
+    );
   }
 
   /**
@@ -128,10 +162,19 @@ export class GithubApiService {
    * the head SHA this review was created for. Three dots: diffed from the merge base,
    * which is what the PR's "Files changed" tab shows.
    */
-  async getDiff(installationId: InstallationId, repo: string, base: string, head: string): Promise<string> {
-    const response = await this.request(installationId, `/repos/${repo}/compare/${base}...${head}`, {
-      accept: DIFF_MEDIA,
-    });
+  async getDiff(
+    installationId: InstallationId,
+    repo: string,
+    base: string,
+    head: string,
+  ): Promise<string> {
+    const response = await this.request(
+      installationId,
+      `/repos/${repo}/compare/${base}...${head}`,
+      {
+        accept: DIFF_MEDIA,
+      },
+    );
     return response.text();
   }
 
@@ -144,16 +187,20 @@ export class GithubApiService {
     repo: string,
     run: { name: string; headSha: string; externalId: string },
   ): Promise<{ id: number }> {
-    return this.json<{ id: number }>(installationId, `/repos/${repo}/check-runs`, {
-      method: 'POST',
-      body: {
-        name: run.name,
-        head_sha: run.headSha,
-        external_id: run.externalId,
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
+    return this.json<{ id: number }>(
+      installationId,
+      `/repos/${repo}/check-runs`,
+      {
+        method: 'POST',
+        body: {
+          name: run.name,
+          head_sha: run.headSha,
+          external_id: run.externalId,
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        },
       },
-    });
+    );
   }
 
   /** Finishes a Check Run with a conclusion and a summary. */
@@ -163,15 +210,19 @@ export class GithubApiService {
     checkRunId: bigint | number,
     result: { conclusion: CheckConclusion; output: CheckRunOutput },
   ): Promise<void> {
-    await this.request(installationId, `/repos/${repo}/check-runs/${checkRunId}`, {
-      method: 'PATCH',
-      body: {
-        status: 'completed',
-        conclusion: result.conclusion,
-        completed_at: new Date().toISOString(),
-        output: result.output,
+    await this.request(
+      installationId,
+      `/repos/${repo}/check-runs/${checkRunId}`,
+      {
+        method: 'PATCH',
+        body: {
+          status: 'completed',
+          conclusion: result.conclusion,
+          completed_at: new Date().toISOString(),
+          output: result.output,
+        },
       },
-    });
+    );
   }
 
   /**
@@ -185,10 +236,19 @@ export class GithubApiService {
     prNumber: number,
     review: { commitId: string; body: string; comments: ReviewCommentInput[] },
   ): Promise<{ id: number; html_url: string }> {
-    return this.json(installationId, `/repos/${repo}/pulls/${prNumber}/reviews`, {
-      method: 'POST',
-      body: { commit_id: review.commitId, body: review.body, event: 'COMMENT', comments: review.comments },
-    });
+    return this.json(
+      installationId,
+      `/repos/${repo}/pulls/${prNumber}/reviews`,
+      {
+        method: 'POST',
+        body: {
+          commit_id: review.commitId,
+          body: review.body,
+          event: 'COMMENT',
+          comments: review.comments,
+        },
+      },
+    );
   }
 
   listReviews(installationId: InstallationId, repo: string, prNumber: number) {
@@ -204,12 +264,20 @@ export class GithubApiService {
    * `line: null, side: null` for the same comments (found on the testbed: GitHub fills in
    * the anchoring fields only on the PR-level endpoint).
    */
-  async listReviewComments(installationId: InstallationId, repo: string, prNumber: number, reviewId: bigint | number) {
-    const all = await this.paginate<PostedReviewComment & { pull_request_review_id: number | null }>(
-      installationId,
-      `/repos/${repo}/pulls/${prNumber}/comments?per_page=100`,
+  async listReviewComments(
+    installationId: InstallationId,
+    repo: string,
+    prNumber: number,
+    reviewId: bigint | number,
+  ) {
+    const all = await this.paginate<
+      PostedReviewComment & { pull_request_review_id: number | null }
+    >(installationId, `/repos/${repo}/pulls/${prNumber}/comments?per_page=100`);
+    return all.filter(
+      (c) =>
+        c.pull_request_review_id !== null &&
+        BigInt(c.pull_request_review_id) === BigInt(reviewId),
     );
-    return all.filter((c) => c.pull_request_review_id !== null && BigInt(c.pull_request_review_id) === BigInt(reviewId));
   }
 
   /**
@@ -218,7 +286,11 @@ export class GithubApiService {
    * GraphQL, because REST has no notion of a thread: `isOutdated` — GitHub's own answer to
    * "has the commented code changed?" — exists nowhere else, and neither does the thread ID.
    */
-  async listReviewThreads(installationId: InstallationId, repo: string, prNumber: number): Promise<ReviewThread[]> {
+  async listReviewThreads(
+    installationId: InstallationId,
+    repo: string,
+    prNumber: number,
+  ): Promise<ReviewThread[]> {
     const [owner, name] = repo.split('/');
     const query = `query($owner: String!, $name: String!, $number: Int!) {
       repository(owner: $owner, name: $name) {
@@ -230,7 +302,9 @@ export class GithubApiService {
       }
     }`;
     const data = await this.graphql<{
-      repository: { pullRequest: { reviewThreads: { nodes: RawThread[] } } | null } | null;
+      repository: {
+        pullRequest: { reviewThreads: { nodes: RawThread[] } } | null;
+      } | null;
     }>(installationId, query, { owner, name, number: prNumber });
 
     const nodes = data.repository?.pullRequest?.reviewThreads.nodes ?? [];
@@ -256,7 +330,10 @@ export class GithubApiService {
    * unless the App may also *write* repository contents, which a reviewer has no business
    * doing; see docs/decisions.md.
    */
-  async minimizeComment(installationId: InstallationId, commentNodeId: string): Promise<void> {
+  async minimizeComment(
+    installationId: InstallationId,
+    commentNodeId: string,
+  ): Promise<void> {
     const query = `mutation($id: ID!) {
       minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) { minimizedComment { isMinimized } }
     }`;
@@ -277,42 +354,74 @@ export class GithubApiService {
     commentId: bigint,
     etag: string | null,
   ): Promise<CommentReactions> {
-    const response = await this.request(installationId, `/repos/${repo}/pulls/comments/${commentId}/reactions?per_page=100`, {
-      headers: etag ? { 'If-None-Match': etag } : {},
-      allow: [304, 404],
-    });
+    const response = await this.request(
+      installationId,
+      `/repos/${repo}/pulls/comments/${commentId}/reactions?per_page=100`,
+      {
+        headers: etag ? { 'If-None-Match': etag } : {},
+        allow: [304, 404],
+      },
+    );
     if (response.status === 304) return { kind: 'unchanged' };
     if (response.status === 404) return { kind: 'gone' };
 
-    const raw = (await response.json()) as { content: string; created_at: string; user: { id: number; type: string } | null }[];
+    const raw = (await response.json()) as {
+      content: string;
+      created_at: string;
+      user: { id: number; type: string } | null;
+    }[];
     return {
       kind: 'reactions',
       etag: response.headers.get('etag'),
       reactions: raw
         .filter((r) => r.user !== null)
-        .map((r) => ({ content: r.content, createdAt: new Date(r.created_at), user: { id: BigInt(r.user!.id), type: r.user!.type } })),
+        .map((r) => ({
+          content: r.content,
+          createdAt: new Date(r.created_at),
+          user: { id: BigInt(r.user!.id), type: r.user!.type },
+        })),
     };
   }
 
   /** One GraphQL call. GraphQL answers 200 with an `errors` array, so failures are checked here. */
-  async graphql<T>(installationId: InstallationId, query: string, variables: Record<string, unknown> = {}): Promise<T> {
-    const body = await this.json<{ data?: T; errors?: { message: string }[] }>(installationId, '/graphql', {
-      method: 'POST',
-      body: { query, variables },
-    });
+  async graphql<T>(
+    installationId: InstallationId,
+    query: string,
+    variables: Record<string, unknown> = {},
+  ): Promise<T> {
+    const body = await this.json<{ data?: T; errors?: { message: string }[] }>(
+      installationId,
+      '/graphql',
+      {
+        method: 'POST',
+        body: { query, variables },
+      },
+    );
     if (body.errors?.length) {
-      throw new GithubApiError(422, '/graphql', body.errors.map((e) => e.message).join('; '));
+      throw new GithubApiError(
+        422,
+        '/graphql',
+        body.errors.map((e) => e.message).join('; '),
+      );
     }
     return body.data as T;
   }
 
-  async json<T>(installationId: InstallationId, path: string, options: RequestOptions = {}): Promise<T> {
+  async json<T>(
+    installationId: InstallationId,
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<T> {
     const response = await this.request(installationId, path, options);
     return (await response.json()) as T;
   }
 
   /** Follows `Link: <…>; rel="next"` until there is no next page or `max` items are in hand. */
-  async paginate<T>(installationId: InstallationId, path: string, { max = Infinity } = {}): Promise<T[]> {
+  async paginate<T>(
+    installationId: InstallationId,
+    path: string,
+    { max = Infinity } = {},
+  ): Promise<T[]> {
     const items: T[] = [];
     let next: string | null = path;
 
@@ -331,21 +440,34 @@ export class GithubApiService {
    * restored, permissions changed) would otherwise keep failing until its cache TTL ran
    * out.
    */
-  async request(installationId: InstallationId, pathOrUrl: string, options: RequestOptions = {}): Promise<Response> {
-    const path = pathOrUrl.startsWith(GITHUB_API) ? pathOrUrl.slice(GITHUB_API.length) : pathOrUrl;
+  async request(
+    installationId: InstallationId,
+    pathOrUrl: string,
+    options: RequestOptions = {},
+  ): Promise<Response> {
+    const path = pathOrUrl.startsWith(GITHUB_API)
+      ? pathOrUrl.slice(GITHUB_API.length)
+      : pathOrUrl;
 
     let response = await this.send(installationId, path, options);
     if (response.status === 401) {
-      this.logger.warn(`installation ${installationId}: 401 on ${stripQuery(path)}, refreshing the token once`);
+      this.logger.warn(
+        `installation ${installationId}: 401 on ${stripQuery(path)}, refreshing the token once`,
+      );
       await this.tokens.invalidate(installationId);
       response = await this.send(installationId, path, options);
     }
 
-    if (response.ok || options.allow?.includes(response.status)) return response;
+    if (response.ok || options.allow?.includes(response.status))
+      return response;
     throw await failure(response, stripQuery(path));
   }
 
-  private async send(installationId: InstallationId, path: string, options: RequestOptions): Promise<Response> {
+  private async send(
+    installationId: InstallationId,
+    path: string,
+    options: RequestOptions,
+  ): Promise<Response> {
     const token = await this.tokens.getToken(installationId);
     return fetch(`${GITHUB_API}${path}`, {
       method: options.method ?? 'GET',
@@ -354,30 +476,43 @@ export class GithubApiService {
         Authorization: `Bearer ${token}`,
         'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'pr-reviewer',
-        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(options.body === undefined
+          ? {}
+          : { 'Content-Type': 'application/json' }),
         ...options.headers,
       },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
     });
   }
 }
 
 /** Turns a non-2xx response into the right error: rate limited, or failed. */
 async function failure(response: Response, path: string): Promise<Error> {
-  const body = (await response.json().catch(() => ({}))) as { message?: string };
+  const body = (await response.json().catch(() => ({}))) as {
+    message?: string;
+  };
   const message = body.message ?? response.statusText;
 
   if (response.status === 403 || response.status === 429) {
     const retryAfter = response.headers.get('retry-after');
     if (retryAfter !== null) {
-      return new GithubRateLimitError('secondary', new Date(Date.now() + Number(retryAfter) * 1000), path);
+      return new GithubRateLimitError(
+        'secondary',
+        new Date(Date.now() + Number(retryAfter) * 1000),
+        path,
+      );
     }
     if (response.headers.get('x-ratelimit-remaining') === '0') {
       const reset = Number(response.headers.get('x-ratelimit-reset')) * 1000;
       return new GithubRateLimitError('primary', new Date(reset), path);
     }
     if (/secondary rate limit/i.test(message)) {
-      return new GithubRateLimitError('secondary', new Date(Date.now() + SECONDARY_LIMIT_FALLBACK_MS), path);
+      return new GithubRateLimitError(
+        'secondary',
+        new Date(Date.now() + SECONDARY_LIMIT_FALLBACK_MS),
+        path,
+      );
     }
   }
 

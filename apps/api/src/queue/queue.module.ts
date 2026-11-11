@@ -22,7 +22,9 @@ import { REVIEW_QUEUE, reviewJobOptions } from '../reviews/review-queue.js';
       name: REVIEW_QUEUE,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        defaultJobOptions: reviewJobOptions(config.getOrThrow<number>('queue.retryDelayMs')),
+        defaultJobOptions: reviewJobOptions(
+          config.getOrThrow<number>('queue.retryDelayMs'),
+        ),
       }),
     }),
   ],

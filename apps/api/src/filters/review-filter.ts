@@ -1,7 +1,8 @@
 import type { DiffFile } from '../diff/diff.types.js';
 
 /** Why a file never reaches the reviewer. */
-export type SkipReason = 'lockfile' | 'generated' | 'vendored' | 'removed' | 'binary' | 'no-changes';
+export type SkipReason =
+  'lockfile' | 'generated' | 'vendored' | 'removed' | 'binary' | 'no-changes';
 
 export interface SkippedFile {
   path: string;
@@ -96,7 +97,10 @@ export function filterFileList<T extends ChangedFile>(
   const skipped: SkippedFile[] = [];
 
   for (const file of files) {
-    const reason = file.status === 'removed' ? 'removed' : matchRule(file.filename, config.rules);
+    const reason =
+      file.status === 'removed'
+        ? 'removed'
+        : matchRule(file.filename, config.rules);
     if (reason) skipped.push({ path: file.filename, reason });
     else kept.push(file);
   }
@@ -127,14 +131,18 @@ export function filterDiffFiles(
   for (const file of files) {
     if (!keep.has(file.path)) continue; // dropped in stage one, already reported there
     if (file.binary) skipped.push({ path: file.path, reason: 'binary' });
-    else if (file.hunks.length === 0) skipped.push({ path: file.path, reason: 'no-changes' });
+    else if (file.hunks.length === 0)
+      skipped.push({ path: file.path, reason: 'no-changes' });
     else kept.push(file);
   }
 
   return { kept, skipped };
 }
 
-function matchRule(path: string, rules: PathRule[]): PathRule['reason'] | undefined {
+function matchRule(
+  path: string,
+  rules: PathRule[],
+): PathRule['reason'] | undefined {
   const segments = path.split('/');
   const name = segments.at(-1)!;
   const directories = segments.slice(0, -1);

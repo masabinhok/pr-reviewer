@@ -26,7 +26,9 @@ export class GithubRateLimitError extends Error {
     readonly retryAt: Date,
     readonly path: string,
   ) {
-    super(`GitHub ${kind} rate limit on ${path}; retry at ${retryAt.toISOString()}`);
+    super(
+      `GitHub ${kind} rate limit on ${path}; retry at ${retryAt.toISOString()}`,
+    );
     this.name = 'GithubRateLimitError';
   }
 }

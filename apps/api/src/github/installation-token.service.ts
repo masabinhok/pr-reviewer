@@ -12,7 +12,9 @@ const CACHE_SKEW_SECONDS = 60;
 
 export type InstallationId = bigint | number | string;
 
-export function installationTokenCacheKey(installationId: InstallationId): string {
+export function installationTokenCacheKey(
+  installationId: InstallationId,
+): string {
   return `gh:itoken:${installationId}`;
 }
 
@@ -36,7 +38,9 @@ export class InstallationTokenService {
 
     const cached = await this.redis.get(key);
     if (cached) {
-      this.logger.debug(`installation ${installationId}: served ${redactToken(cached)} from cache`);
+      this.logger.debug(
+        `installation ${installationId}: served ${redactToken(cached)} from cache`,
+      );
       return cached;
     }
 
@@ -44,12 +48,16 @@ export class InstallationTokenService {
 
     // Redis evicts the key before GitHub expires the token, so "near expiry" needs no
     // check of its own: past the skew window the next call is simply a miss.
-    const ttl = Math.floor((expiresAt.getTime() - Date.now()) / 1000) - CACHE_SKEW_SECONDS;
+    const ttl =
+      Math.floor((expiresAt.getTime() - Date.now()) / 1000) -
+      CACHE_SKEW_SECONDS;
     if (ttl > 0) {
       await this.redis.set(key, token, 'EX', ttl);
     }
 
-    this.logger.log(`installation ${installationId}: minted ${redactToken(token)}, cached for ${Math.max(ttl, 0)}s`);
+    this.logger.log(
+      `installation ${installationId}: minted ${redactToken(token)}, cached for ${Math.max(ttl, 0)}s`,
+    );
     return token;
   }
 
@@ -62,28 +70,38 @@ export class InstallationTokenService {
     await this.redis.del(installationTokenCacheKey(installationId));
   }
 
-  private async exchange(installationId: InstallationId): Promise<{ token: string; expiresAt: Date }> {
-    const response = await fetch(`${GITHUB_API}/app/installations/${installationId}/access_tokens`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${this.appJwt.mint()}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'pr-reviewer',
+  private async exchange(
+    installationId: InstallationId,
+  ): Promise<{ token: string; expiresAt: Date }> {
+    const response = await fetch(
+      `${GITHUB_API}/app/installations/${installationId}/access_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${this.appJwt.mint()}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'pr-reviewer',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       // Only GitHub's `message` goes into the error — never the request, which carries
       // the JWT in its Authorization header.
-      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
       throw new Error(
         `GitHub refused an installation token for installation ${installationId}: ` +
           `${response.status} ${body.message ?? response.statusText}`,
       );
     }
 
-    const body = (await response.json()) as { token: string; expires_at: string };
+    const body = (await response.json()) as {
+      token: string;
+      expires_at: string;
+    };
     return { token: body.token, expiresAt: new Date(body.expires_at) };
   }
 }

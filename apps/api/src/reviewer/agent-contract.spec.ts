@@ -17,24 +17,48 @@ import type { PullRequestFile } from '../github/github-api.service.js';
  * must map cleanly back through AgentReviewer and validateFindings.
  */
 
-const contract = (name: string) => fileURLToPath(new URL(`../../../../contracts/${name}`, import.meta.url));
-const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../../test/fixtures/${name}`, import.meta.url)), 'utf8');
+const contract = (name: string) =>
+  fileURLToPath(new URL(`../../../../contracts/${name}`, import.meta.url));
+const fixture = (name: string) =>
+  readFileSync(
+    fileURLToPath(new URL(`../../test/fixtures/${name}`, import.meta.url)),
+    'utf8',
+  );
 
 const sync = JSON.parse(fixture('pull_request.synchronize.json'));
-const files = JSON.parse(fixture('diffs/pr3-synchronize.files.json')) as PullRequestFile[];
+const files = JSON.parse(
+  fixture('diffs/pr3-synchronize.files.json'),
+) as PullRequestFile[];
 const listed = filterFileList(files);
-const kept = filterDiffFiles(parseDiff(fixture('diffs/pr3-synchronize.diff')), new Set(listed.kept.map((f) => f.filename))).kept;
+const kept = filterDiffFiles(
+  parseDiff(fixture('diffs/pr3-synchronize.diff')),
+  new Set(listed.kept.map((f) => f.filename)),
+).kept;
 const lines = new LineMap(kept);
 
-function reviewer(): { reviewer: AgentReviewer; fetchMock: ReturnType<typeof vi.fn> } {
+function reviewer(): {
+  reviewer: AgentReviewer;
+  fetchMock: ReturnType<typeof vi.fn>;
+} {
   const fetchMock = vi.fn().mockImplementation(
-    async () => new Response(readFileSync(contract('review-response.json')), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    async () =>
+      new Response(readFileSync(contract('review-response.json')), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
   );
   vi.stubGlobal('fetch', fetchMock);
   const config = {
-    getOrThrow: (key: string) => ({ 'agent.url': 'http://agent.test', 'agent.sharedSecret': 's', 'agent.timeoutMs': 1000 })[key],
+    getOrThrow: (key: string) =>
+      ({
+        'agent.url': 'http://agent.test',
+        'agent.sharedSecret': 's',
+        'agent.timeoutMs': 1000,
+      })[key],
   } as unknown as ConfigService;
-  const tokens = { getToken: async () => 'ghs_placeholder_for_tests' } as unknown as InstallationTokenService;
+  const tokens = {
+    getToken: async () => 'ghs_placeholder_for_tests',
+  } as unknown as InstallationTokenService;
   return { reviewer: new AgentReviewer(config, tokens), fetchMock };
 }
 
@@ -68,9 +92,14 @@ describe('API ↔ agent contract', () => {
 
     const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
     if (process.env.UPDATE_CONTRACT) {
-      writeFileSync(contract('review-request.json'), JSON.stringify(sent, null, 2) + '\n');
+      writeFileSync(
+        contract('review-request.json'),
+        JSON.stringify(sent, null, 2) + '\n',
+      );
     }
-    expect(sent).toEqual(JSON.parse(readFileSync(contract('review-request.json'), 'utf8')));
+    expect(sent).toEqual(
+      JSON.parse(readFileSync(contract('review-request.json'), 'utf8')),
+    );
   });
 
   it('understands the response the agent’s models produce', async () => {
@@ -78,13 +107,25 @@ describe('API ↔ agent contract', () => {
 
     const result = await review(r);
 
-    expect(result.run).toMatchObject({ model: 'claude-opus-5', outcome: 'submitted', turns: 6, toolCalls: 5, verifyCalls: 4 });
-    expect(result.dropped).toEqual([expect.objectContaining({ finding: expect.objectContaining({ file: 'src/auth.ts', line: 20 }) })]);
+    expect(result.run).toMatchObject({
+      model: 'claude-opus-5',
+      outcome: 'submitted',
+      turns: 6,
+      toolCalls: 5,
+      verifyCalls: 4,
+    });
+    expect(result.dropped).toEqual([
+      expect.objectContaining({
+        finding: expect.objectContaining({ file: 'src/auth.ts', line: 20 }),
+      }),
+    ]);
     expect(result.run?.usage.costUsd).toBeCloseTo(0.0921);
     // Every finding in the agent's sample is on a real line of that PR, so all survive.
     const { accepted, dropped } = validateFindings(result.findings, lines);
     expect(dropped).toEqual([]);
-    expect(accepted.map((f) => [f.path, f.line, f.severity, f.verdict])).toEqual([
+    expect(
+      accepted.map((f) => [f.path, f.line, f.severity, f.verdict]),
+    ).toEqual([
       ['src/auth.ts', 26, 'HIGH', 'CONFIRMED'],
       ['src/new-feature.ts', 2, 'MEDIUM', 'CONFIRMED'],
       ['src/helpers.ts', 10, 'LOW', 'UNSURE'],

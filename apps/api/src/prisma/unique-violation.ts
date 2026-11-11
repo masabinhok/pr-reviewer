@@ -1,7 +1,9 @@
 import { Prisma } from '../generated/prisma/client.js';
 
 export function isUniqueViolation(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+  return (
+    e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'
+  );
 }
 
 /**
@@ -13,7 +15,9 @@ export function isUniqueViolation(e: unknown): boolean {
  * `where`. On the second run the read finds the winner's row and the upsert becomes an
  * update. One retry is enough: the row cannot un-exist between the two runs.
  */
-export async function retryOnUniqueViolation<T>(write: () => Promise<T>): Promise<T> {
+export async function retryOnUniqueViolation<T>(
+  write: () => Promise<T>,
+): Promise<T> {
   try {
     return await write();
   } catch (e) {

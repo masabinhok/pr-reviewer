@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
-import { INestApplication, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/configure-app.js';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { InstallationsService } from '../src/installations/installations.service.js';
 import { DeliveryStatus } from '../src/generated/prisma/client.js';
@@ -17,7 +19,7 @@ import { truncateAll } from './helpers/db.js';
  * (test/fixtures, via `npm run capture:fixtures`), sent byte-for-byte.
  */
 describe('POST /webhooks/github (e2e)', () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
@@ -27,7 +29,10 @@ describe('POST /webhooks/github (e2e)', () => {
 
     // Same option main.ts passes to NestFactory. Without it req.rawBody is undefined and
     // every request 401s — which is exactly what this suite would then catch.
-    app = moduleRef.createNestApplication({ rawBody: true });
+    app = moduleRef.createNestApplication<NestExpressApplication>({
+      rawBody: true,
+    });
+    configureApp(app);
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -108,6 +113,16 @@ describe('POST /webhooks/github (e2e)', () => {
 
     it('rejects a delivery with no signature header', async () => {
       await deliver('pull_request', body, { signature: null }).expect(401);
+    });
+
+    // Express's default JSON limit is 100 kB; a pull request with a long body or many
+    // labels goes past it, and GitHub never retries the 413.
+    it('accepts a correctly signed delivery larger than 100 kB', async () => {
+      const large = JSON.stringify({ zen: 'x'.repeat(200_000) });
+
+      await deliver('ping', large)
+        .expect(200)
+        .expect({ ok: true, handled: false });
     });
 
     // Wrong length is the case that used to crash timingSafeEqual into a 500.

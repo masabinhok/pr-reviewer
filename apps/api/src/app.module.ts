@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
 import {z} from 'zod';
 import { HealthModule } from './health/health.module.js';
@@ -28,7 +26,5 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
     envFilePath: '../../.env',
     isGlobal: true
   }), HealthModule, WebhooksModule, GithubModule, FeedbackModule, DashboardModule],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

@@ -5,6 +5,12 @@ import { HealthService } from './health.service.js';
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
+  // No database or Redis call: an uptime ping here must not keep a scale-to-zero database awake.
+  @Get()
+  getRoot() {
+    return { name: 'pr-reviewer', health: '/healthz' };
+  }
+
   @Get('healthz')
   async getHealth() {
     const { healthy, checks } = await this.healthService.check();

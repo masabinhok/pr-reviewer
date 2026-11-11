@@ -330,3 +330,37 @@ running. Stage 8's GIF needs either you or the browser extension.
    contents.
 4. Whether the README and portfolio say "built with AI pair-programming". My recommendation is
    yes, in one line.
+
+---
+
+## Implementation notes (Stages 1–5, 2026-11-11)
+
+Where the work departed from the plan above, and why:
+
+- **Stage 1:** `GET /` lives on `HealthController`, so there's no new module. The generator-comment
+  removal is its own commit, and `X-Powered-By` got its own commit too.
+- **Stage 2:** Prettier needed a second pass on 3 files before `--check` was stable. Both passes are
+  in the one formatting commit.
+- **Stage 3:**
+  - The test needs the server's headers 2.5 s late, not 0.5 s, because undici checks timeouts
+    about once a second. I confirmed it fails without the fix (`UND_ERR_HEADERS_TIMEOUT`).
+  - `undici` is pinned to major 6, the copy Node 22's fetch uses, so its `Agent` is the same
+    dispatcher interface.
+  - The 304 s live repro wasn't re-run; the unit test exercises the same mechanism.
+  - The app setup moved into `configureApp` (`src/configure-app.ts`), so the e2e suite tests what
+    `main.ts` runs.
+- **Stage 4:** `npm update` and `npm audit fix` both crashed npm 10's resolver (`edgesOut`). The
+  cause was the split vitest majors (api on 4, web on 5.0.1). I aligned both on 5 and regenerated
+  `package-lock.json` within the existing ranges, using npm 11 to resolve it and npm 10 `npm ci` to
+  install, as CI does. The result is 0 npm and 0 pip-audit vulnerabilities.
+- **Stage 5:**
+  - **Migrations:** Render's pre-deploy command is paid-only, so `prisma migrate deploy` runs at
+    container start (about 3 s to ready with nothing pending), and `prisma` moved to
+    `dependencies`.
+  - **Variables:** `DIRECT_DATABASE_URL` is the migrate URL. The `POSTGRES_*` variables were removed
+    from the API's schema, not made optional, because the API never reads them.
+  - **Health check:** Render's health check uses `/`, not `/healthz`. Render polls it, and
+    `/healthz` queries Postgres, which would keep Neon awake.
+  - **Image:** 927 MB, mostly the Prisma CLI kept for the migrate-at-start step.
+  - **Still unverified:** whether Neon's scale-to-zero counts open idle pool connections. Watch the
+    CU-hours in the first week.

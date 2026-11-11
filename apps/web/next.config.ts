@@ -5,6 +5,8 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // next dev would otherwise write AGENTS.md and CLAUDE.md into apps/web when it detects an agent.
+  agentRules: false,
 };
 
 export default config;

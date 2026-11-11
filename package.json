@@ -1,29 +1,19 @@
 {
   "name": "pr-reviewer",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm test --workspaces",
     "tunnel": "dotenv -- sh -c 'npx smee-client@5 -u $SMEE_URL -t http://localhost:3333/webhooks/github'",
     "agent": "cd apps/agent && uv run python -m pr_agent",
     "agent:eval": "AGENT_TARBALL_CACHE=\"$PWD/evals/.cache\" npm run agent",
     "agent:model": "ollama create pr-reviewer:qwen2.5-7b -f apps/agent/ollama/Modelfile",
     "web": "npm run dev -w web"
   },
-  "keywords": [],
-  "author": "",
   "license": "MIT",
   "private": true,
   "workspaces": [
     "apps/*"
   ],
-  "dependencies": {
-    "zod": "^4.5.2"
-  },
   "devDependencies": {
     "dotenv-cli": "^11.0.0"
   }

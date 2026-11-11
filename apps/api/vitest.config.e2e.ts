@@ -1,9 +1,7 @@
 import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
 import { TEST_WEBHOOK_SECRET, testDatabaseUrl, testRedisUrl } from './test/helpers/test-env.js';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
   test: {
     globals: true,
     root: './',

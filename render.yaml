@@ -1,0 +1,60 @@
+# Render Blueprint for the hosted demo: the API (with its worker) and the queue, both free.
+# Postgres is Neon's free tier; the dashboard is on Vercel. The AI agent isn't hosted: the
+# demo runs the deterministic stub reviewer (see README, "Live demo").
+services:
+  - type: web
+    name: pr-reviewer-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    # Not /healthz: Render checks every few seconds, and /healthz queries Postgres, which
+    # would keep Neon's free compute awake around the clock.
+    healthCheckPath: /
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+      ignoredPaths:
+        - apps/api/test/**
+        - apps/api/**/*.spec.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REVIEWER
+        value: stub
+      # The stub's findings are medium or low; at the default (high) the demo posts nothing.
+      - key: POST_MIN_SEVERITY
+        value: low
+      # Hourly, not every 5 minutes: each poll wakes Neon, and its free compute is 100 h a month.
+      - key: FEEDBACK_POLL_MS
+        value: "3600000"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: pr-reviewer-queue
+          property: connectionString
+      # Secrets: Render asks for these when the Blueprint is first created.
+      - key: DATABASE_URL # Neon, pooled
+        sync: false
+      - key: DIRECT_DATABASE_URL # Neon, direct: prisma migrate runs at start
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_CLIENT_ID
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY_BASE64
+        sync: false
+      - key: DASHBOARD_TOKEN
+        sync: false
+
+  - type: keyvalue
+    name: pr-reviewer-queue
+    plan: free
+    # BullMQ requires it: an evicted key is a lost or corrupted job.
+    maxmemoryPolicy: noeviction
+    # Reachable only from services in this Render workspace.
+    ipAllowList: []

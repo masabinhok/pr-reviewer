@@ -61,6 +61,7 @@ jobs:
       - name: A throwaway GitHub App key (the API parses one at boot)
         run: echo "GITHUB_APP_PRIVATE_KEY_BASE64=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null | base64 -w0)" >> "$GITHUB_ENV"
       - run: npm run lint
+      - run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
       - run: npx tsc --noEmit
       - run: npm test
       - name: The e2e database (init.sql creates it locally)

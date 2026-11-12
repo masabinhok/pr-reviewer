@@ -179,6 +179,7 @@ Measured on the demo: [PR #8](https://github.com/masabinhok/pr-reviewer-testbed/
 ## More
 
 - [`docs/decisions.md`](docs/decisions.md): why things are the way they are.
+- [`docs/portfolio.md`](docs/portfolio.md): the project in one page, with its numbers.
 - [`docs/journal/`](docs/journal/): the build journal, milestone by milestone, from 2026-08-28.
   The code was written with AI pair-programming.
 - [MIT license](LICENSE).

@@ -65,7 +65,7 @@ The full diagram and every hop are in [`docs/architecture.md`](docs/architecture
 
 ## Measured, honestly
 
-Measured on 29 real pull requests with known answers: 20 bug fixes from 8 open-source projects,
+Measured on 29 real pull requests with known answers: 19 bug fixes from 8 open-source projects,
 **reversed** so that the reviewed change reintroduces the bug, 1 planted-bug pull request, and 9
 clean changes. Each was reviewed 3 times, for 87 reviews, by the local `qwen2.5:7b` model on an
 8 GB GPU.

@@ -125,7 +125,7 @@ them from `apps/api`; each builds first.
 
 ## The evaluation
 
-`evals/fixtures/` holds 29 real pull requests with known answers: 20 real bug fixes from
+`evals/fixtures/` holds 29 real pull requests with known answers: 19 real bug fixes from
 open-source repositories, **reversed** so the reviewed change reintroduces the bug, the testbed's
 planted-bugs PR, and 9 merged changes believed clean. Each says where it came from and how its
 answer was decided ([`evals/README.md`](../evals/README.md)).

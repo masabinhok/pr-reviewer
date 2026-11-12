@@ -7,8 +7,10 @@ import { testDatabaseUrl, testRedisUrl } from './helpers/test-env.js';
  * from an empty test Redis — no queued jobs or cached tokens left by an earlier run.
  */
 export default async function setup() {
+  // Both: prisma7.config.ts prefers DIRECT_DATABASE_URL, which in a .env may be a hosted database.
+  const url = testDatabaseUrl();
   execSync('npx prisma migrate deploy', {
-    env: { ...process.env, DATABASE_URL: testDatabaseUrl() },
+    env: { ...process.env, DATABASE_URL: url, DIRECT_DATABASE_URL: url },
     stdio: 'pipe',
   });
 

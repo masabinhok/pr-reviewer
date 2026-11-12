@@ -193,6 +193,15 @@ describe('renderCheck', () => {
       expect(medium.output.summary).toContain(
         'Posted 1 comment on the pull request in [a review](https://x/r); high and medium severity only.',
       );
+      const low = renderCheck(completed, HEAD, {
+        posted: 1,
+        url: 'https://x/r',
+        minSeverity: Severity.LOW,
+        repeated: 0,
+      });
+      expect(low.output.summary).toContain(
+        'Posted 1 comment on the pull request in [a review](https://x/r).',
+      );
     });
 
     it('says what was not posted again because an earlier review already commented on it', () => {

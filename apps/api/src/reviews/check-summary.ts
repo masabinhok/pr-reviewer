@@ -133,7 +133,9 @@ function publicationNote(
   }
   const comments = `${publication.posted} comment${publication.posted === 1 ? '' : 's'}`;
   const where = publication.url ? `[a review](${publication.url})` : 'a review';
-  return `Posted ${comments} on the pull request in ${where}; ${bar} only.${already}\n\n`;
+  // At the low bar every finding is posted; "every severity only" says nothing.
+  const scope = publication.minSeverity === 'LOW' ? '' : `; ${bar} only`;
+  return `Posted ${comments} on the pull request in ${where}${scope}.${already}\n\n`;
 }
 
 /** Comments from earlier reviews that this one retired, because their code is gone. */

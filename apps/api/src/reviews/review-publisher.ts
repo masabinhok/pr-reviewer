@@ -195,10 +195,10 @@ export function reviewBody(
   lowCount: number,
   marker: string,
 ): string {
-  const high = postable.filter((f) => f.severity === Severity.HIGH).length;
-  const medium = postable.length - high;
-  const counts = [high && `${high} high`, medium && `${medium} medium`]
-    .filter(Boolean)
+  const counts = [Severity.HIGH, Severity.MEDIUM, Severity.LOW]
+    .map((s) => [s, postable.filter((f) => f.severity === s).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([s, n]) => `${n} ${s.toLowerCase()}`)
     .join(', ');
   const low = lowCount
     ? ` ${lowCount} lower-severity note${lowCount === 1 ? ' is' : 's are'} in the pr-reviewer check.`

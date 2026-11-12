@@ -136,6 +136,19 @@ describe('ReviewPublisher', () => {
     });
   });
 
+  // The demo posts at the low bar; its stub's console.log finding is low, not medium.
+  it('counts low findings as low when the bar lets them through', async () => {
+    await withBar(Severity.LOW).publish(target, [
+      finding(Severity.MEDIUM, { line: 18 }),
+      finding(Severity.LOW, { line: 28, category: 'debugging' }),
+    ]);
+
+    const [, , , review] = github.createReview.mock.calls[0];
+    expect(review.body).toBe(
+      `pr-reviewer found 2 issues (1 medium, 1 low).\n\n${reviewMarker('rev-1')}`,
+    );
+  });
+
   describe('findings an earlier review already commented on', () => {
     it('are not posted again, and are counted', async () => {
       const again = finding(Severity.HIGH, {

@@ -278,7 +278,7 @@ anything Stage 6 measures is added then.
   - built with AI pair-programming; say so plainly, the history shows it
 - **Deployed:** the free setup above, and what's live versus local.
 - **Real numbers:**
-  - 29 PRs with known answers: 20 reversed bug fixes from 8 open-source projects, 1 planted-bug
+  - 29 PRs with known answers: 19 reversed bug fixes from 8 open-source projects, 1 planted-bug
     PR, 9 clean
   - 87 reviews per evaluation; posted recall 2%, 0.04 false comments per clean PR; kept recall 21%
   - median review 26 s on an 8 GB GPU, $0
@@ -364,3 +364,30 @@ Where the work departed from the plan above, and why:
   - **Image:** 927 MB, mostly the Prisma CLI kept for the migrate-at-start step.
   - **Still unverified:** whether Neon's scale-to-zero counts open idle pool connections. Watch the
     CU-hours in the first week.
+
+## Implementation notes (Stages 6–9, 2026-11-12)
+
+- **Stage 6:**
+  - The demo App is `pr-reviewer-demo-1`, and the Render service is `pr-reviewer-api-jous`.
+  - Webhooks failed at first because the App's URL still had the guessed service name, and the App
+    wasn't installed.
+  - GitHub Actions is blocked by an account billing lock, so the keep-alive runs on cron-job.org.
+    The workflow takes over once Actions is unlocked.
+  - Verified: 10 s from opening a PR to a finished Check Run (testbed PR #8), no duplicate on a
+    second push, and a redelivery with no side effects. Fork PRs are left "not verified", the
+    user's choice.
+- **Stage 7:**
+  - `agentResult` is kept, not dropped, because the dashboard reads the model, turns and refuted
+    findings from it.
+  - The local database was read through a `pg_dump` copy, never touched.
+  - 24 reviews were exported. The 3 on `pr-reviewer` aren't seeded, because the demo App isn't
+    installed there (the user's choice).
+  - The work surfaced a bug: the e2e setup migrated whatever `DIRECT_DATABASE_URL` named. Fixed.
+- **Stage 8:**
+  - The GIF's screenshots surfaced another bug: the review body called low findings "medium" at
+    the low bar. Fixed.
+  - The README and this plan said "20 reversed bug fixes"; the fixtures hold 19, plus 1 planted.
+    Corrected.
+  - The Playwright tools needed a Chrome that isn't installed, so the screenshots came from
+    Playwright's cached Chromium in headless mode.
+- **Stage 9:** `docs/portfolio.md`. Every number was re-measured from its source.

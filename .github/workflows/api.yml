@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/api.yml'
+  workflow_dispatch:
 
 concurrency:
   group: api-${{ github.ref }}
